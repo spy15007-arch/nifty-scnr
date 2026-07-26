@@ -1,9 +1,7 @@
 """
-Headless Nifty 500 momentum scanner for GitHub Actions.
-Runs daily after market close, writes results to scan_results.csv
-and a human-readable results.md summary.
+India Momentum Scanner - standalone script for GitHub Actions.
+Scans the Nifty 500 daily and writes results to scan_results.csv
 """
-
 import io
 import time
 import numpy as np
@@ -13,22 +11,22 @@ import yfinance as yf
 
 CONFIG = {
     "min_price": 20,
-    "rs_min_percentile": 70,
+    "rs_min_percentile": 40,
     "base_lookback_days": 25,
-    "tight_range_pct": 20,
+    "tight_range_pct": 25,
     "tight_vol_contraction": False,
-    "pct_above_52w_low": 20,
-    "pct_below_52w_high": 30,
-    "min_eps_growth": 15,
-    "min_sales_growth": 10,
+    "pct_above_52w_low": 15,
+    "pct_below_52w_high": 35,
+    "min_eps_growth": 10,
+    "min_sales_growth": 5,
     "benchmark": "^NSEI",
 }
 
 
-def load_nifty500_tickers():
+def load_nifty500():
     url = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
     headers = {"User-Agent": "Mozilla/5.0"}
-    resp = requests.get(url, headers=headers, timeout=20)
+    resp = requests.get(url, headers=headers, timeout=30)
     df = pd.read_csv(io.StringIO(resp.text))
     return [s.strip() + ".NS" for s in df["Symbol"]]
 
@@ -132,7 +130,7 @@ def fundamentals_pass(ticker):
 
 def main():
     print("Loading Nifty 500 list...")
-    tickers = load_nifty500_tickers()
+    tickers = load_nifty500()
     print(len(tickers), "tickers loaded")
 
     print("Downloading benchmark:", CONFIG["benchmark"])
@@ -167,8 +165,8 @@ def main():
             "tight_base": base_ok,
             "base_range_pct": base_info.get("base_range_pct"),
             "up_down_vol_ratio": accum,
-            "eps_growth_pct": fund_info["eps_growth_pct"],
-            "sales_growth_pct": fund_info["sales_growth_pct"],
+            "eps_growth_pct": round(fund_info["eps_growth_pct"], 1) if fund_info["eps_growth_pct"] is not None else None,
+            "sales_growth_pct": round(fund_info["sales_growth_pct"], 1) if fund_info["sales_growth_pct"] is not None else None,
             "fundamentals_pass": fund_ok,
         })
         print("OK")
@@ -185,22 +183,57 @@ def main():
         df_res = df_res.sort_values(["final_candidate", "rs_rating"], ascending=[False, False])
 
     df_res.to_csv("scan_results.csv", index=False)
-
     candidates = df_res[df_res["final_candidate"]] if not df_res.empty else df_res
-    today = pd.Timestamp.now().strftime("%Y-%m-%d")
-    with open("results.md", "w") as f:
-        f.write("# Scan results — " + today + "\n\n")
-        f.write("Scanned " + str(len(tickers)) + " stocks, " + str(len(df_res))
-                + " passed trend template, " + str(len(candidates)) + " full candidates.\n\n")
-        if not candidates.empty:
-            f.write(candidates[[
-                "ticker", "price", "rs_rating", "pct_below_52w_high", "base_range_pct",
-                "up_down_vol_ratio", "eps_growth_pct", "sales_growth_pct"
-            ]].to_markdown(index=False))
-        else:
-            f.write("No full candidates today.\n")
+    candidates.to_csv("candidates.csv", index=False)
 
-    print("Done. candidates:", len(candidates))
+    write_summary_md(candidates, len(tickers), len(df_res))
+
+    print("Scanned", len(tickers), "- passed trend template:", len(df_res))
+    print("Full candidates:", len(candidates))
+
+
+def write_summary_md(candidates, total_scanned, trend_passed):
+    from datetime import datetime
+
+    lines = []
+    lines.append("# Daily Scan Summary")
+    lines.append("")
+    lines.append("Last run: " + datetime.now().strftime("%Y-%m-%d %H:%M") + " IST")
+    lines.append("")
+    lines.append("Scanned " + str(total_scanned) + " stocks - "
+                  + str(trend_passed) + " in uptrend - "
+                  + str(len(candidates)) + " full candidates")
+    lines.append("")
+
+    if candidates.empty:
+        lines.append("No candidates passed every filter today.")
+    else:
+        lines.append("| Stock | Price | RS Rating | % Off High | Base Tightness % | Buy/Sell Volume | EPS Growth % | Sales Growth % |")
+        lines.append("|---|---|---|---|---|---|---|---|")
+        for _, row in candidates.iterrows():
+            name = str(row["ticker"]).replace(".NS", "")
+            eps = row["eps_growth_pct"]
+            sales = row["sales_growth_pct"]
+            eps_str = str(round(eps, 1)) if pd.notna(eps) else "-"
+            sales_str = str(round(sales, 1)) if pd.notna(sales) else "-"
+            lines.append(
+                "| " + name
+                + " | " + str(round(row["price"], 1))
+                + " | " + str(row["rs_rating"])
+                + " | " + str(row["pct_below_52w_high"])
+                + " | " + str(row["base_range_pct"])
+                + " | " + str(row["up_down_vol_ratio"])
+                + " | " + eps_str
+                + " | " + sales_str
+                + " |"
+            )
+        lines.append("")
+        lines.append("Sorted by RS Rating (higher = stronger vs Nifty). "
+                      "Lower base tightness % = calmer consolidation. "
+                      "Buy/Sell volume above 1 = more buying pressure.")
+
+    with open("summary.md", "w") as f:
+        f.write("\n".join(lines))
 
 
 if __name__ == "__main__":
