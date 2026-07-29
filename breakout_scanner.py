@@ -215,9 +215,7 @@ def main():
   def write_summary(shortlist, total_scanned):
     from datetime import datetime
     from zoneinfo import ZoneInfo
-
     ist_now = datetime.now(ZoneInfo("Asia/Kolkata"))
-
     lines = []
     lines.append("# BTST Breakout-Readiness Scan")
     lines.append("")
