@@ -194,11 +194,15 @@ def main():
 
 def write_summary_md(candidates, total_scanned, trend_passed):
     from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    ist_now = datetime.now(ZoneInfo("Asia/Kolkata"))
 
     lines = []
     lines.append("# Daily Scan Summary")
     lines.append("")
-    lines.append("Last run: " + datetime.now().strftime("%Y-%m-%d %H:%M") + " IST")
+    lines.append("Last run: " + ist_now.strftime("%Y-%m-%d %H:%M") + " IST")
+
     lines.append("")
     lines.append("Scanned " + str(total_scanned) + " stocks - "
                   + str(trend_passed) + " in uptrend - "
