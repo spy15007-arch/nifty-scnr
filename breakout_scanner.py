@@ -203,7 +203,7 @@ def main():
     df_res = pd.DataFrame(results)
     if not df_res.empty:
         df_res = df_res.sort_values(["score", "composite_score"], ascending=[False, False])
-
+    df_res.insert(0, "rank", range(1, len(df_res) + 1))
     df_res.to_csv("breakout_scan_full.csv", index=False)
     shortlist = df_res[df_res["score"] >= CONFIG["min_score_to_list"]] if not df_res.empty else df_res
     shortlist.to_csv("breakout_shortlist.csv", index=False)
@@ -233,12 +233,13 @@ def write_summary(shortlist, total_scanned):
     if shortlist.empty:
         lines.append("No stocks scored 6 or higher today.")
     else:
-        lines.append("| Stock | Price | Score /10 | Composite /100 | Close Position % | Vol vs 50d Avg | Base Range % | RS Edge % | Resistance Clearance % |")
-        lines.append("|---|---|---|---|---|---|---|---|---|")
-        for _, row in shortlist.iterrows():
+        lines.append("| Rank | Stock | Price | Score /10 | Composite /100 | Close Position % | Vol vs 50d Avg | Base Range % | RS Edge % | Resistance Clearance % |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|")
+        for i, (_, row) in enumerate(shortlist.iterrows(), start=1):
             name = str(row["ticker"]).replace(".NS", "")
             lines.append(
-                "| " + name
+                "| " + str(i)
+                + " | " + name
                 + " | " + str(row["price"])
                 + " | " + str(row["score"])
                 + " | " + str(row["composite_score"])
