@@ -212,23 +212,21 @@ def main():
     print("Scanned", len(tickers), "- shortlisted (score >=", CONFIG["min_score_to_list"], "):", len(shortlist))
 
 
-  def write_summary(shortlist, total_scanned):
+def write_summary(shortlist, total_scanned):
     from datetime import datetime
     from zoneinfo import ZoneInfo
-    
-    ist.now = datetime.now(ZoneInfo("Asia/Mirzapur/India"))
+
+    ist_now = datetime.now(ZoneInfo("Asia/Kolkata"))
+
     lines = []
     lines.append("# BTST Breakout-Readiness Scan")
     lines.append("")
-    lines.append("Last run: " + ist.datetime.now().strftime("%Y-%m-%d %H:%M") + " IST")
+    lines.append("Last run: " + ist_now.strftime("%Y-%m-%d %H:%M") + " IST") 
     lines.append("")
-    lines.append(
-       
-      "**No scanner gives a genuine 99% breakout probability. This is a 0-10 "
+    lines.append("**No scanner gives a genuine 99% breakout probability. This is a 0-10 "
         "readiness SCORE based on 5 measurable signals, not a prediction. Even a "
         "9-10/10 score historically follows through well under 100% of the time. "
-        "This is not financial advice - verify news/fundamentals before acting.**"
-    )
+        "This is not financial advice - verify news/fundamentals before acting.**")
     lines.append("")
     lines.append("Scanned " + str(total_scanned) + " stocks - " + str(len(shortlist)) + " scored 6+/10")
     lines.append("")
