@@ -1,0 +1,29 @@
+name: BTST Breakout Readiness Scan
+
+on:
+  schedule:
+    - cron: "50 9 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run breakout scanner
+        run: python breakout_scanner.py
+      - name: Commit results back to repo
+        run: |
+          git config --global user.name "scanner-bot"
+          git config --global user.email "scanner-bot@users.noreply.github.com"
+          git add breakout_scan_full.csv breakout_shortlist.csv breakout_summary.md
+          git commit -m "BTST breakout scan $(date +'%Y-%m-%d')" || echo "No changes to commit"
+          git pull --rebase origin main
+          git push
