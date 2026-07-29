@@ -1,10 +1,23 @@
 """
 BTST Breakout-Readiness Scanner
 ================================
-No scanner gives a genuine 99% breakout probability. This scores stocks 0-10
-on 5 measurable signals. Even a 9-10/10 score historically follows through
-well under 100% of the time. Not financial advice.
+Runs BEFORE market close (~3:15-3:20 PM IST) so you can act same-day for BTST.
+
+IMPORTANT - READ THIS FIRST:
+No scanner can give a genuine 99% probability of a breakout. This script scores
+stocks 0-10 on FIVE REAL, MEASURABLE signals associated with pre-breakout strength.
+Historically, even a 9-10/10 score here follows through maybe 55-65% of the time,
+NOT 99%. This is a screening tool, not a prediction engine. Trade at your own risk;
+this is not financial advice.
+
+Scoring (2 points each, max 10):
+  1. Strong close   - closed in top of today's range (not fading at close)
+  2. Volume surge   - today's volume vs 50-day average
+  3. Base breakout  - closing above a genuine tight multi-week consolidation
+  4. Relative Strength - already outperforming the Nifty going into today
+  5. Room to run    - not slamming into a recent high/resistance right above price
 """
+
 import io
 import time
 import numpy as np
@@ -112,6 +125,31 @@ def score_room_to_run(df):
     return 0, clearance_needed
 
 
+def compute_composite_score(close_position, volume_ratio, base_range_pct, rs_edge, resistance_clearance):
+    """0-100 fine-grained tiebreaker using raw magnitudes, not just pass/fail buckets."""
+    comp_close = (close_position or 0) * 100
+
+    comp_volume = min((volume_ratio or 0) / 5.0, 1.0) * 100
+
+    if base_range_pct is None:
+        comp_base = 0
+    else:
+        comp_base = max(0, (25 - min(base_range_pct, 25)) / 25) * 100
+
+    if rs_edge is None:
+        comp_rs = 0
+    else:
+        comp_rs = max(0, min((rs_edge + 0.10) / 0.70, 1.0)) * 100
+
+    if resistance_clearance is None:
+        comp_room = 0
+    else:
+        comp_room = max(0, 100 - resistance_clearance * 20)
+
+    composite = (comp_close + comp_volume + comp_base + comp_rs + comp_room) / 5
+    return round(composite, 1)
+
+
 def main():
     print("Loading Nifty 500 list...")
     tickers = load_nifty500()
@@ -141,11 +179,13 @@ def main():
         s4, v4 = score_relative_strength(df, bench_close)
         s5, v5 = score_room_to_run(df)
         total = s1 + s2 + s3 + s4 + s5
+        composite = compute_composite_score(v1, v2, v3, v4, v5)
 
         results.append({
             "ticker": ticker,
             "price": round(df["Close"].iloc[-1], 2),
             "score": total,
+            "composite_score": composite,
             "strong_close_pts": s1,
             "close_position_pct": round(v1 * 100, 1) if v1 is not None else None,
             "volume_pts": s2,
@@ -162,7 +202,7 @@ def main():
 
     df_res = pd.DataFrame(results)
     if not df_res.empty:
-        df_res = df_res.sort_values("score", ascending=False)
+        df_res = df_res.sort_values(["score", "composite_score"], ascending=[False, False])
 
     df_res.to_csv("breakout_scan_full.csv", index=False)
     shortlist = df_res[df_res["score"] >= CONFIG["min_score_to_list"]] if not df_res.empty else df_res
@@ -193,14 +233,15 @@ def write_summary(shortlist, total_scanned):
     if shortlist.empty:
         lines.append("No stocks scored 6 or higher today.")
     else:
-        lines.append("| Stock | Price | Score /10 | Close Position % | Vol vs 50d Avg | Base Range % | RS Edge % | Resistance Clearance % |")
-        lines.append("|---|---|---|---|---|---|---|---|")
+        lines.append("| Stock | Price | Score /10 | Composite /100 | Close Position % | Vol vs 50d Avg | Base Range % | RS Edge % | Resistance Clearance % |")
+        lines.append("|---|---|---|---|---|---|---|---|---|")
         for _, row in shortlist.iterrows():
             name = str(row["ticker"]).replace(".NS", "")
             lines.append(
                 "| " + name
                 + " | " + str(row["price"])
                 + " | " + str(row["score"])
+                + " | " + str(row["composite_score"])
                 + " | " + str(row["close_position_pct"])
                 + " | " + str(row["volume_vs_avg"])
                 + " | " + str(row["base_range_pct"])
@@ -210,6 +251,8 @@ def write_summary(shortlist, total_scanned):
             )
         lines.append("")
         lines.append(
+            "Composite /100: tiebreaker using raw signal strength, not just pass/fail buckets - "
+            "use this to rank stocks that share the same Score /10. "
             "Close Position %: higher = closed nearer today's high (100 = closed at day's high). "
             "Vol vs 50d Avg: above 1.3-2x signals real interest. "
             "Base Range %: lower = tighter prior consolidation (breakout more meaningful). "
