@@ -1,37 +1,53 @@
 # BTST Breakout-Readiness Scan
 
-Last run: 2026-07-29 03:35 IST
+Last run: 2026-07-29 03:50 IST
 
 **No scanner gives a genuine 99% breakout probability. This is a 0-10 readiness SCORE based on 5 measurable signals, not a prediction. Even a 9-10/10 score historically follows through well under 100% of the time. This is not financial advice - verify news/fundamentals before acting.**
 
-Scanned 500 stocks - 25 scored 6+/10
+Scanned 500 stocks - 41 scored 6+/10
 
-| Stock | Price | Score /10 | Composite /100 | Close Position % | Vol vs 50d Avg | Base Range % | RS Edge % | Resistance Clearance % |
-|---|---|---|---|---|---|---|---|---|
-| COFORGE | 1686.0 | 10 | 82.9 | 94.6 | 4.8 | 12.4 | 41.4 | 0.0 |
-| LAURUSLABS | 1758.9 | 10 | 72.5 | 94.3 | 2.04 | 18.2 | 60.4 | 0.0 |
-| ETERNAL | 308.35 | 10 | 64.2 | 89.6 | 2.25 | 16.0 | 25.3 | 0.0 |
-| RADICO | 4289.7 | 9 | 75.0 | 77.7 | 4.66 | 11.8 | 26.0 | 0.0 |
-| CUB | 238.14 | 9 | 70.0 | 73.6 | 8.07 | 15.9 | 18.0 | 0.0 |
-| IEX | 132.11 | 9 | 69.8 | 93.5 | 3.23 | 8.5 | 7.6 | 0.0 |
-| TITAN | 4849.7 | 9 | 62.1 | 93.0 | 1.58 | 11.2 | 11.4 | 0.0 |
-| TVSMOTOR | 3993.5 | 9 | 62.0 | 94.7 | 1.78 | 13.9 | 14.8 | 0.0 |
-| TECHM | 1635.2 | 9 | 56.4 | 81.9 | 2.03 | 18.7 | 14.3 | 0.0 |
-| RRKABEL | 2576.9 | 8 | 72.4 | 23.4 | 5.82 | 15.4 | 64.9 | 0.0 |
-| LODHA | 1301.4 | 8 | 70.9 | 83.0 | 4.61 | 34.0 | 45.4 | 0.0 |
-| MARICO | 883.25 | 8 | 65.6 | 89.5 | 1.24 | 5.3 | 14.4 | 0.0 |
-| KALYANKJIL | 608.35 | 8 | 61.9 | 94.2 | 1.63 | 68.0 | 47.8 | 0.0 |
-| UNITDSPR | 1508.8 | 8 | 60.0 | 91.5 | 0.96 | 11.6 | 15.1 | 0.0 |
-| SUNPHARMA | 1976.7 | 8 | 54.0 | 26.2 | 2.01 | 6.2 | 10.0 | 0.0 |
-| IDFCFIRSTB | 85.75 | 7 | 60.9 | 53.5 | 1.95 | 9.1 | 23.6 | 0.0 |
-| PPLPHARMA | 193.43 | 7 | 57.4 | 84.3 | 1.03 | 15.2 | 19.9 | 0.0 |
-| MANAPPURAM | 361.25 | 7 | 56.7 | 78.1 | 0.71 | 14.1 | 23.4 | 0.0 |
-| BAJAJFINSV | 1927.9 | 7 | 55.9 | 58.7 | 1.34 | 9.0 | 10.9 | 0.0 |
-| FEDERALBNK | 357.25 | 7 | 55.9 | 65.5 | 0.5 | 11.4 | 24.9 | 0.0 |
-| CONCOR | 522.4 | 7 | 51.1 | 65.8 | 3.52 | 13.1 | 3.1 | 2.4 |
-| BPCL | 320.05 | 6 | 58.1 | 77.5 | 0.67 | 6.2 | 7.0 | 0.0 |
-| PIDILITIND | 1619.6 | 6 | 57.8 | 41.0 | 1.19 | 4.3 | 19.0 | 0.0 |
-| GODREJPROP | 2136.6 | 6 | 51.4 | 90.9 | 1.34 | 20.9 | 17.4 | 0.8 |
-| PERSISTENT | 5428.4 | 6 | 42.5 | 51.7 | 1.36 | 23.0 | 13.9 | 0.4 |
+| Rank | Stock | Price | Score /10 | Composite /100 | Close Position % | Vol vs 50d Avg | Base Range % | RS Edge % | Resistance Clearance % |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | CARTRADE | 3041.9 | 8 | 67.2 | 92.4 | 0.06 | 14.4 | 86.6 | 0.0 |
+| 2 | APOLLOHOSP | 8955.0 | 8 | 63.4 | 100.0 | 0.02 | 5.3 | 16.4 | 0.0 |
+| 3 | TATACAP | 371.55 | 8 | 60.2 | 93.9 | 0.49 | 8.1 | 10.9 | 0.0 |
+| 4 | FEDERALBNK | 359.0 | 8 | 58.7 | 85.2 | 0.02 | 10.2 | 24.3 | 0.0 |
+| 5 | EICHERMOT | 7888.0 | 8 | 57.3 | 96.4 | 0.04 | 9.8 | 10.1 | 0.0 |
+| 6 | IIFL | 586.3 | 8 | 55.0 | 90.0 | 0.04 | 17.1 | 26.9 | 0.0 |
+| 7 | ETERNAL | 314.45 | 8 | 52.9 | 92.2 | 0.17 | 20.9 | 26.5 | 0.0 |
+| 8 | TVSMOTOR | 4052.2 | 8 | 52.8 | 89.4 | 0.16 | 16.1 | 15.2 | 0.0 |
+| 9 | PIDILITIND | 1627.4 | 7 | 60.8 | 82.4 | 0.03 | 4.9 | 18.3 | 0.0 |
+| 10 | UNOMINDA | 1181.1 | 7 | 58.8 | 100.0 | 0.04 | 7.2 | 5.5 | 0.0 |
+| 11 | BHARTIARTL | 1937.0 | 7 | 58.5 | 96.0 | 0.05 | 5.9 | 3.1 | 0.0 |
+| 12 | LALPATHLAB | 1830.1 | 7 | 55.8 | 66.4 | 0.05 | 12.6 | 33.4 | 0.0 |
+| 13 | USHAMART | 516.95 | 7 | 54.6 | 90.1 | 0.1 | 10.5 | 13.6 | 0.6 |
+| 14 | FSL | 277.26 | 7 | 53.5 | 94.2 | 0.34 | 16.7 | 28.8 | 1.1 |
+| 15 | COFORGE | 1739.6 | 7 | 53.2 | 75.0 | 0.24 | 23.0 | 44.6 | 0.0 |
+| 16 | RKFORGE | 637.0 | 7 | 52.6 | 91.0 | 0.07 | 12.9 | 5.8 | 0.0 |
+| 17 | DIVISLAB | 7511.0 | 7 | 49.9 | 67.9 | 0.06 | 13.7 | 14.6 | 0.0 |
+| 18 | BAJAJ-AUTO | 11441.0 | 7 | 48.8 | 76.1 | 0.03 | 17.2 | 15.3 | 0.0 |
+| 19 | M&M | 3309.8 | 6 | 55.8 | 100.0 | 0.05 | 7.7 | 7.1 | 0.8 |
+| 20 | SAREGAMA | 519.7 | 6 | 55.5 | 52.6 | 0.03 | 15.4 | 50.3 | 0.0 |
+| 21 | RRKABEL | 2602.0 | 6 | 55.3 | 44.8 | 0.13 | 17.7 | 65.2 | 0.0 |
+| 22 | SUNPHARMA | 1982.0 | 6 | 55.1 | 73.6 | 0.01 | 6.4 | 9.1 | 0.0 |
+| 23 | MANKIND | 2627.8 | 6 | 54.9 | 56.4 | 0.04 | 4.8 | 15.6 | 0.0 |
+| 24 | NESTLEIND | 1499.5 | 6 | 54.3 | 87.2 | 0.03 | 8.5 | 2.5 | 0.0 |
+| 25 | SAILIFE | 1298.1 | 6 | 53.3 | 52.8 | 0.03 | 7.6 | 20.6 | 0.0 |
+| 26 | GLAXO | 2649.3 | 6 | 53.2 | 62.5 | 0.03 | 8.4 | 15.5 | 0.0 |
+| 27 | LAURUSLABS | 1761.3 | 6 | 52.2 | 45.7 | 0.07 | 21.3 | 59.3 | 0.0 |
+| 28 | IDFCFIRSTB | 85.76 | 6 | 49.7 | 42.4 | 0.04 | 10.2 | 22.3 | 0.0 |
+| 29 | HEXT | 600.9 | 6 | 49.5 | 48.2 | 0.13 | 17.2 | 35.9 | 0.0 |
+| 30 | PVRINOX | 1126.85 | 6 | 47.5 | 83.0 | 0.06 | 16.8 | 4.6 | 0.0 |
+| 31 | UNITDSPR | 1514.3 | 6 | 46.3 | 49.1 | 0.04 | 13.3 | 14.3 | 0.0 |
+| 32 | BAJAJFINSV | 1936.8 | 6 | 45.9 | 38.8 | 0.03 | 9.7 | 10.1 | 0.0 |
+| 33 | MANAPPURAM | 362.5 | 6 | 45.7 | 39.7 | 0.02 | 14.5 | 22.5 | 0.0 |
+| 34 | NH | 2075.6 | 6 | 45.3 | 20.1 | 0.02 | 8.2 | 16.9 | 0.0 |
+| 35 | RADICO | 4296.4 | 6 | 45.3 | 20.5 | 0.7 | 14.4 | 25.0 | 0.0 |
+| 36 | ACE | 1070.3 | 6 | 45.1 | 22.4 | 0.05 | 10.1 | 19.7 | 0.0 |
+| 37 | PPLPHARMA | 194.6 | 6 | 44.9 | 45.5 | 0.06 | 16.0 | 19.4 | 0.0 |
+| 38 | KARURVYSYA | 339.9 | 6 | 41.6 | 42.1 | 0.01 | 17.8 | 15.9 | 0.0 |
+| 39 | LATENTVIEW | 317.25 | 6 | 36.9 | 91.7 | 0.06 | 18.8 | 7.7 | 2.9 |
+| 40 | NAUKRI | 1249.0 | 6 | 36.5 | 21.6 | 0.03 | 23.5 | 28.0 | 0.0 |
+| 41 | TECHM | 1656.0 | 6 | 29.1 | 1.5 | 0.08 | 23.2 | 14.5 | 0.0 |
 
 Composite /100: tiebreaker using raw signal strength, not just pass/fail buckets - use this to rank stocks that share the same Score /10. Close Position %: higher = closed nearer today's high (100 = closed at day's high). Vol vs 50d Avg: above 1.3-2x signals real interest. Base Range %: lower = tighter prior consolidation (breakout more meaningful). RS Edge %: stock's 3-month return minus Nifty's 3-month return. Resistance Clearance %: 0 means today made a new high (max room); higher numbers mean an old high is close overhead.
