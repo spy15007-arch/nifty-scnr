@@ -212,13 +212,16 @@ def main():
     print("Scanned", len(tickers), "- shortlisted (score >=", CONFIG["min_score_to_list"], "):", len(shortlist))
 
 
-def write_summary(shortlist, total_scanned):
+  def write_summary(shortlist, total_scanned):
     from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    ist_now = datetime.now(ZoneInfo("Asia/Kolkata"))
 
     lines = []
     lines.append("# BTST Breakout-Readiness Scan")
     lines.append("")
-    lines.append("Last run: " + datetime.now().strftime("%Y-%m-%d %H:%M") + " IST")
+    lines.append("Last run: " + ist_now.strftime("%Y-%m-%d %H:%M") + " IST")
     lines.append("")
     lines.append(
         "**No scanner gives a genuine 99% breakout probability. This is a 0-10 "
