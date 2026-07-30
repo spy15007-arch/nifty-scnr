@@ -1,6 +1,6 @@
 # BTST Breakout-Readiness Scan
 
-Last run: 2026-07-30 16:53 IST
+Last run: 2026-07-30 21:37 IST
 
 **No scanner gives a genuine 99% breakout probability. This is a 0-10 readiness SCORE based on 5 measurable signals, not a prediction. Even a 9-10/10 score historically follows through well under 100% of the time. This is not financial advice - verify news/fundamentals before acting.**
 
