@@ -1,6 +1,6 @@
 # Daily Scan Summary
 
-Last run: 2026-07-30 16:56 IST
+Last run: 2026-07-30 22:38 IST
 
 Scanned 500 stocks - 79 in uptrend - 34 full candidates
 
