@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+market_data/
+ai/artifacts/
+reports/output/
+*.parquet
+.DS_Store
+venv/
+.venv/
