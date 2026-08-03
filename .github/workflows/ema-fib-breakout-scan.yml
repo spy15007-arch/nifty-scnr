@@ -1,7 +1,12 @@
 name: EMA-Fib Breakout Scan
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      test_limit:
+        description: 'Limit scan to N symbols (leave blank for full 500)'
+        required: false
+        default: '10'
   schedule:
     # 09:20 IST daily on weekdays = 03:50 UTC. Adjust to match when you
     # want it to run relative to NSE market open (09:15 IST).
@@ -23,10 +28,15 @@ jobs:
       - name: Run breakout scan
         env:
           TRADING_BROKER: angelone
+          TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
           ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+          MSTOCK_CLIENT_ID: ${{ secrets.MSTOCK_CLIENT_ID }}
+          MSTOCK_PASSWORD: ${{ secrets.MSTOCK_PASSWORD }}
+          MSTOCK_API_KEY: ${{ secrets.MSTOCK_API_KEY }}
+          MSTOCK_TOTP_SECRET: ${{ secrets.MSTOCK_TOTP_SECRET }}
           KITE_API_KEY: ${{ secrets.KITE_API_KEY }}
           KITE_ACCESS_TOKEN: ${{ secrets.KITE_ACCESS_TOKEN }}
           DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
