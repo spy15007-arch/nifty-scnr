@@ -9,6 +9,7 @@ layer is pointed at a real vendor.
 """
 import argparse
 import logging
+import os
 
 from data.historical import BrokerHistoricalStore
 from data.universe import load_universe
@@ -35,6 +36,15 @@ def _get_store() -> BrokerHistoricalStore:
 
 def cmd_scan(args):
     universe = load_universe()
+
+    # test mode: set TRADING_TEST_LIMIT to a small number (e.g. 10) to
+    # scan only that many symbols - much faster for debugging the
+    # pipeline without waiting on all 500 rate-limited API calls
+    test_limit = os.getenv("TRADING_TEST_LIMIT")
+    if test_limit:
+        universe = universe[: int(test_limit)]
+        logger.info(f"TEST MODE: limiting universe to {len(universe)} symbols")
+
     store = _get_store()
     bars = store.get_universe_bars(universe, lookback_days=250)
     benchmark = store.get_bars(config.RS_BENCHMARK, lookback_days=250)
