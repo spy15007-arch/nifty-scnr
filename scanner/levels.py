@@ -9,8 +9,10 @@ Target methodology (in order of preference):
   2. The nearest round-number / psychological level above each fib
      target (round numbers act as real resistance because that's
      where retail limit orders and mental stops cluster)
-  Each target = whichever of (fib extension, round level) is further
-  out than the previous target, so T1 < T2 < T3 always holds.
+  Each target also has a minimum reward:risk floor (T1 >= 1:1,
+  T2 >= T1 + 1.5x risk, T3 >= T2 + 1.5x risk) so a target never ends
+  up sitting uselessly close to entry just because a round number
+  happened to land nearby.
 
 Stop = below the breakout trigger by an ATR-based buffer, OR below the
 most recent swing low, whichever is tighter (closer) - keeps risk
@@ -38,11 +40,6 @@ class TradeLevels:
 
 
 def _nearest_round_level(price: float) -> float:
-    """
-    Picks a sensible round-number step based on price magnitude, then
-    rounds UP to the nearest one - these act as real psychological
-    resistance (round rupee levels, round 50s, etc.)
-    """
     if price < 100:
         step = 5
     elif price < 500:
@@ -65,18 +62,14 @@ def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: f
     if pd.isna(atr) or atr <= 0:
         return None
 
-    # Entry trigger: breakout above recent resistance, with a small
-    # buffer so it's not triggered by a single tick poking through.
     entry_trigger = round(resistance * 1.002, 2)
 
-    # Stop: tighter of (ATR-based buffer below trigger) vs (recent swing low)
     atr_stop = entry_trigger - (atr * atr_stop_mult)
     swing_low = df["low"].tail(lookback).min()
     stop_loss = round(max(atr_stop, swing_low), 2)
     if stop_loss >= entry_trigger:
         return None
 
-    # Fibonacci extension targets off the most recent swing
     levels = fibonacci_levels(df, lookback)
     swing_range = levels["0.0"] - levels["1.0"]
     fib_ext_272 = entry_trigger + swing_range * 0.272
@@ -84,15 +77,16 @@ def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: f
     fib_ext_1000 = entry_trigger + swing_range * 1.000
 
     round_1 = _nearest_round_level(entry_trigger)
-    target_1 = round(max(min(fib_ext_272, round_1), entry_trigger * 1.005), 2)
+    target_1_candidate = min(fib_ext_272, round_1)
+    risk = entry_trigger - stop_loss
+    target_1 = round(max(target_1_candidate, entry_trigger + risk), 2)
 
     round_2 = _nearest_round_level(max(fib_ext_618, target_1 * 1.01))
-    target_2 = round(max(fib_ext_618, round_2, target_1 * 1.015), 2)
+    target_2 = round(max(fib_ext_618, round_2, target_1 + risk * 1.5), 2)
 
     round_3 = _nearest_round_level(max(fib_ext_1000, target_2 * 1.01))
-    target_3 = round(max(fib_ext_1000, round_3, target_2 * 1.02), 2)
+    target_3 = round(max(fib_ext_1000, round_3, target_2 + risk * 1.5), 2)
 
-    risk = entry_trigger - stop_loss
     rr1 = round((target_1 - entry_trigger) / risk, 2) if risk > 0 else 0
     rr2 = round((target_2 - entry_trigger) / risk, 2) if risk > 0 else 0
     rr3 = round((target_3 - entry_trigger) / risk, 2) if risk > 0 else 0
@@ -100,7 +94,8 @@ def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: f
     basis = (
         f"trigger = {lookback}d resistance +0.2% buffer; "
         f"stop = tighter of {atr_stop_mult}x ATR or {lookback}d swing low; "
-        f"targets = Fib extension (27.2%/61.8%/100%) blended with nearest round levels"
+        f"targets = Fib extension (27.2%/61.8%/100%) blended with nearest round levels, "
+        f"minimum 1:1/2.5:1/4:1 reward:risk floors"
     )
 
     return TradeLevels(
