@@ -37,9 +37,6 @@ def _get_store() -> BrokerHistoricalStore:
 def cmd_scan(args):
     universe = load_universe()
 
-    # test mode: set TRADING_TEST_LIMIT to a small number (e.g. 10) to
-    # scan only that many symbols - much faster for debugging the
-    # pipeline without waiting on all 500 rate-limited API calls
     test_limit = os.getenv("TRADING_TEST_LIMIT")
     if test_limit:
         universe = universe[: int(test_limit)]
@@ -50,16 +47,14 @@ def cmd_scan(args):
     benchmark = store.get_bars(config.RS_BENCHMARK, lookback_days=250)
 
     engine = ScannerEngine()
-    # scan a wider pool than the final target count, since some candidates
-    # will get dropped below for having no valid trade levels (insufficient
-    # history, bad stop math, etc.) - keeps the final list at 20-25 usable names
     candidates = engine.scan_universe(bars, benchmark, top_n=40)
     logger.info(f"Scanner flagged {len(candidates)} candidates")
 
     model = None
     try:
-        model = BreakoutModel()
-        model.load()
+        candidate_model = BreakoutModel()
+        candidate_model.load()
+        model = candidate_model
     except FileNotFoundError:
         logger.warning("No trained model found - reporting scanner scores only (run `train` first for AI probabilities)")
 
@@ -72,7 +67,6 @@ def cmd_scan(args):
         execution = classify_trade_style(df, feats, levels)
         recs.append(explain(cand.symbol, prob, feats, levels, execution))
 
-    # keep only names with valid, actionable trade levels; cap at 25
     recs = [r for r in recs if r.levels is not None]
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
@@ -99,8 +93,6 @@ def cmd_options(args):
             logger.warning(f"{index_symbol}: insufficient history, skipping")
             continue
 
-        # relative-strength filter is meaningless against itself, so
-        # features/levels are computed directly off the index bars
         feats = build_features(df, df)
         levels = compute_trade_levels(df)
         execution = classify_trade_style(df, feats, levels)
