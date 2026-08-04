@@ -3,15 +3,12 @@ Entry point. Three modes:
   python main.py scan       -> run scanner + AI on universe, write daily report
   python main.py backtest   -> run backtester over stored historical data
   python main.py train      -> train the breakout model on stored history
-
-Wire your real symbol universe / live feed in here once the data
-layer is pointed at a real vendor.
 """
 import argparse
 import logging
 import os
 
-from data.historical import BrokerHistoricalStore
+from data.historical import AngelOneHistoricalStore
 from data.universe import load_universe
 from scanner.engine import ScannerEngine
 from scanner.levels import compute_trade_levels
@@ -29,9 +26,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _get_store() -> BrokerHistoricalStore:
-    cross = config.CROSS_CHECK_BROKER or None
-    return BrokerHistoricalStore(primary=config.BROKER, cross_check_broker=cross)
+def _get_store() -> AngelOneHistoricalStore:
+    return AngelOneHistoricalStore()
 
 
 def cmd_scan(args):
