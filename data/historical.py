@@ -76,58 +76,24 @@ class TimescaleStore(HistoricalStore):
         out.to_sql("bars", self.engine, if_exists="append", index_label="ts")
 
 
-class BrokerHistoricalStore(HistoricalStore):
+class AngelOneHistoricalStore(HistoricalStore):
     """
-    Pulls bars live from a broker API each call instead of a DB - the
-    right fit for a scheduled GitHub Action scan (no persistent
-    infrastructure to maintain). Supports Zerodha Kite, Angel One, and
-    Dhan. Set `cross_check_broker` to fetch from a second broker too
-    and flag mismatches, which catches bad data from either feed
-    before it reaches the scanner.
+    Pulls bars live from Angel One's API each call instead of a DB -
+    the right fit for a scheduled GitHub Action scan (no persistent
+    infrastructure to maintain).
     """
 
-    def __init__(self, primary: str = "angelone", cross_check_broker: str | None = None):
+    def __init__(self):
         import config
-        self.primary = primary
-        self.cross_check_broker = cross_check_broker
-        self._clients: dict[str, object] = {}
+        from data.brokers.angelone_client import AngelOneDataClient
 
-        for name in {primary, cross_check_broker} - {None}:
-            self._clients[name] = self._make_client(name, config)
-
-    @staticmethod
-    def _make_client(name: str, config):
-        if name == "kite":
-            from data.brokers.kite_client import KiteDataClient
-            return KiteDataClient(config.KITE_API_KEY, config.KITE_ACCESS_TOKEN)
-        if name == "angelone":
-            from data.brokers.angelone_client import AngelOneDataClient
-            return AngelOneDataClient(
-                config.ANGEL_API_KEY, config.ANGEL_CLIENT_ID,
-                config.ANGEL_PASSWORD, config.ANGEL_TOTP_SECRET,
-            )
-        if name == "dhan":
-            from data.brokers.dhan_client import DhanDataClient
-            return DhanDataClient(config.DHAN_CLIENT_ID, config.DHAN_ACCESS_TOKEN)
-        if name == "groww":
-            from data.brokers.groww_client import GrowwDataClient
-            return GrowwDataClient(config.GROWW_API_KEY, config.GROWW_API_SECRET)
-        raise ValueError(f"Unknown broker: {name}")
+        self._client = AngelOneDataClient(
+            config.ANGEL_API_KEY, config.ANGEL_CLIENT_ID,
+            config.ANGEL_PASSWORD, config.ANGEL_TOTP_SECRET,
+        )
 
     def get_bars(self, symbol: str, lookback_days: int) -> pd.DataFrame:
-        df = self._clients[self.primary].get_historical_bars(symbol, days=lookback_days)
-
-        if self.cross_check_broker:
-            check_df = self._clients[self.cross_check_broker].get_historical_bars(symbol, days=lookback_days)
-            if not df.empty and not check_df.empty:
-                latest_diff = abs(df["close"].iloc[-1] - check_df["close"].iloc[-1]) / df["close"].iloc[-1]
-                if latest_diff > 0.02:
-                    import logging
-                    logging.getLogger(__name__).warning(
-                        f"{symbol}: {self.primary} vs {self.cross_check_broker} close differ by "
-                        f"{latest_diff:.1%} - check feed"
-                    )
-        return df
+        return self._client.get_historical_bars(symbol, days=lookback_days)
 
     def save_bars(self, symbol: str, df: pd.DataFrame):
-        raise NotImplementedError("BrokerHistoricalStore is read-through; use ParquetStore to persist bars")
+        raise NotImplementedError("AngelOneHistoricalStore is read-through; use ParquetStore to persist bars")
