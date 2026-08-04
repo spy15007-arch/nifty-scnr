@@ -6,28 +6,14 @@ import os
 
 # --- Data source ---
 # Set these as env vars, never hardcode keys.
-BROKER = os.getenv("TRADING_BROKER", "angelone")  # angelone | kite | dhan | groww
+BROKER = "angelone"
 PAPER_TRADING = os.getenv("TRADING_PAPER", "true").lower() == "true"
-CROSS_CHECK_BROKER = os.getenv("TRADING_CROSS_CHECK_BROKER", "")  # e.g. "kite" to cross-check angelone against kite
-
-# Zerodha Kite Connect (access token expires daily - see data/brokers/kite_client.py)
-KITE_API_KEY = os.getenv("KITE_API_KEY", "")
-KITE_API_SECRET = os.getenv("KITE_API_SECRET", "")
-KITE_ACCESS_TOKEN = os.getenv("KITE_ACCESS_TOKEN", "")
 
 # Angel One SmartAPI (TOTP-based login, safe to fully automate)
 ANGEL_API_KEY = os.getenv("ANGEL_API_KEY", "")
 ANGEL_CLIENT_ID = os.getenv("ANGEL_CLIENT_ID", "")
 ANGEL_PASSWORD = os.getenv("ANGEL_PASSWORD", "")
 ANGEL_TOTP_SECRET = os.getenv("ANGEL_TOTP_SECRET", "")
-
-# Dhan (DhanHQ) - long-lived token generated manually from the Dhan dashboard
-DHAN_CLIENT_ID = os.getenv("DHAN_CLIENT_ID", "")
-DHAN_ACCESS_TOKEN = os.getenv("DHAN_ACCESS_TOKEN", "")
-
-# Groww API (TOTP-based login, safe to fully automate)
-GROWW_API_KEY = os.getenv("GROWW_API_KEY", "")
-GROWW_API_SECRET = os.getenv("GROWW_API_SECRET", "")
 
 # Telegram notifications for scan results
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -54,11 +40,9 @@ NEAR_RESISTANCE_PCT = 0.03         # within 3% of N-bar high counts as "coiled a
 RESISTANCE_LOOKBACK = 50
 
 # --- Index options ---
-# WARNING: exact tradingsymbol strings for indices differ per broker
-# (e.g. Kite may want "NIFTY 50" on the indices segment, others differ).
-# Verify each string against your chosen broker's instrument master
-# before relying on this - a wrong symbol will just fail to fetch, not
-# silently return the wrong data, but confirm anyway.
+# WARNING: exact tradingsymbol strings for indices - verify against
+# Angel One's instrument master before relying on this; a wrong symbol
+# will just fail to fetch, not silently return wrong data, but confirm.
 INDEX_UNIVERSE = os.getenv("TRADING_INDEX_UNIVERSE", "NIFTY,BANKNIFTY,FINNIFTY").split(",")
 
 # --- Risk / OMS ---
