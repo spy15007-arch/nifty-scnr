@@ -34,8 +34,23 @@ class AngelOneDataClient:
         import requests
 
         if not self._instrument_cache:
-            url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
-            data = requests.get(url, timeout=30).json()
+            urls = [
+                "https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json",
+                "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json",
+            ]
+            data = None
+            last_error = None
+            for url in urls:
+                try:
+                    resp = requests.get(url, timeout=30)
+                    data = resp.json()
+                    break
+                except Exception as e:
+                    last_error = e
+                    continue
+            if data is None:
+                raise RuntimeError(f"Could not fetch Angel One instrument master from either URL: {last_error}")
+
             for row in data:
                 if row.get("exch_seg") == exchange:
                     self._instrument_cache[row["symbol"]] = row["token"]
