@@ -1,10 +1,9 @@
 """
 Reports. Three kinds:
   1. Daily scan report - what the scanner/AI flagged today, why, and
-     exactly how/when to execute (entry/stop/3 targets + NSE timing)
+     exactly how/when to execute (entry/stop/5 targets + NSE timing)
   2. Portfolio report - current holdings, exposure, P&L
   3. Calibration report - did "high probability" picks actually work?
-     (this is the report that keeps you honest about the AI layer)
 """
 from __future__ import annotations
 import pandas as pd
@@ -12,6 +11,11 @@ from datetime import date
 from pathlib import Path
 
 from ai.explain import Recommendation
+
+
+def _targets_line(targets: list[float], risk_rewards: list[float]) -> str:
+    parts = [f"T{i+1} **{t}** (R:R {rr})" for i, (t, rr) in enumerate(zip(targets, risk_rewards))]
+    return " | ".join(parts)
 
 
 def daily_scan_report(recommendations: list[Recommendation], out_dir: str = "./reports/output") -> str:
@@ -39,12 +43,8 @@ def daily_scan_report(recommendations: list[Recommendation], out_dir: str = "./r
             lines.append(f"### {rec.symbol} — {rec.probability:.0%} breakout probability")
             if rec.levels:
                 lv = rec.levels
-                lines.append(
-                    f"**Trade plan:** buy trigger **{lv.entry_trigger}** | stop **{lv.stop_loss}** | "
-                    f"T1 **{lv.target_1}** (R:R {lv.risk_reward_1}) | "
-                    f"T2 **{lv.target_2}** (R:R {lv.risk_reward_2}) | "
-                    f"T3 **{lv.target_3}** (R:R {lv.risk_reward_3})"
-                )
+                lines.append(f"**Trade plan:** buy trigger **{lv.entry_trigger}** | stop **{lv.stop_loss}**")
+                lines.append(_targets_line(lv.targets, lv.risk_rewards))
                 lines.append(f"*Basis: {lv.basis}*")
             if rec.execution:
                 ex = rec.execution
@@ -63,24 +63,29 @@ def daily_scan_report(recommendations: list[Recommendation], out_dir: str = "./r
 
 
 def daily_options_report(plans: list, out_dir: str = "./reports/output") -> str:
-    from scanner.index_options import IndexOptionPlan
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     path = f"{out_dir}/options_{date.today().isoformat()}.md"
 
-    lines = [f"# Index Options Report — {date.today().isoformat()}", "",
-             f"**{len(plans)} index setups found**", ""]
+    by_index: dict[str, list] = {}
     for plan in plans:
-        lines.append(f"## {plan.index} — {plan.direction}")
-        lines.append(f"**Strike:** {plan.suggested_strike} ({plan.strike_type})")
-        lines.append(
-            f"**Spot plan:** entry above **{plan.spot_entry}** | stop **{plan.spot_stop}** | "
-            f"T1 **{plan.spot_target_1}** | T2 **{plan.spot_target_2}** | T3 **{plan.spot_target_3}**"
-        )
-        lines.append(f"**Timing (IST):** entry {plan.execution.entry_window_ist} | exit {plan.execution.exit_window_ist}")
-        lines.append("**Caveats:**")
-        for c in plan.caveats:
-            lines.append(f"- {c}")
-        lines.append("")
+        by_index.setdefault(plan.index, []).append(plan)
+
+    lines = [f"# Index Options Report — {date.today().isoformat()}", "",
+             f"**{len(plans)} setup(s) across {len(by_index)} index(es)**", ""]
+
+    for index_symbol, index_plans in by_index.items():
+        lines.append(f"## {index_symbol}")
+        for plan in index_plans:
+            lines.append(f"### {plan.direction}")
+            lines.append(f"**Strike:** {plan.suggested_strike} ({plan.strike_type})")
+            lines.append(f"**Spot plan:** entry **{plan.spot_entry}** | stop **{plan.spot_stop}**")
+            lines.append(_targets_line(plan.spot_targets, plan.risk_rewards))
+            lines.append(f"**Timing (IST):** entry {plan.execution.entry_window_ist} | exit {plan.execution.exit_window_ist}")
+            lines.append(f"*{plan.execution.reasoning}*")
+            lines.append("**Caveats:**")
+            for c in plan.caveats:
+                lines.append(f"- {c}")
+            lines.append("")
 
     Path(path).write_text("\n".join(lines))
     return path
@@ -108,11 +113,6 @@ def portfolio_report(portfolio, out_dir: str = "./reports/output") -> str:
 
 
 def calibration_report(predictions: list[dict], out_dir: str = "./reports/output") -> str:
-    """
-    predictions: list of {"symbol", "predicted_prob", "actual_outcome" (0/1)}
-    Buckets predictions and checks if predicted probability matches
-    realized hit rate - the core sanity check for the AI layer.
-    """
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     path = f"{out_dir}/calibration_{date.today().isoformat()}.md"
 
