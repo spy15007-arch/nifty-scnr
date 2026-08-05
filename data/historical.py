@@ -6,6 +6,7 @@ disk - swap HistoricalStore implementations without touching callers.
 from __future__ import annotations
 import logging
 import pandas as pd
+import time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -18,27 +19,26 @@ class HistoricalStore:
 
     def get_universe_bars(self, symbols: list[str], lookback_days: int) -> dict[str, pd.DataFrame]:
         """
-        Fetches symbols in parallel blocks using a high-speed ThreadPoolExecutor.
-        This drops execution times for 500 stocks down to under 45 seconds.
+        Fetches symbols using a paced parallel pool to remain completely
+        within Angel One's retail rate limit threshold.
         """
         results: dict[str, pd.DataFrame] = {}
         total = len(symbols)
         failures = 0
         
-        logger.info(f"⚡ Initiating high-speed parallel download for {total} symbols...")
+        logger.info(f"⚡ Initiating stable parallel download for {total} symbols...")
 
-        # Worker function for individual threads
         def _fetch_worker(sym: str):
+            # Introduce a tiny staggered delay between thread starts to smooth network spikes
+            time.sleep(0.1) 
             return sym, self.get_bars(sym, lookback_days)
 
-        # Fire 15 simultaneous requests to stay within Angel One's retail rate limits
-        max_workers = 15 
+        # Set workers to 3 to precisely align with Angel One's 3 requests/sec limit rule
+        max_workers = 3 
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all symbols to the thread pool queue
             future_to_symbol = {executor.submit(_fetch_worker, symbol): symbol for symbol in symbols}
             
-            # Harvest results asynchronously as they complete
             for i, future in enumerate(as_completed(future_to_symbol), 1):
                 symbol = future_to_symbol[future]
                 try:
@@ -47,15 +47,22 @@ class HistoricalStore:
                         results[sym] = df
                 except Exception as e:
                     failures += 1
-                    # Gracefully log anomalies without stopping the thread pool
-                    if "rate" in str(e).lower() or "access denied" in str(e).lower():
-                        logger.warning(f"Rate limit or access restriction encountered for {symbol}")
+                    if "rate" in str(e).lower() or "access" in str(e).lower():
+                        logger.warning(f"Rate limit hit for {symbol}. Retrying sequentially...")
+                        try:
+                            # Instant fallback safety gear: if pool spikes, fetch single item cleanly
+                            time.sleep(0.4)
+                            df_fallback = self.get_bars(symbol, lookback_days)
+                            if df_fallback is not None and not df_fallback.empty:
+                                results[symbol] = df_fallback
+                                failures -= 1
+                        except Exception:
+                            pass
                     else:
                         logger.debug(f"Skipping {symbol}: {e}")
 
-                # Print clean, structured progress anchors every 100 processed stocks
-                if i % 100 == 0 or i == total:
-                    logger.info(f"Processed {i}/{total} symbols ({failures} failed/skipped so far)")
+                if i % 50 == 0 or i == total:
+                    logger.info(f"Processed {i}/{total} symbols ({failures} skipped so far)")
 
         logger.info(f"📊 Universe fetch complete: {len(results)}/{total} symbols successfully indexed.")
         return results
@@ -65,11 +72,6 @@ class HistoricalStore:
 
 
 class ParquetStore(HistoricalStore):
-    """
-    Simple local-disk store for development/backtesting before you
-    stand up a real time-series DB. One parquet file per symbol.
-    """
-
     def __init__(self, root: str = "./market_data"):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -85,7 +87,6 @@ class ParquetStore(HistoricalStore):
         return df.tail(lookback_days)
 
     def save_bars(self, symbol: str, df: pd.DataFrame):
-        """df must have a DatetimeIndex and open/high/low/close/volume columns."""
         path = self._path(symbol)
         if path.exists():
             existing = pd.read_parquet(path)
@@ -95,11 +96,6 @@ class ParquetStore(HistoricalStore):
 
 
 class TimescaleStore(HistoricalStore):
-    """
-    Production store. Requires: pip install sqlalchemy psycopg2-binary
-    Expects a `bars` table: (symbol, ts, open, high, low, close, volume).
-    """
-
     def __init__(self, db_url: str):
         from sqlalchemy import create_engine
         self.engine = create_engine(db_url)
@@ -122,12 +118,6 @@ class TimescaleStore(HistoricalStore):
 
 
 class AngelOneHistoricalStore(HistoricalStore):
-    """
-    Pulls bars live from Angel One's API each call instead of a DB -
-    the right fit for a scheduled GitHub Action scan (no persistent
-    infrastructure to maintain).
-    """
-
     def __init__(self):
         import config
         from data.brokers.angelone_client import AngelOneDataClient
