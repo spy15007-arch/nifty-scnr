@@ -1,0 +1,59 @@
+name: Afternoon BTST Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_limit:
+        description: 'Limit scan to N symbols for testing'
+        required: false
+        default: ''
+  schedule:
+    # 14:00 IST weekdays = 08:30 UTC. Comfortable buffer before the
+    # 14:45-15:15 late-session BTST decision window.
+    - cron: '30 8 * * 1-5'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run BTST-focused stock scan
+        env:
+          TRADING_BROKER: angelone
+          TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
+          TRADING_MAX_UNIVERSE: '500'
+          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
+          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
+          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
+          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py scan
+
+      - name: Run index options scan (CE + PE)
+        env:
+          TRADING_BROKER: angelone
+          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
+          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
+          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
+          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py options
+
+      - name: Commit reports back to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -f reports/output/*.md || true
+          git commit -m "Afternoon BTST scan $(date -u +%Y-%m-%d)" || echo "No changes to commit"
+          git push
