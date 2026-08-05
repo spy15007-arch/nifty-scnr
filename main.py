@@ -13,7 +13,7 @@ import pandas as pd
 from data.historical import AngelOneHistoricalStore
 from data.universe import load_universe
 from scanner.engine import ScannerEngine
-from scanner.levels import compute_trade_levels, TradeLevels
+from scanner.levels import compute_trade_levels
 from scanner.trade_style import classify_trade_style
 from scanner.index_options import recommend_index_options
 from ai.model import BreakoutModel
@@ -84,18 +84,35 @@ def cmd_scan(args):
         feats = build_features(df, benchmark)
         prob = model.predict_proba(feats) if model else cand.composite_score
         
-        # Instantiate a clean custom TradeLevels block to bypass the read-only restriction cleanly
-        custom_levels = TradeLevels(
-            entry_trigger=rsi_analysis["entry_price"],
-            stop_loss=rsi_analysis["stop_loss"],
-            target_1=rsi_analysis["target_1"],
-            target_2=rsi_analysis["target_2"],
-            target_3=rsi_analysis["target_3"],
-            target_4=rsi_analysis["target_4"]
-        )
+        # Calculate standard layout from your existing engine code
+        levels = compute_trade_levels(df)
+        
+        # --- OMNIPOTENT PROPERTY INJECTION BYPASS ---
+        # Overrides parameters via direct dictionary slots to bypass properties safely
+        if levels is not None:
+            try:
+                levels._entry_trigger = rsi_analysis["entry_price"]
+                levels._stop_loss = rsi_analysis["stop_loss"]
+                levels._targets = [
+                    rsi_analysis["target_1"],
+                    rsi_analysis["target_2"],
+                    rsi_analysis["target_3"],
+                    rsi_analysis["target_4"]
+                ]
+            except Exception:
+                pass
+            
+            levels.__dict__["entry_trigger"] = rsi_analysis["entry_price"]
+            levels.__dict__["stop_loss"] = rsi_analysis["stop_loss"]
+            levels.__dict__["targets"] = [
+                rsi_analysis["target_1"],
+                rsi_analysis["target_2"],
+                rsi_analysis["target_3"],
+                rsi_analysis["target_4"]
+            ]
 
-        execution = classify_trade_style(df, feats, custom_levels)
-        rec_package = explain(cand.symbol, prob, feats, custom_levels, execution)
+        execution = classify_trade_style(df, feats, levels)
+        rec_package = explain(cand.symbol, prob, feats, levels, execution)
         
         if f"RSI Crossed 60 ({rsi_analysis['current_rsi']})" not in rec_package.top_reasons:
             rec_package.top_reasons.insert(0, f"RSI Crossed 60 ({rsi_analysis['current_rsi']})")
