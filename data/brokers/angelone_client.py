@@ -1,11 +1,9 @@
 """
 Angel One SmartAPI wrapper. Requires: pip install smartapi-python pyotp
 
-Auth note: Angel One login also expires (session-based), but unlike
-Kite it supports TOTP-based login, which CAN be fully automated - no
-manual step needed each day. This makes Angel One the easier of the
-two to run unattended in a scheduled GitHub Action, so it's worth
-using as your primary source and Kite as a cross-check/backup.
+Auth note: Angel One login also expires (session-based), but supports
+TOTP-based login, which CAN be fully automated - no manual step needed
+each day.
 """
 from __future__ import annotations
 import pandas as pd
@@ -62,6 +60,8 @@ class AngelOneDataClient:
 
     def get_historical_bars(self, tradingsymbol: str, days: int = 250,
                              interval: str = "ONE_DAY", exchange: str = "NSE") -> pd.DataFrame:
+        import time
+
         token = self._symbol_token(tradingsymbol, exchange)
         to_date = datetime.now()
         from_date = to_date - timedelta(days=days * 2)
@@ -73,11 +73,28 @@ class AngelOneDataClient:
             "fromdate": from_date.strftime("%Y-%m-%d %H:%M"),
             "todate": to_date.strftime("%Y-%m-%d %H:%M"),
         }
-        response = self.client.getCandleData(params)
-        candles = response.get("data", [])
-        if not candles:
-            return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
 
-        df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
-        return df.set_index("timestamp").tail(days)
+        # Angel One's historical-data endpoint enforces a stricter limit
+        # than their general API (community-reported, not just the
+        # documented ~3 req/sec) - retries with backoff on rate-limit
+        # errors instead of just hoping a fixed delay is always enough.
+        max_attempts = 4
+        base_delay = 1.2
+        last_error = None
+        for attempt in range(max_attempts):
+            time.sleep(base_delay * (attempt + 1))  # 1.2s, 2.4s, 3.6s, 4.8s
+            try:
+                response = self.client.getCandleData(params)
+                candles = response.get("data", [])
+                if not candles:
+                    return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+                df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                df["timestamp"] = pd.to_datetime(df["timestamp"])
+                return df.set_index("timestamp").tail(days)
+            except Exception as e:
+                last_error = e
+                if "rate" not in str(e).lower():
+                    raise
+                continue
+
+        raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts: {last_error}")
