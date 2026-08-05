@@ -1,24 +1,7 @@
 """
 Classifies each candidate into a holding-period style - INTRADAY,
 BTST (Buy Today Sell Tomorrow), or SWING (up to ~1 week) - and attaches
-NSE-session-aware execution guidance. This is what makes a scan output
-actually executable rather than just a ranked list.
-
-Classification logic (heuristic, not a model - these are structural
-rules about HOW CLOSE a setup is to triggering, not predictions):
-
-  INTRADAY: price is already extremely close to the trigger AND
-    today's relative volume is already elevated - the breakout could
-    realistically happen in the current or next session.
-
-  BTST: price is close to the trigger and the setup is well-formed
-    (EMA-stacked, coiled at resistance) but volume hasn't surged YET -
-    classic "wait for a late-session push through resistance, carry
-    overnight" setup.
-
-  SWING: price is further from the trigger but the broader structure
-    (relative strength, volatility squeeze, EMA trend) is strong -
-    needs more days to actually reach and clear the trigger.
+NSE-session-aware execution guidance.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -41,13 +24,12 @@ class ExecutionPlan:
     max_hold: str
 
 
-# NSE session reference (IST)
 MARKET_PRE_OPEN = "09:00–09:15"
 MARKET_OPEN = "09:15"
 MARKET_CLOSE = "15:30"
-LATE_SESSION_START = "14:45"       # window where BTST triggers are watched for
-SAFE_INTRADAY_EXIT_START = "15:10" # start squaring off intraday positions by here
-SAFE_INTRADAY_EXIT_END = "15:20"   # hard cutoff, ahead of 15:30 close volatility
+LATE_SESSION_START = "14:45"
+SAFE_INTRADAY_EXIT_START = "15:10"
+SAFE_INTRADAY_EXIT_END = "15:20"
 
 
 def classify_trade_style(df: pd.DataFrame, features: dict, levels) -> ExecutionPlan:
@@ -66,8 +48,8 @@ def classify_trade_style(df: pd.DataFrame, features: dict, levels) -> ExecutionP
     rs_score = features.get("relative_strength_score", 0)
     vsq_score = features.get("volatility_squeeze_score", 0)
 
-    very_close = distance_to_trigger <= 0.008   # within ~0.8% of trigger
-    close = distance_to_trigger <= 0.02          # within ~2%
+    very_close = distance_to_trigger <= 0.008
+    close = distance_to_trigger <= 0.02
 
     if very_close and rel_vol_score >= 0.5:
         return ExecutionPlan(
@@ -102,4 +84,64 @@ def classify_trade_style(df: pd.DataFrame, features: dict, levels) -> ExecutionP
         entry_window_ist=f"Any session, on confirmed close above trigger ({MARKET_OPEN}–{MARKET_CLOSE})",
         exit_window_ist="Trail stop to breakeven after Target 1; review daily",
         max_hold="Up to 5 trading days (1 week)",
+    )
+
+
+def classify_index_execution(df: pd.DataFrame, features: dict, levels, direction: str) -> ExecutionPlan:
+    """
+    Direction-aware timing classifier for index options (CE/PE). Kept
+    separate from classify_trade_style (bullish-only, tuned for stocks)
+    to avoid any risk of changing proven stock-scan behavior.
+
+    Uses only direction-agnostic signals (relative volume, volatility
+    squeeze) since the bullish-only EMA/coiled-at-resistance scores
+    aren't meaningful evidence for a bearish/breakdown setup.
+    """
+    if levels is None:
+        return ExecutionPlan(
+            style=TradeStyle.SWING,
+            reasoning="No valid trigger levels - default to watch, do not execute.",
+            entry_window_ist="N/A", exit_window_ist="N/A", max_hold="N/A",
+        )
+
+    current_price = df["close"].iloc[-1]
+    if direction == "bullish":
+        distance_to_trigger = (levels.entry_trigger - current_price) / current_price
+    else:
+        distance_to_trigger = (current_price - levels.entry_trigger) / current_price
+
+    rel_vol_score = features.get("relative_volume_score", 0)
+    vsq_score = features.get("volatility_squeeze_score", 0)
+
+    very_close = distance_to_trigger <= 0.008
+    close = distance_to_trigger <= 0.02
+    verb = "breakout" if direction == "bullish" else "breakdown"
+
+    if very_close and rel_vol_score >= 0.5:
+        return ExecutionPlan(
+            style=TradeStyle.INTRADAY,
+            reasoning=(
+                f"Only {distance_to_trigger:.2%} from trigger with volume already elevated - "
+                f"{verb} can trigger intraday."
+            ),
+            entry_window_ist=f"{MARKET_OPEN}–11:30, or immediately on confirmed {verb}",
+            exit_window_ist=f"Same day, square off by {SAFE_INTRADAY_EXIT_START}–{SAFE_INTRADAY_EXIT_END} - options decay fast, don't hold hoping",
+            max_hold="Same trading session (intraday only - do not carry index option premium overnight on a hope)",
+        )
+
+    if close and vsq_score >= 0.35:
+        return ExecutionPlan(
+            style=TradeStyle.BTST,
+            reasoning=f"{distance_to_trigger:.2%} from trigger with volatility coiling - watch for a late push.",
+            entry_window_ist=f"{LATE_SESSION_START}–{MARKET_CLOSE}, only on confirmed {verb} with volume",
+            exit_window_ist="Next session at open - index options lose value fast overnight, exit early if no follow-through by 09:45",
+            max_hold="Overnight, but treat as higher risk than stock BTST due to theta decay",
+        )
+
+    return ExecutionPlan(
+        style=TradeStyle.SWING,
+        reasoning=f"{distance_to_trigger:.2%} from trigger - not close enough for a same-day options play yet; keep on watchlist.",
+        entry_window_ist=f"Watch only until price closes in on the trigger ({MARKET_OPEN}–{MARKET_CLOSE})",
+        exit_window_ist="N/A - not a current options entry, re-check next session",
+        max_hold="Not applicable yet - index options aren't a multi-day swing instrument the way stocks can be",
     )
