@@ -4,8 +4,11 @@ by TimescaleDB, plain Postgres, or (for local dev) parquet files on
 disk - swap HistoricalStore implementations without touching callers.
 """
 from __future__ import annotations
+import logging
 import pandas as pd
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class HistoricalStore:
@@ -13,7 +16,30 @@ class HistoricalStore:
         raise NotImplementedError
 
     def get_universe_bars(self, symbols: list[str], lookback_days: int) -> dict[str, pd.DataFrame]:
-        return {s: self.get_bars(s, lookback_days) for s in symbols}
+        """
+        Fetches each symbol independently - one symbol's failure (rate
+        limit, bad symbol, network blip) is logged and skipped rather
+        than crashing the whole scan. At ~1500 symbols this matters:
+        losing a handful of names to a transient error is fine, losing
+        the entire run to one bad name is not.
+        """
+        results: dict[str, pd.DataFrame] = {}
+        total = len(symbols)
+        failures = 0
+
+        for i, symbol in enumerate(symbols, 1):
+            try:
+                results[symbol] = self.get_bars(symbol, lookback_days)
+            except Exception as e:
+                failures += 1
+                logger.warning(f"Skipping {symbol}: {e}")
+
+            if i % 100 == 0 or i == total:
+                logger.info(f"Fetched {i}/{total} symbols ({failures} failed so far)")
+
+        if failures:
+            logger.info(f"Universe fetch complete: {total - failures}/{total} symbols succeeded")
+        return results
 
     def save_bars(self, symbol: str, df: pd.DataFrame):
         raise NotImplementedError
