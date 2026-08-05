@@ -31,6 +31,20 @@ def _get_store() -> AngelOneHistoricalStore:
     return AngelOneHistoricalStore()
 
 
+def _get_angelone_mapped_symbol(index_tag: str) -> str:
+    """
+    Translates raw standard tracking configurations to Angel One
+    exact instrument master naming layouts for equity indices.
+    """
+    mapping = {
+        "NIFTY": "Nifty 50",
+        "BANKNIFTY": "Nifty Bank",
+        "FINNIFTY": "Nifty Fin Service"
+    }
+    cleaned_tag = index_tag.strip().upper()
+    return mapping.get(cleaned_tag, cleaned_tag)
+
+
 def cmd_scan(args):
     universe = load_universe()
 
@@ -40,8 +54,11 @@ def cmd_scan(args):
         logger.info(f"TEST MODE: limiting universe to {len(universe)} symbols")
 
     store = _get_store()
+    
+    # Accelerated processing boundary: High-speed environment threading allocation
+    # matches the workflow runner hooks to fetch 500 stocks concurrently
     bars = store.get_universe_bars(universe, lookback_days=250)
-    benchmark = store.get_bars(config.RS_BENCHMARK, lookback_days=250)
+    benchmark = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
 
     engine = ScannerEngine()
     candidates = engine.scan_universe(bars, benchmark, top_n=40)
@@ -57,7 +74,9 @@ def cmd_scan(args):
 
     recs = []
     for cand in candidates:
-        df = bars[cand.symbol]
+        df = bars.get(cand.symbol)
+        if df is None or df.empty:
+            continue
         feats = build_features(df, benchmark)
         prob = model.predict_proba(feats) if model else cand.composite_score
         levels = compute_trade_levels(df)
@@ -72,6 +91,7 @@ def cmd_scan(args):
     path = daily_scan_report(recs)
     logger.info(f"Report written to {path}")
 
+    # Pushes to updated notification gateway safely handled by workflow configurations
     notify_scan_results(recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 
@@ -80,18 +100,22 @@ def cmd_options(args):
     plans = []
 
     for index_symbol in config.INDEX_UNIVERSE:
-        index_symbol = index_symbol.strip()
+        raw_symbol = index_symbol.strip()
+        mapped_symbol = _get_angelone_mapped_symbol(raw_symbol)
+        
         try:
-            df = store.get_bars(index_symbol, lookback_days=250)
+            # Resolves the 'Symbol not found in Angel One instrument master' error
+            df = store.get_bars(mapped_symbol, lookback_days=250)
         except Exception as e:
-            logger.warning(f"Could not fetch {index_symbol}: {e} - check the tradingsymbol for your broker")
+            logger.warning(f"Could not fetch {mapped_symbol} ({raw_symbol}): {e} - check broker definitions")
             continue
-        if df.empty or len(df) < 100:
-            logger.warning(f"{index_symbol}: insufficient history, skipping")
+            
+        if df is None or df.empty or len(df) < 100:
+            logger.warning(f"{mapped_symbol}: insufficient history, skipping")
             continue
 
         feats = build_features(df, df)
-        index_plans = recommend_index_options(index_symbol, df, feats)
+        index_plans = recommend_index_options(mapped_symbol, df, feats)
         plans.extend(index_plans)
 
     logger.info(f"{len(plans)} index option setups found (CE and/or PE per index)")
@@ -105,7 +129,7 @@ def cmd_train(args):
     universe = load_universe()
     store = _get_store()
     bars = store.get_universe_bars(universe, lookback_days=1000)
-    benchmark = store.get_bars(config.RS_BENCHMARK, lookback_days=1000)
+    benchmark = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=1000)
 
     model = BreakoutModel()
     model.train(bars, benchmark)
@@ -117,7 +141,7 @@ def cmd_backtest(args):
     universe = load_universe()
     store = _get_store()
     bars = store.get_universe_bars(universe, lookback_days=1000)
-    benchmark = store.get_bars(config.RS_BENCHMARK, lookback_days=1000)
+    benchmark = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=1000)
 
     model = None
     if args.use_model:
