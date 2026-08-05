@@ -13,7 +13,7 @@ import pandas as pd
 from data.historical import AngelOneHistoricalStore
 from data.universe import load_universe
 from scanner.engine import ScannerEngine
-from scanner.levels import compute_trade_levels
+from scanner.levels import compute_trade_levels, TradeLevels
 from scanner.trade_style import classify_trade_style
 from scanner.index_options import recommend_index_options
 from ai.model import BreakoutModel
@@ -23,6 +23,9 @@ from reports.generator import daily_scan_report, daily_options_report
 from reports.notify import notify_scan_results, notify_option_results
 from backtest.engine import Backtester, compute_metrics
 import config
+
+# --- DIRECT INTEGRATION OF THE NEW RSI 60 MOMENTUM SCOUTING MODULE ---
+from scanner.breakout import check_rsi_60_breakout
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,45 +44,6 @@ def _get_angelone_mapped_symbol(index_tag: str) -> str:
     }
     cleaned_tag = index_tag.strip().upper()
     return mapping.get(cleaned_tag, cleaned_tag)
-
-
-def _compute_rsi_and_atr(df: pd.DataFrame) -> dict:
-    """In-memory calculations for RSI 60 crossover checks and 4 targets."""
-    if df is None or len(df) < 20:
-        return {"flagged": False}
-        
-    close_prices = df['close']
-    delta = close_prices.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / (loss + 1e-10)
-    rsi_series = 100 - (100 / (1 + rs))
-    
-    tr1 = df['high'] - df['low']
-    tr2 = (df['high'] - close_prices.shift(1)).abs()
-    tr3 = (df['low'] - close_prices.shift(1)).abs()
-    atr_series = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1).rolling(window=14).mean()
-    
-    current_rsi = rsi_series.iloc[-1]
-    previous_rsi = rsi_series.iloc[-2]
-    current_close = close_prices.iloc[-1]
-    current_atr = atr_series.iloc[-1]
-    
-    if previous_rsi <= 60 and current_rsi > 60:
-        if current_rsi > 80:
-            return {"flagged": False} # Exclude overextended stocks
-            
-        return {
-            "flagged": True,
-            "current_rsi": round(current_rsi, 2),
-            "entry_price": round(current_close, 2),
-            "stop_loss": round(current_close - (1.5 * current_atr), 2),
-            "target_1": round(current_close + (1.0 * current_atr), 2),
-            "target_2": round(current_close + (2.0 * current_atr), 2),
-            "target_3": round(current_close + (3.0 * current_atr), 2),
-            "target_4": round(current_close + (4.0 * current_atr), 2)
-        }
-    return {"flagged": False}
 
 
 def cmd_scan(args):
@@ -113,27 +77,25 @@ def cmd_scan(args):
             continue
             
         # Screen candidates dynamically for the RSI 60 launchpad criteria
-        rsi_analysis = _compute_rsi_and_atr(df)
+        rsi_analysis = check_rsi_60_breakout(df)
         if not rsi_analysis["flagged"]:
             continue
 
         feats = build_features(df, benchmark)
         prob = model.predict_proba(feats) if model else cand.composite_score
-        levels = compute_trade_levels(df)
         
-        # Override trade levels dynamically with our required 4 momentum targets
-        if levels is not None:
-            levels.entry_trigger = rsi_analysis["entry_price"]
-            levels.stop_loss = rsi_analysis["stop_loss"]
-            levels.targets = [
-                rsi_analysis["target_1"],
-                rsi_analysis["target_2"],
-                rsi_analysis["target_3"],
-                rsi_analysis["target_4"]
-            ]
+        # Instantiate a clean custom TradeLevels block to bypass the read-only restriction cleanly
+        custom_levels = TradeLevels(
+            entry_trigger=rsi_analysis["entry_price"],
+            stop_loss=rsi_analysis["stop_loss"],
+            target_1=rsi_analysis["target_1"],
+            target_2=rsi_analysis["target_2"],
+            target_3=rsi_analysis["target_3"],
+            target_4=rsi_analysis["target_4"]
+        )
 
-        execution = classify_trade_style(df, feats, levels)
-        rec_package = explain(cand.symbol, prob, feats, levels, execution)
+        execution = classify_trade_style(df, feats, custom_levels)
+        rec_package = explain(cand.symbol, prob, feats, custom_levels, execution)
         
         if f"RSI Crossed 60 ({rsi_analysis['current_rsi']})" not in rec_package.top_reasons:
             rec_package.top_reasons.insert(0, f"RSI Crossed 60 ({rsi_analysis['current_rsi']})")
