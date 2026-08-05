@@ -1,20 +1,21 @@
-name: EMA-Fib Breakout Scan
+name: EOD Swing Scan (Full Universe)
 
 on:
   workflow_dispatch:
     inputs:
       test_limit:
-        description: 'Limit scan to N symbols (leave blank for full 500)'
+        description: 'Limit scan to N symbols for testing (leave blank for full ~1500-symbol universe)'
         required: false
-        default: '10'
+        default: ''
   schedule:
-    # 09:20 IST daily on weekdays = 03:50 UTC. Adjust to match when you
-    # want it to run relative to NSE market open (09:15 IST).
-    - cron: '50 3 * * 1-5'
+    # 16:00 IST weekdays = 10:30 UTC. Runs AFTER market close - not
+    # time-critical, so it gets the full ~1500-symbol universe.
+    - cron: '30 10 * * 1-5'
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run breakout scan
+      - name: Run full-universe swing scan
         env:
           TRADING_BROKER: angelone
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
@@ -33,19 +34,8 @@ jobs:
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
           ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
-          MSTOCK_CLIENT_ID: ${{ secrets.MSTOCK_CLIENT_ID }}
-          MSTOCK_PASSWORD: ${{ secrets.MSTOCK_PASSWORD }}
-          MSTOCK_API_KEY: ${{ secrets.MSTOCK_API_KEY }}
-          MSTOCK_TOTP_SECRET: ${{ secrets.MSTOCK_TOTP_SECRET }}
-          KITE_API_KEY: ${{ secrets.KITE_API_KEY }}
-          KITE_ACCESS_TOKEN: ${{ secrets.KITE_ACCESS_TOKEN }}
-          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
-          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
-          GROWW_API_KEY: ${{ secrets.GROWW_API_KEY }}
-          GROWW_API_SECRET: ${{ secrets.GROWW_API_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TRADING_CROSS_CHECK_BROKER: ""
         run: python main.py scan
 
       - name: Commit report back to repo
@@ -53,5 +43,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add -f reports/output/*.md || true
-          git commit -m "Automated scan report $(date -u +%Y-%m-%d)" || echo "No changes to commit"
+          git commit -m "EOD swing scan $(date -u +%Y-%m-%d)" || echo "No changes to commit"
           git push
