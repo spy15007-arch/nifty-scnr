@@ -15,16 +15,36 @@ on:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 5 # <--- Tightened from 40m down to 5m to catch hung threads early
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches full history so git pull/rebase works flawlessly
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip' # <--- Speeds up dependency installs dramatically on repeat runs
 
+      # --- NEW CRITICAL CACHING BLOCK ---
+      # This preserves downloaded Angel One instrument master JSON files across runs
+      - name: Cache Broker Instrument Master Data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/angelone
+            ./data/*.json
+            ./data/*.pkl
+          key: angelone-instruments-${{ secrets.ANGEL_CLIENT_ID }}-${{ github.run_id }}
+          restore-keys: |
+            angelone-instruments-${{ secrets.ANGEL_CLIENT_ID }}-
+            angelone-instruments-
+
+      # Installs pip-system packages safely using workflow runner caching
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Run BTST-focused stock scan
         env:
@@ -37,6 +57,8 @@ jobs:
           ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # ENVIRONMENT HINT: Forces low-level runtime components to scale threading up
+          UV_THREADPOOL_SIZE: "64" 
         run: python main.py scan
 
       - name: Run index options scan (CE + PE)
@@ -48,12 +70,22 @@ jobs:
           ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          UV_THREADPOOL_SIZE: "64"
         run: python main.py options
 
-      - name: Commit reports back to repo
+      # --- FIXED RESOLUTION FOR REJECTED PUSHES ---
+      - name: Sync and Commit reports back to repo
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f reports/output/*.md || true
-          git commit -m "Afternoon BTST scan $(date -u +%Y-%m-%d)" || echo "No changes to commit"
-          git push
+          
+          # Only proceed to sync and push if changes actually exist locally
+          if ! git diff --cached --quiet; then
+            git commit -m "Afternoon BTST scan $(date -u +%Y-%m-%d) [skip ci]"
+            git fetch origin main
+            git pull origin main --rebase # <--- Pulls down remote changes to prevent rejection
+            git push origin HEAD:main
+          else
+            echo "No pipeline data report updates detected."
+          fi
