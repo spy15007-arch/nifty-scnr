@@ -4,6 +4,15 @@ Angel One SmartAPI wrapper. Requires: pip install smartapi-python pyotp
 Auth note: Angel One login also expires (session-based), but supports
 TOTP-based login, which CAN be fully automated - no manual step needed
 each day.
+
+Rate limiting: uses an ADAPTIVE throttle shared across every call from
+this client instance, not a fixed per-symbol retry schedule. Starts
+fast (0.4s between calls) and only slows down when it actually hits a
+rate-limit error - and once it slows down, EVERY subsequent symbol
+uses that new, safer pace too (not just the one that failed). This is
+much faster in the common case (no fixed floor per symbol) and more
+effective under real throttling (learns the safe pace once instead of
+paying a slow retry penalty on every single symbol).
 """
 from __future__ import annotations
 import pandas as pd
@@ -22,13 +31,10 @@ class AngelOneDataClient:
             raise RuntimeError(f"Angel One login failed: {session.get('message')}")
 
         self._instrument_cache: dict[str, str] = {}
+        self._current_delay = 0.4
+        self._max_delay = 4.0
 
     def _symbol_token(self, tradingsymbol: str, exchange: str = "NSE") -> str:
-        """
-        Angel One requires a symboltoken alongside the tradingsymbol.
-        Download their instrument master (they publish a JSON dump) and
-        cache the lookup - fetching it per-call is too slow for a scan.
-        """
         import requests
 
         if not self._instrument_cache:
@@ -74,15 +80,10 @@ class AngelOneDataClient:
             "todate": to_date.strftime("%Y-%m-%d %H:%M"),
         }
 
-        # Angel One's historical-data endpoint enforces a stricter limit
-        # than their general API (community-reported, not just the
-        # documented ~3 req/sec) - retries with backoff on rate-limit
-        # errors instead of just hoping a fixed delay is always enough.
-        max_attempts = 4
-        base_delay = 1.2
+        max_attempts = 3
         last_error = None
         for attempt in range(max_attempts):
-            time.sleep(base_delay * (attempt + 1))  # 1.2s, 2.4s, 3.6s, 4.8s
+            time.sleep(self._current_delay)
             try:
                 response = self.client.getCandleData(params)
                 candles = response.get("data", [])
@@ -95,6 +96,7 @@ class AngelOneDataClient:
                 last_error = e
                 if "rate" not in str(e).lower():
                     raise
+                self._current_delay = min(self._current_delay * 1.8, self._max_delay)
                 continue
 
-        raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts: {last_error}")
+        raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts at delay={self._current_delay:.1f}s: {last_error}")
