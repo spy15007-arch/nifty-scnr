@@ -4,14 +4,16 @@ Sends the scan summary to Telegram. Set up once:
   2. Message your new bot anything, then visit
      https://api.telegram.org/bot<TOKEN>/getUpdates to find your chat_id
   3. Store both as GitHub secrets: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-
-Kept dependency-free (plain requests) so it doesn't add another SDK.
 """
 from __future__ import annotations
 import logging
 from ai.explain import Recommendation
 
 logger = logging.getLogger(__name__)
+
+
+def _targets_compact(targets: list[float]) -> str:
+    return " | ".join(f"T{i+1} {t}" for i, t in enumerate(targets))
 
 
 def format_message(recommendations: list[Recommendation], max_items: int = 25) -> str:
@@ -35,7 +37,7 @@ def format_message(recommendations: list[Recommendation], max_items: int = 25) -
             entry_line = ""
             if rec.levels:
                 lv = rec.levels
-                entry_line = f"\nBuy > {lv.entry_trigger} | SL {lv.stop_loss} | T1 {lv.target_1} | T2 {lv.target_2} | T3 {lv.target_3}"
+                entry_line = f"\nBuy > {lv.entry_trigger} | SL {lv.stop_loss}\n{_targets_compact(lv.targets)}"
             timing_line = ""
             if rec.execution:
                 timing_line = f"\n🕐 In: {rec.execution.entry_window_ist} | Out: {rec.execution.exit_window_ist}"
@@ -53,7 +55,6 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
         return False
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    # Telegram caps message length at 4096 chars - split into chunks if needed
     max_len = 4000
     chunks = [text[i:i + max_len] for i in range(0, len(text), max_len)] or [text]
 
@@ -70,14 +71,21 @@ def format_options_message(plans: list) -> str:
     if not plans:
         return "📈 Index options scan complete — no setups today."
 
-    lines = [f"📈 *Index Options Scan* — {len(plans)} setups\n"]
+    by_index: dict[str, list] = {}
     for plan in plans:
-        lines.append(
-            f"*{plan.index}* {plan.direction} — Strike {plan.suggested_strike} ({plan.strike_type})\n"
-            f"Spot > {plan.spot_entry} | SL {plan.spot_stop} | "
-            f"T1 {plan.spot_target_1} | T2 {plan.spot_target_2} | T3 {plan.spot_target_3}\n"
-            f"🕐 {plan.execution.entry_window_ist}"
-        )
+        by_index.setdefault(plan.index, []).append(plan)
+
+    lines = [f"📈 *Index Options Scan* — {len(plans)} setup(s)\n"]
+    for index_symbol, index_plans in by_index.items():
+        lines.append(f"*{index_symbol}*")
+        for plan in index_plans:
+            emoji = "🟢" if "CE" in plan.direction else "🔴"
+            lines.append(
+                f"{emoji} {plan.direction} — Strike {plan.suggested_strike} ({plan.strike_type})\n"
+                f"Spot {plan.spot_entry} | SL {plan.spot_stop}\n"
+                f"{_targets_compact(plan.spot_targets)}\n"
+                f"🕐 {plan.execution.entry_window_ist}"
+            )
     lines.append("\n⚠️ Spot-level plan only — check live option premium before entering.")
     return "\n\n".join(lines)
 
