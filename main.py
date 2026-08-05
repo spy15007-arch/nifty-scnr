@@ -1,6 +1,7 @@
 """
 Entry point. Three modes:
   python main.py scan       -> run scanner + AI on universe, write daily report
+  python main.py options    -> scan indices for CE + PE option setups
   python main.py backtest   -> run backtester over stored historical data
   python main.py train      -> train the breakout model on stored history
 """
@@ -13,7 +14,7 @@ from data.universe import load_universe
 from scanner.engine import ScannerEngine
 from scanner.levels import compute_trade_levels
 from scanner.trade_style import classify_trade_style
-from scanner.index_options import recommend_index_option
+from scanner.index_options import recommend_index_options
 from ai.model import BreakoutModel
 from ai.features import build_features
 from ai.explain import explain
@@ -90,13 +91,10 @@ def cmd_options(args):
             continue
 
         feats = build_features(df, df)
-        levels = compute_trade_levels(df)
-        execution = classify_trade_style(df, feats, levels)
-        plan = recommend_index_option(index_symbol, levels, execution)
-        if plan:
-            plans.append(plan)
+        index_plans = recommend_index_options(index_symbol, df, feats)
+        plans.extend(index_plans)
 
-    logger.info(f"{len(plans)} index option setups found")
+    logger.info(f"{len(plans)} index option setups found (CE and/or PE per index)")
     path = daily_options_report(plans)
     logger.info(f"Options report written to {path}")
 
