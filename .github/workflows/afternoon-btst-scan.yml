@@ -8,26 +8,24 @@ on:
         required: false
         default: ''
   schedule:
-    # 14:00 IST weekdays = 08:30 UTC. Comfortable buffer before the
-    # 14:45-15:15 late-session BTST decision window.
+    # 14:00 IST weekdays = 08:30 UTC. 
+    # Buffer before the late-session BTST execution window opens.
     - cron: '30 8 * * 1-5'
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 5 # <--- Tightened from 40m down to 5m to catch hung threads early
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetches full history so git pull/rebase works flawlessly
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip' # <--- Speeds up dependency installs dramatically on repeat runs
+          cache: 'pip'
 
-      # --- NEW CRITICAL CACHING BLOCK ---
-      # This preserves downloaded Angel One instrument master JSON files across runs
       - name: Cache Broker Instrument Master Data
         uses: actions/cache@v4
         with:
@@ -40,13 +38,12 @@ jobs:
             angelone-instruments-${{ secrets.ANGEL_CLIENT_ID }}-
             angelone-instruments-
 
-      # Installs pip-system packages safely using workflow runner caching
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run BTST-focused stock scan
+      - name: Run isolated afternoon live BTST momentum scan
         env:
           TRADING_BROKER: angelone
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
@@ -57,35 +54,19 @@ jobs:
           ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # ENVIRONMENT HINT: Forces low-level runtime components to scale threading up
-          UV_THREADPOOL_SIZE: "64" 
-        run: python main.py scan
+        run: python main.py scan_afternoon
 
-      - name: Run index options scan (CE + PE)
-        env:
-          TRADING_BROKER: angelone
-          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
-          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
-          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
-          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          UV_THREADPOOL_SIZE: "64"
-        run: python main.py options
-
-      # --- FIXED RESOLUTION FOR REJECTED PUSHES ---
       - name: Sync and Commit reports back to repo
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f reports/output/*.md || true
+          git config user.email "github-actions[bot]@://github.com"
+          git add -f reports/afternoon/*.md || true
           
-          # Only proceed to sync and push if changes actually exist locally
           if ! git diff --cached --quiet; then
             git commit -m "Afternoon BTST scan $(date -u +%Y-%m-%d) [skip ci]"
             git fetch origin main
-            git pull origin main --rebase # <--- Pulls down remote changes to prevent rejection
+            git pull origin main --rebase
             git push origin HEAD:main
           else
-            echo "No pipeline data report updates detected."
+            echo "No new updates detected for the afternoon session."
           fi
