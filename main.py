@@ -70,7 +70,6 @@ def _compute_rsi_and_atr(df: pd.DataFrame, min_rsi=60, max_rsi=80) -> dict:
     return {"flagged": False}
 
 def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame):
-    """Processes strategies and pushes clean dashboards right to your main workspace windows."""
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
@@ -127,20 +126,18 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
     
-    # Generate the global temporary data files
     path = daily_scan_report(recs)
     
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
-    # --- ROOT EXTENSION WORKSPACE INTERCEPTORS (FOR DASHBOARD VISIBILITY) ---
     if os.path.exists(path):
-        shutil.copy(path, "summary.md") # Copy to main window file dashboard
+        shutil.copy(path, "summary.md")
         os.replace(path, target_md_path)
         logger.info(f"✓ Saved Dashboard Summary to Main Window Framework")
         
     if os.path.exists("scan_results.csv"):
-        shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv") # Copy to main dashboard view
+        shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
 
     if recs:
@@ -212,9 +209,15 @@ if __name__ == "__main__":
         time.sleep(5.0) 
         try:
             benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"⚠️ Benchmark download rate-blocked: {e}. Activating safe list fallback...")
             valid_tokens = list(bars_lake.keys()) if bars_lake else []
-            benchmark_df = bars_lake[valid_tokens[0]] if (valid_tokens and len(valid_tokens) > 0) else pd.DataFrame()
+            if valid_tokens and len(valid_tokens) > 0:
+                first_extracted_token_string = valid_tokens[0]
+                benchmark_df = bars_lake[first_extracted_token_string]
+                logger.info(f"✓ Matrix anchor fallback established: {first_extracted_token_string}")
+            else:
+                benchmark_df = pd.DataFrame()
         
         if not benchmark_df.empty:
             process_scans_with_shared_data("morning", bars_lake, benchmark_df)
