@@ -1,0 +1,73 @@
+name: 🔄 Run All Scans (One-Click Manual Override)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_limit:
+        description: 'Limit scan to N symbols for testing (leave blank for full run)'
+        required: false
+        default: ''
+
+jobs:
+  execute-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache Broker Instrument Master Data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/angelone
+            ./data/*.json
+            ./data/*.pkl
+          key: angelone-instruments-${{ secrets.ANGEL_CLIENT_ID }}-${{ github.run_id }}
+          restore-keys: |
+            angelone-instruments-${{ secrets.ANGEL_CLIENT_ID }}-
+            angelone-instruments-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Uses the sequential manual command we created in main.py to fire everything at once
+      - name: Run Master Combined Pipeline
+        env:
+          TRADING_BROKER: angelone
+          TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
+          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
+          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
+          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
+          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py run_all
+
+      - name: Sync and Commit All Isolated Reports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@://github.com"
+          
+          # Stage all dynamic structural report subfolders at once
+          git add -f reports/morning/*.md || true
+          git add -f reports/afternoon/*.md || true
+          git add -f reports/eod/*.md || true
+          git add -f reports/output/*.md || true
+          
+          if ! git diff --cached --quiet; then
+            git commit -m "Master combined pipeline scan $(date -u +%Y-%m-%d) [skip ci]"
+            git fetch origin main
+            git pull origin main --rebase
+            git push origin HEAD:main
+          else
+            echo "No new updates detected across any trading session profiles."
+          fi
