@@ -29,11 +29,11 @@ from scanner.breakout import check_rsi_60_breakout
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Standardize path strictly to absolute lowercase to prevent container drops
-DB_DIR = "market_data"
+# Standardized parent path matching your visual screenshot folder tree
+DB_DIR = "data/market_data"
 
 def _get_store():
-    """Dynamically initializes local store layer with folder presence validation."""
+    """Dynamically initializes local store layer with nested directory presence validation."""
     os.makedirs(DB_DIR, exist_ok=True)
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
     
@@ -161,7 +161,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     
     _generate_clean_dashboard_md(scan_mode, recs, f"{output_subfolder}/summary_{scan_mode}.md")
     
-    # --- ROOT COCKPIT MAPPER: COPY DATA PACKETS DIRECTLY TO THE MAIN ROOT TREE ---
+    # --- ROOT DASHBOARD MAPPER: PIN FRESH DATA OBJECTS ONTO THE REPOSITORY DASHBOARD SCREEN ---
     shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
     
     if os.path.exists(path):
@@ -171,7 +171,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
 
-    # Append strategy outputs onto the central root summary dashboard file
+    # Concat strategies to the master landing summary.md screen
     with open("summary.md", "a") as master_f:
         if os.path.exists(f"summary_{scan_mode}.md"):
             with open(f"summary_{scan_mode}.md", "r") as sf:
@@ -249,4 +249,3 @@ if __name__ == "__main__":
         try:
             benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
         except Exception:
-            valid_tokens = list(bars_lake.keys()) if bars_lake else []
