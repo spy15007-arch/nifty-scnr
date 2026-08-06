@@ -110,7 +110,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     if bars and len(bars) > 0:
         engine = ScannerEngine()
         try:
-            candidates = engine.scan_universe(bars, benchmark, top_n=100) # Open to top 100 comprehensive stocks
+            candidates = engine.scan_universe(bars, benchmark, top_n=100)
         except Exception:
             candidates = []
             
@@ -158,10 +158,9 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     # Priority sorting based on score matrix metrics
     recs.sort(key=lambda r: r.probability, reverse=True)
     
-    # Tier 1: Slice high-conviction segment down to top 20-25 ideas for dashboard visibility
+    # Tier 1: Slice high-conviction segment down to top 25 ideas for dashboard visibility
     high_conviction_recs = recs[:25]
     
-    # Let standard output template run over full available dataset for massive deep research tracking
     try:
         path = daily_scan_report(recs)
     except Exception:
@@ -186,7 +185,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
     else:
-        # Structured empty layout fallback schema to clear git buffers
         pd.DataFrame(columns=["symbol", "probability", "entry_trigger", "stop_loss"]).to_csv(f"scan_results_{scan_mode}.csv", index=False)
 
     # Merge neat structural files onto central markdown cockpit panel view
@@ -235,3 +233,8 @@ def cmd_options(args, shared_store=None):
 
     path = daily_options_report(plans)
     if plans:
+        notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=["scan_morning", "scan_afternoon", "scan_eod", "options", "run_all"])
