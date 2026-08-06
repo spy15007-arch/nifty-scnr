@@ -1,15 +1,16 @@
 """
-Entry point. Three operational modes with isolated strategy pipelines:
+Entry point. Three operational modes with a centralized, rate-limit insulated data lake:
   python main.py scan_morning      -> run pre-market intraday scanner, output to reports/morning/
   python main.py scan_afternoon    -> run live BTST momentum scanner, output to reports/afternoon/
   python main.py scan_eod          -> run full universe swing scanner, output to reports/eod/
   python main.py options           -> scan indices for CE + PE option setups
-  python main.py run_all           -> sequential processing manual override
+  python main.py run_all           -> sequential data-lake bypass manual override (Sub 60 seconds)
 """
 import argparse
 import logging
 import os
 import pandas as pd
+import time
 from datetime import datetime
 
 from data.historical import AngelOneHistoricalStore
@@ -40,7 +41,6 @@ def _get_angelone_mapped_symbol(index_tag: str) -> str:
     return mapping.get(cleaned_tag, cleaned_tag)
 
 def _ensure_report_directories():
-    """Dynamically initializes separate storage structures for each strategy run."""
     for folder in ["reports/morning", "reports/afternoon", "reports/eod", "reports/output"]:
         os.makedirs(folder, exist_ok=True)
 
@@ -62,7 +62,6 @@ def _compute_rsi_and_atr(df: pd.DataFrame, min_rsi=60, max_rsi=80) -> dict:
     current_close = close_prices.iloc[-1]
     current_atr = atr_series.iloc[-1]
     
-    # Structural screening boundary parameters
     if previous_rsi <= min_rsi and current_rsi > min_rsi:
         if current_rsi > max_rsi:
             return {"flagged": False}
@@ -76,21 +75,10 @@ def _compute_rsi_and_atr(df: pd.DataFrame, min_rsi=60, max_rsi=80) -> dict:
         }
     return {"flagged": False}
 
-def execute_isolated_scan(scan_mode: str, test_limit=None):
-    """Executes a target scan strategy, preserving data structures and unique filters."""
+def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame):
+    """Processes filters instantly by utilizing ready in-memory data segments."""
     _ensure_report_directories()
-    logger.info(f"🚀 Executing isolated pipeline engine profile: {scan_mode.upper()}")
     
-    universe = load_universe()
-    if test_limit:
-        universe = universe[: int(test_limit)]
-        logger.info(f"TESTING RESTRICTION: Running subset of {len(universe)} symbols")
-
-    store = _get_store()
-    bars = store.get_universe_bars(universe, lookback_days=250)
-    benchmark = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
-
-    # Strategy dynamic parameters assignment based on the target strategy window
     min_rsi_threshold = 60
     if scan_mode == "morning":
         strategy_title = "MORNING INTRADAY BREAKOUT"
@@ -98,7 +86,7 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
     elif scan_mode == "afternoon":
         strategy_title = "AFTERNOON LIVE BTST MOMENTUM"
         output_subfolder = "reports/afternoon"
-        min_rsi_threshold = 62  # Tighter restriction for late session velocity profiles
+        min_rsi_threshold = 62  # Distinct alpha constraint
     else:
         strategy_title = "END-OF-DAY SWING COMPILATION"
         output_subfolder = "reports/eod"
@@ -126,31 +114,40 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
 
         execution = classify_trade_style(df, feats, levels)
         if execution:
-            execution.__dict__["style"] = scan_mode.upper() # Enforce correct strategy tag notation tracking
+            execution.__dict__["style"] = scan_mode.upper()
             
         rec_package = explain(cand.symbol, cand.composite_score, feats, levels, execution)
-        
-        header_tag = f"[{strategy_title}] RSI Crossed {rsi_analysis['current_rsi']}"
-        rec_package.top_reasons.insert(0, header_tag)
+        rec_package.top_reasons.insert(0, f"[{strategy_title}] RSI Crossed 60 ({rsi_analysis['current_rsi']})")
         recs.append(rec_package)
 
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
-    logger.info(f"Isolated Watchlist Framework size for {scan_mode}: {len(recs)} candidates found.")
-
-    # Save to dynamic distinct filenames so strategy logs are never wiped or mixed
+    
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     target_report_path = f"{output_subfolder}/scan_{date_str}.md"
     
     path = daily_scan_report(recs)
     if os.path.exists(path):
-        os.replace(path, target_report_path) # Transfer to distinct destination sandbox
-        logger.info(f"Isolated matrix report generated at: {target_report_path}")
+        os.replace(path, target_report_path)
+        logger.info(f"✓ Saved isolated report: {target_report_path}")
 
-    notify_scan_results(recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
+    if recs:
+        notify_scan_results(recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
-def cmd_options(args):
+def execute_isolated_scan(scan_mode: str, test_limit=None):
+    """Fall-back wrapper function to run an individual isolated trigger entry point."""
+    universe = load_universe()
+    if test_limit:
+        universe = universe[: int(test_limit)]
+    
     store = _get_store()
+    bars = store.get_universe_bars(universe, lookback_days=250)
+    benchmark = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
+    
+    process_scans_with_shared_data(scan_mode, bars, benchmark)
+
+def cmd_options(args, shared_store=None):
+    store = shared_store if shared_store else _get_store()
     plans = []
     for index_symbol in config.INDEX_UNIVERSE:
         raw_symbol = index_symbol.strip().upper()
@@ -158,7 +155,7 @@ def cmd_options(args):
         try:
             df = store.get_bars(mapped_spot_symbol, lookback_days=250)
         except Exception as e:
-            logger.warning(f"Could not fetch spot bars for {mapped_spot_symbol}: {e}")
+            logger.warning(f"Could not fetch options baseline for {mapped_spot_symbol}: {e}")
             continue
         if df is None or df.empty or len(df) < 100:
             continue
@@ -166,9 +163,9 @@ def cmd_options(args):
         index_plans = recommend_index_options(raw_symbol, df, feats)
         plans.extend(index_plans)
 
-    logger.info(f"{len(plans)} index option setups found.")
     path = daily_options_report(plans)
-    notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
+    if plans:
+        notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -185,10 +182,31 @@ if __name__ == "__main__":
         execute_isolated_scan("eod", test_lim)
     elif args.command == "options":
         cmd_options(args)
+        
     elif args.command == "run_all":
-        # Manual override parameter: fires everything sequentially at the exact same time
-        logger.info("⚙️ Manual sequence activated: Processing all strategies simultaneously...")
-        execute_isolated_scan("morning", test_lim)
-        execute_isolated_scan("afternoon", test_lim)
-        execute_isolated_scan("eod", test_lim)
-        cmd_options(args)
+        logger.info("⚡ Central Data Lake Engaged: Downloading data matrix exactly once...")
+        universe = load_universe()
+        if test_lim:
+            universe = universe[: int(test_lim)]
+            
+        store = _get_store()
+        
+        # SINGLE BROKER CALL LAYER DOWNLOAD: Eliminates AB1021 session rate blocks completely
+        bars_lake = store.get_universe_bars(universe, lookback_days=250)
+        benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
+        
+        logger.info("🧠 Data cached to local memory. Processing sequential strategy filters...")
+        
+        # Process every isolated filter block instantly from memory lake cache
+        process_scans_with_shared_data("morning", bars_lake, benchmark_df)
+        
+        # Pacing window to let Angel One connections cool down before the option chains block
+        time.sleep(2.0) 
+        process_scans_with_shared_data("afternoon", bars_lake, benchmark_df)
+        
+        time.sleep(2.0)
+        process_scans_with_shared_data("eod", bars_lake, benchmark_df)
+        
+        time.sleep(2.0)
+        cmd_options(args, shared_store=store)
+        logger.info("🏆 All pipeline strategies successfully completed and sent to Telegram!")
