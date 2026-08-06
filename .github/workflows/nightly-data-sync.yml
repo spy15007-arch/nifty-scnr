@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -38,18 +39,25 @@ jobs:
           print('📥 Backing up 500 stock records to disk database...')
           for i, sym in enumerate(universe, 1):
               try:
-                  # Mandatory 0.25-second delay ensures safe pacing below broker limits
-                  time.sleep(0.25)
+                  # Extended 0.45-second safety pause creates a bulletproof 2 reqs/sec stream
+                  time.sleep(0.45)
                   df = live_client.get_bars(sym, lookback_days=250)
                   if df is not None and not df.empty:
                       local_db.save_bars(sym, df)
               except Exception as e:
-                  if 'ab1021' in str(e).lower() or 'rate' in str(e).lower():
-                      print(f'Pacing block for {sym}, cooling down...')
-                      time.sleep(2.0)
+                  # Deep recovery catcher: if server pushes AB1021, brake hard for 5 seconds
+                  if 'ab1021' in str(e).lower() or 'rate' in str(e).lower() or 'too many' in str(e).lower():
+                      print(f'⚠️ Session limit friction on {sym}. Engaging 5-second structural freeze...')
+                      time.sleep(5.0)
+                      try:
+                          df_retry = live_client.get_bars(sym, lookback_days=250)
+                          if df_retry is not None and not df_retry.empty:
+                              local_db.save_bars(sym, df_retry)
+                      except Exception:
+                          pass
                   pass
               if i % 50 == 0 or i == len(universe):
-                  print(f'Indexed progress: {i}/{len(universe)} cached successfully.')
+                  print(f'📋 Database sync checkpoint: {i}/{len(universe)} symbols processed.')
           print('✓ Local Database backup sequence complete!')
           "
 
@@ -58,5 +66,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
           git add market_data/*.parquet || true
-          git commit -m "database: sync historical candles [skip ci]" || echo "No data modifications"
-          git push origin HEAD:main
+          if ! git diff --cached --quiet; then
+            git commit -m "database: sync historical candles [skip ci]"
+            git fetch origin main
+            git pull origin main --rebase
+            git push origin HEAD:main
+          else
+            echo "No data modifications detected in the market pool data assets."
+          fi
