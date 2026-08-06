@@ -1,6 +1,6 @@
 """
 Entry point. Centralized rate-insulated data lake with explicit strategy siloing,
-local Parquet database storage tracking, and root directory dashboard exports.
+mode-specific filtering logic, and custom root directory summary exports.
 """
 import argparse
 import logging
@@ -30,10 +30,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def _get_store() -> ParquetStore:
-    """
-    Swaps your system backend to use high-performance local Parquet files.
-    This eliminates network delays and rate limits, dropping runtime to under 5s!
-    """
     return ParquetStore(root="./market_data")
 
 def _get_angelone_mapped_symbol(index_tag: str) -> str:
@@ -45,54 +41,56 @@ def _ensure_report_directories():
     for folder in ["reports/morning", "reports/afternoon", "reports/eod", "reports/output"]:
         os.makedirs(folder, exist_ok=True)
 
-def _compute_rsi_and_atr(df: pd.DataFrame, min_rsi=60, max_rsi=80) -> dict:
-    if df is None or len(df) < 20:
-        return {"flagged": False}
-    close_prices = df['close']
-    delta = close_prices.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / (loss + 1e-10)
-    rsi_series = 100 - (100 / (1 + rs))
+def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
+    """Generates an accurate, custom Markdown summary file for your main page window."""
+    date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
-    tr = pd.concat([df['high'] - df['low'], (df['high'] - close_prices.shift(1)).abs(), (df['low'] - close_prices.shift(1)).abs()], axis=1).max(axis=1)
-    atr_series = tr.rolling(window=14).mean()
+    if scan_mode == "morning":
+        title = "⚡ MORNING INTRADAY BREAKOUTS"
+        hold_time = "EOD Squareoff"
+    elif scan_mode == "afternoon":
+        title = "🌙 AFTERNOON LIVE BTST ACCUMULATIONS"
+        hold_time = "Overnight (1 Session)"
+    else:
+        title = "📈 POSITION SWING WATCHLISTS"
+        hold_time = "7-10 Days Horizon Hold"
+
+    lines = [
+        f"# {title} — {date_str}\n",
+        f"**{len(recs)} candidates** passed strategy filters today.\n",
+        "---",
+        ""
+    ]
     
-    current_rsi = rsi_series.iloc[-1]
-    previous_rsi = rsi_series.iloc[-2]
-    current_close = close_prices.iloc[-1]
-    current_atr = atr_series.iloc[-1]
-    
-    if previous_rsi <= min_rsi and current_rsi > min_rsi:
-        if current_rsi > max_rsi:
-            return {"flagged": False}
-        return {
-            "flagged": True, "current_rsi": round(current_rsi, 2), "entry_price": round(current_close, 2),
-            "stop_loss": round(current_close - (1.5 * current_atr), 2),
-            "target_1": round(current_close + (1.0 * current_atr), 2),
-            "target_2": round(current_close + (2.0 * current_atr), 2),
-            "target_3": round(current_close + (3.0 * current_atr), 2),
-            "target_4": round(current_close + (4.0 * current_atr), 2)
-        }
-    return {"flagged": False}
+    for r in recs:
+        lines.append(f"### {r.symbol}")
+        if r.levels:
+            lv = r.levels
+            lines.append(f"**Trade Vector:** Buy Trigger **{lv.entry_trigger}** | Stop Loss **{lv.stop_loss}**")
+            targets_str = " | ".join(f"T{i+1}: {t}" for i, t in enumerate(lv.targets[:4]))
+            lines.append(f"**Targets:** {targets_str}")
+        lines.append(f"**Execution Window:** {hold_time}")
+        lines.append(f"*Metrics:* {r.top_reasons[0] if r.top_reasons else 'RSI Breakout Match'}")
+        lines.append("")
+        
+    with open(target_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
 def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame):
-    """Processes strategies and pushes clean dashboards right to your main workspace windows."""
+    """Processes explicit strategy variations and outputs unique standalone report layouts."""
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
-    min_rsi_threshold = 60
     if scan_mode == "morning":
-        strategy_title = "⚡ MORNING INTRADAY BREAKOUT"
+        strategy_title = "MORNING INTRADAY"
         output_subfolder = "reports/morning"
         style_label = "INTRADAY"
     elif scan_mode == "afternoon":
-        strategy_title = "🌙 AFTERNOON LIVE BTST MOMENTUM"
+        strategy_title = "AFTERNOON BTST"
         output_subfolder = "reports/afternoon"
         style_label = "BTST"
-        min_rsi_threshold = 62
     else:
-        strategy_title = "📈 SWING breakout (7-10 Days Horizon)"
+        strategy_title = "EOD SWING"
         output_subfolder = "reports/eod"
         style_label = "SWING"
 
@@ -102,15 +100,28 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     recs = []
     for cand in candidates:
         df = bars.get(cand.symbol)
-        if df is None or df.empty:
+        if df is None or df.empty or len(df) < 20:
             continue
             
         rsi_analysis = check_rsi_60_breakout(df)
         if not rsi_analysis["flagged"]:
             continue
 
-        if rsi_analysis["current_rsi"] < min_rsi_threshold:
-            continue
+        # Strategy variations
+        if scan_mode == "morning":
+            avg_volume = df['volume'].tail(20).mean()
+            if df['volume'].iloc[-1] < (avg_volume * 1.1):
+                continue
+        elif scan_mode == "afternoon":
+            day_high = df['high'].iloc[-1]
+            day_low = df['low'].iloc[-1]
+            day_close = df['close'].iloc[-1]
+            range_span = (day_high - day_low) + 1e-10
+            if ((day_high - day_close) / range_span) > 0.30:
+                continue
+        elif scan_mode == "eod":
+            if rsi_analysis["current_rsi"] > 75:
+                continue
 
         feats = build_features(df, benchmark)
         levels = compute_trade_levels(df)
@@ -123,33 +134,36 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         execution = classify_trade_style(df, feats, levels)
         if execution:
             execution.__dict__["style"] = style_label
-            if style_label == "SWING":
-                execution.__dict__["entry_window_ist"] = "03:15 PM"
-                execution.__dict__["exit_window_ist"] = "7-10 Days Hold"
-            elif style_label == "INTRADAY":
-                execution.__dict__["entry_window_ist"] = "09:15 AM - 09:45 AM"
-                execution.__dict__["exit_window_ist"] = "EOD Squareoff"
 
         rec_package = explain(cand.symbol, cand.composite_score, feats, levels, execution)
-        rec_package.top_reasons = [f"RSI Crossed 60 ({rsi_analysis['current_rsi']})"]
+        rec_package.top_reasons = [f"[{strategy_title}] RSI Crossed 60 ({rsi_analysis['current_rsi']})"]
         recs.append(rec_package)
 
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
     
+    # Save standard file layout
     path = daily_scan_report(recs)
     
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
+    # Generate custom dashboards to avoid hardcoded summary text clashes
+    _generate_clean_dashboard_md(scan_mode, recs, f"{output_subfolder}/summary_{scan_mode}.md")
+    shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
+    
     if os.path.exists(path):
-        shutil.copy(path, "summary.md")
         os.replace(path, target_md_path)
-        logger.info(f"✓ Saved Dashboard Summary to Main Window Framework")
         
     if os.path.exists("scan_results.csv"):
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
+
+    # Concat all to master summary dashboard view
+    with open("summary.md", "a") as master_f:
+        if os.path.exists(f"summary_{scan_mode}.md"):
+            with open(f"summary_{scan_mode}.md", "r") as sf:
+                master_f.write(sf.read() + "\n\n")
 
     if recs:
         notify_scan_results(recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
@@ -162,12 +176,11 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
     store = _get_store()
     bars = store.get_universe_bars(universe, lookback_days=250)
     
-    # Read local fallback safely if benchmark file isn't standalone
     try:
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
     except Exception:
         valid_keys = list(bars.keys()) if bars else []
-        benchmark_df = bars[valid_keys[0]] if (valid_keys and len(valid_keys) > 0) else pd.DataFrame()
+        benchmark_df = bars[valid_keys] if (valid_keys and len(valid_keys) > 0) else pd.DataFrame()
         
     process_scans_with_shared_data(scan_mode, bars, benchmark_df)
 
@@ -209,7 +222,12 @@ if __name__ == "__main__":
         cmd_options(args)
         
     elif args.command == "run_all":
-        logger.info("⚡ Central Data Lake Engaged: Reading from Local Parquet Database...")
+        logger.info("⚡ Central Data Lake Engaged...")
+        
+        # Clear old summaries from last run
+        if os.path.exists("summary.md"):
+            os.remove("summary.md")
+            
         universe = load_universe()
         if test_lim:
             universe = universe[: int(test_lim)]
@@ -227,14 +245,9 @@ if __name__ == "__main__":
             else:
                 benchmark_df = pd.DataFrame()
         
-        logger.info("🧠 Data cached to local memory. Processing sequential strategy filters...")
-        
         if not bars_lake:
-            logger.error("❌ Local market data files not found. Run the Nightly Sync workflow first!")
+            logger.error("❌ Local market data files not found.")
         else:
-            # Run all strategies back-to-back out of local data instantly
             process_scans_with_shared_data("morning", bars_lake, benchmark_df)
             process_scans_with_shared_data("afternoon", bars_lake, benchmark_df)
             process_scans_with_shared_data("eod", bars_lake, benchmark_df)
-            cmd_options(args, shared_store=store)
-            logger.info("🏆 All pipeline strategies successfully completed and sent to Telegram!")
