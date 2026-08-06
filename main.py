@@ -114,8 +114,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
         execution = classify_trade_style(df, feats, levels)
         
-        # --- FIXED TYPE RECOVERY: RESTORE STRUCTURAL COMPATIBILITY SAFEGUARDS ---
-        # Replaces empty space traps with clear pass gates to prevent Indentation Errors
+        # Safe pass gate to handle downstream attribute evaluations cleanly
         if execution and hasattr(execution, 'style') and isinstance(execution.style, str):
             pass
             
@@ -225,5 +224,3 @@ if __name__ == "__main__":
             time.sleep(2.0)
             cmd_options(args, shared_store=store)
             logger.info("🏆 All pipeline strategies successfully completed and sent to Telegram!")
-        else:
-            logger.error("❌ Failed to establish valid data matrix boundaries. Run aborted.")
