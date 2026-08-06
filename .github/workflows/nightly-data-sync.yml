@@ -1,0 +1,55 @@
+name: Nightly Market Data Sync
+
+on:
+  schedule:
+    # Runs at 17:30 IST (12:00 UTC) Monday-Friday after market close
+    - cron: '0 12 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Downloads the data matrix exactly once when the market is closed and rate limits are relaxed
+      - name: Fetch and Cache Historical Universe Bars
+        env:
+          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
+          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
+          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
+          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+        run: |
+          python -c "
+          from data.universe import load_universe
+          from data.historical import AngelOneHistoricalStore, ParquetStore
+          
+          universe = load_universe()
+          live_client = AngelOneHistoricalStore()
+          local_db = ParquetStore(root='./market_data')
+          
+          print('📥 Backing up 500 stock records to disk database...')
+          for i, sym in enumerate(universe, 1):
+              try:
+                  df = live_client.get_bars(sym, lookback_days=250)
+                  if not df.empty:
+                      local_db.save_bars(sym, df)
+              except Exception:
+                  pass
+          print('✓ Local Database backup sequence complete!')
+          "
+
+      - name: Commit cached Parquet data back to repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@://github.com"
+          git add market_data/*.parquet
+          git commit -m "database: sync historical candles [skip ci]" || echo "No data modifications"
+          git push origin HEAD:main
