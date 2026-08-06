@@ -1,6 +1,6 @@
 """
 Entry point. Centralized rate-insulated data lake with explicit strategy siloing,
-mode-specific filtering logic, and root directory dashboard landing export filters.
+empty-state tracking overrides, and root directory dashboard exports.
 """
 import argparse
 import logging
@@ -29,7 +29,6 @@ from scanner.breakout import check_rsi_60_breakout
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Standardize path strictly to absolute lowercase to prevent container drops
 DB_DIR = "market_data"
 
 def _get_store():
@@ -54,8 +53,8 @@ def _ensure_report_directories():
         os.makedirs(folder, exist_ok=True)
 
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
-    """Generates an explicit, custom strategy layout summary."""
-    date_str = datetime.utcnow().strftime("%Y-%m-%d")
+    """Generates an accurate strategy summary report, ensuring explicit empty state tracking updates."""
+    date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
     
     if scan_mode == "morning":
         title = "⚡ MORNING INTRADAY BREAKOUTS"
@@ -68,22 +67,27 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
         hold_time = "7-10 Days Horizon Hold"
 
     lines = [
-        f"# {title} — {date_str}\n",
+        f"# {title}\n",
+        f"*Last Evaluation Run:* `{date_str}`\n",
         f"**{len(recs)} candidates** passed strategy filters today.\n",
         "---",
         ""
     ]
     
-    for r in recs:
-        lines.append(f"### {r.symbol}")
-        if r.levels:
-            lv = r.levels
-            lines.append(f"**Trade Vector:** Buy Trigger **{lv.entry_trigger}** | Stop Loss **{lv.stop_loss}**")
-            targets_str = " | ".join(f"T{i+1}: {t}" for i, t in enumerate(lv.targets[:4]))
-            lines.append(f"**Targets:** {targets_str}")
-        lines.append(f"**Execution Window:** {hold_time}")
-        lines.append(f"*Metrics:* {', '.join(r.top_reasons) if r.top_reasons else 'RSI Breakout Match'}")
+    if not recs:
+        lines.append(f"ℹ️ *No active RSI 60 launchpad setups met the special structural rules during this session market scan.*")
         lines.append("")
+    else:
+        for r in recs:
+            lines.append(f"### {r.symbol}")
+            if r.levels:
+                lv = r.levels
+                lines.append(f"**Trade Vector:** Buy Trigger **{lv.entry_trigger}** | Stop Loss **{lv.stop_loss}**")
+                targets_str = " | ".join(f"T{i+1}: {t}" for i, t in enumerate(lv.targets[:4]))
+                lines.append(f"**Targets:** {targets_str}")
+            lines.append(f"**Execution Window:** {hold_time}")
+            lines.append(f"*Metrics:* {', '.join(r.top_reasons) if r.top_reasons else 'RSI Breakout Match'}")
+            lines.append("")
         
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -119,7 +123,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         if not rsi_analysis["flagged"]:
             continue
 
-        # Strategy Dynamic Filtering
+        # Strategy Dynamic Variations
         if scan_mode == "morning":
             avg_volume = df['volume'].tail(20).mean()
             if df['volume'].iloc[-1] < (avg_volume * 1.1):
@@ -154,31 +158,31 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
     
-    # Executes generation block which writes data files directly inside reports/output/
     path = daily_scan_report(recs)
     
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
-    # Generate standalone file templates into subfolders
+    # Generate custom dashboards safely
     _generate_clean_dashboard_md(scan_mode, recs, f"{output_subfolder}/summary_{scan_mode}.md")
     
-    # --- INTERCEPT GENERATOR OUTPUTS: DEPLOY REPLICAS ONTO THE ROOT MAIN TREE ---
-    if path and os.path.exists(path):
-        shutil.copy(path, f"scan_results_{scan_mode}.md")
+    # --- ROOT COCKPIT MAPPER: FORCES UPDATES STRAIGHT ONTO THE CENTRAL DISPLAY SCREEN ---
+    shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
+    
+    if os.path.exists(path):
         os.replace(path, target_md_path)
         
-    if os.path.exists("reports/output/scan_results.csv"):
-        shutil.copy("reports/output/scan_results.csv", f"scan_results_{scan_mode}.csv")
-        os.replace("reports/output/scan_results.csv", target_csv_path)
-    elif os.path.exists("scan_results.csv"):
+    if os.path.exists("scan_results.csv"):
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
+    else:
+        # Guarantee a fresh empty token file exists to clear stale local git tracking
+        pd.DataFrame(columns=["symbol", "probability", "trigger"]).to_csv(f"scan_results_{scan_mode}.csv", index=False)
 
-    # Compile records right to the main tree home dashboard file
-    if os.path.exists(f"{output_subfolder}/summary_{scan_mode}.md"):
-        with open("summary.md", "a", encoding="utf-8") as master_f:
-            with open(f"{output_subfolder}/summary_{scan_mode}.md", "r", encoding="utf-8") as sf:
+    # Append strategy outputs onto the central root summary dashboard file
+    with open("summary.md", "a") as master_f:
+        if os.path.exists(f"summary_{scan_mode}.md"):
+            with open(f"summary_{scan_mode}.md", "r") as sf:
                 master_f.write(sf.read() + "\n\n")
 
     if recs:
@@ -240,6 +244,4 @@ if __name__ == "__main__":
     elif args.command == "run_all":
         logger.info("⚡ Central Data Lake Engaged: Verifying active storage pathways...")
         
-        # Clear out old outdated summaries from the main tree window
         if os.path.exists("summary.md"):
-            os.remove("summary.md")
