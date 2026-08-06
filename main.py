@@ -1,6 +1,6 @@
 """
 Entry point. Centralized rate-insulated data lake with explicit strategy siloing,
-mode-specific filtering logic, and custom root directory summary exports.
+external strategy imports, and root directory dashboard exports for ease of monitoring.
 """
 import argparse
 import logging
@@ -29,8 +29,21 @@ from scanner.breakout import check_rsi_60_breakout
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def _get_store() -> ParquetStore:
-    return ParquetStore(root="./market_data")
+# Standardize path strictly to absolute lowercase to prevent container drops
+DB_DIR = "market_data"
+
+def _get_store():
+    """Dynamically initializes local store layer with folder presence validation."""
+    os.makedirs(DB_DIR, exist_ok=True)
+    # Check if we have active data files locally available
+    has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
+    
+    if has_files:
+        logger.info(f"💾 Local data cache detected inside ./{DB_DIR}. Running via ultra-fast Parquet engine.")
+        return ParquetStore(root=DB_DIR)
+    else:
+        logger.warning(f"⚠️ Local database path ./{DB_DIR} is blank. Shifting to live network gateway mode.")
+        return AngelOneHistoricalStore()
 
 def _get_angelone_mapped_symbol(index_tag: str) -> str:
     mapping = {"NIFTY": "Nifty 50", "BANKNIFTY": "Nifty Bank", "FINNIFTY": "Nifty Fin Service"}
@@ -42,12 +55,12 @@ def _ensure_report_directories():
         os.makedirs(folder, exist_ok=True)
 
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
-    """Generates an accurate, custom Markdown summary file for your main page window."""
+    """Generates a clean strategy summary report for your main cockpit window."""
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
     if scan_mode == "morning":
         title = "⚡ MORNING INTRADAY BREAKOUTS"
-        hold_time = "EOD Squareoff"
+        hold_time = "Intraday Square-off Window"
     elif scan_mode == "afternoon":
         title = "🌙 AFTERNOON LIVE BTST ACCUMULATIONS"
         hold_time = "Overnight (1 Session)"
@@ -70,14 +83,14 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
             targets_str = " | ".join(f"T{i+1}: {t}" for i, t in enumerate(lv.targets[:4]))
             lines.append(f"**Targets:** {targets_str}")
         lines.append(f"**Execution Window:** {hold_time}")
-        lines.append(f"*Metrics:* {r.top_reasons[0] if r.top_reasons else 'RSI Breakout Match'}")
+        lines.append(f"*Metrics:* {', '.join(r.top_reasons) if r.top_reasons else 'RSI Breakout Match'}")
         lines.append("")
         
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame):
-    """Processes explicit strategy variations and outputs unique standalone report layouts."""
+    """Processes explicit strategy variations and pushes clean files directly to the root main tree."""
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
@@ -107,7 +120,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         if not rsi_analysis["flagged"]:
             continue
 
-        # Strategy variations
+        # Strategy Dynamic Variations
         if scan_mode == "morning":
             avg_volume = df['volume'].tail(20).mean()
             if df['volume'].iloc[-1] < (avg_volume * 1.1):
@@ -142,14 +155,15 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
     
-    # Save standard file layout
     path = daily_scan_report(recs)
     
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
-    # Generate custom dashboards to avoid hardcoded summary text clashes
+    # Generate standalone file templates into subfolders
     _generate_clean_dashboard_md(scan_mode, recs, f"{output_subfolder}/summary_{scan_mode}.md")
+    
+    # --- ROOT COCKPIT MAPPER: COPY DATA PACKETS DIRECTLY TO THE MAIN ROOT TREE ---
     shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
     
     if os.path.exists(path):
@@ -159,7 +173,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
 
-    # Concat all to master summary dashboard view
+    # Append strategy outputs onto the central root summary dashboard file
     with open("summary.md", "a") as master_f:
         if os.path.exists(f"summary_{scan_mode}.md"):
             with open(f"summary_{scan_mode}.md", "r") as sf:
@@ -180,7 +194,7 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
     except Exception:
         valid_keys = list(bars.keys()) if bars else []
-        benchmark_df = bars[valid_keys] if (valid_keys and len(valid_keys) > 0) else pd.DataFrame()
+        benchmark_df = bars[valid_keys[0]] if (valid_keys and len(valid_keys) > 0) else pd.DataFrame()
         
     process_scans_with_shared_data(scan_mode, bars, benchmark_df)
 
@@ -222,9 +236,9 @@ if __name__ == "__main__":
         cmd_options(args)
         
     elif args.command == "run_all":
-        logger.info("⚡ Central Data Lake Engaged...")
+        logger.info("⚡ Central Data Lake Engaged: Verifying active storage pathways...")
         
-        # Clear old summaries from last run
+        # Clear out old outdated summaries from the main tree window
         if os.path.exists("summary.md"):
             os.remove("summary.md")
             
@@ -236,18 +250,3 @@ if __name__ == "__main__":
         bars_lake = store.get_universe_bars(universe, lookback_days=250)
         
         try:
-            benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
-        except Exception:
-            valid_tokens = list(bars_lake.keys()) if bars_lake else []
-            if valid_tokens and len(valid_tokens) > 0:
-                first_extracted_token_string = valid_tokens[0]
-                benchmark_df = bars_lake[first_extracted_token_string]
-            else:
-                benchmark_df = pd.DataFrame()
-        
-        if not bars_lake:
-            logger.error("❌ Local market data files not found.")
-        else:
-            process_scans_with_shared_data("morning", bars_lake, benchmark_df)
-            process_scans_with_shared_data("afternoon", bars_lake, benchmark_df)
-            process_scans_with_shared_data("eod", bars_lake, benchmark_df)
