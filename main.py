@@ -1,6 +1,6 @@
 """
 Entry point. Centralized rate-insulated data lake with explicit strategy siloing,
-external strategy imports, and root directory dashboard exports for ease of monitoring.
+mode-specific filtering logic, and root directory dashboard exports.
 """
 import argparse
 import logging
@@ -35,7 +35,6 @@ DB_DIR = "market_data"
 def _get_store():
     """Dynamically initializes local store layer with folder presence validation."""
     os.makedirs(DB_DIR, exist_ok=True)
-    # Check if we have active data files locally available
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
     
     if has_files:
@@ -160,7 +159,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
-    # Generate standalone file templates into subfolders
     _generate_clean_dashboard_md(scan_mode, recs, f"{output_subfolder}/summary_{scan_mode}.md")
     
     # --- ROOT COCKPIT MAPPER: COPY DATA PACKETS DIRECTLY TO THE MAIN ROOT TREE ---
@@ -194,7 +192,7 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
     except Exception:
         valid_keys = list(bars.keys()) if bars else []
-        benchmark_df = bars[valid_keys[0]] if (valid_keys and len(valid_keys) > 0) else pd.DataFrame()
+        benchmark_df = bars[valid_keys] if (valid_keys and len(valid_keys) > 0) else pd.DataFrame()
         
     process_scans_with_shared_data(scan_mode, bars, benchmark_df)
 
@@ -238,7 +236,6 @@ if __name__ == "__main__":
     elif args.command == "run_all":
         logger.info("⚡ Central Data Lake Engaged: Verifying active storage pathways...")
         
-        # Clear out old outdated summaries from the main tree window
         if os.path.exists("summary.md"):
             os.remove("summary.md")
             
@@ -250,3 +247,6 @@ if __name__ == "__main__":
         bars_lake = store.get_universe_bars(universe, lookback_days=250)
         
         try:
+            benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
+        except Exception:
+            valid_tokens = list(bars_lake.keys()) if bars_lake else []
