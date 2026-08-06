@@ -1,6 +1,6 @@
 """
 Entry point. Centralized rate-insulated data lake with explicit strategy siloing,
-empty-state tracking overrides, and root directory dashboard exports.
+mode-specific filtering logic, and root directory dashboard exports.
 """
 import argparse
 import logging
@@ -163,10 +163,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
-    # Generate custom dashboards safely
     _generate_clean_dashboard_md(scan_mode, recs, f"{output_subfolder}/summary_{scan_mode}.md")
     
-    # --- ROOT COCKPIT MAPPER: FORCES UPDATES STRAIGHT ONTO THE CENTRAL DISPLAY SCREEN ---
     shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
     
     if os.path.exists(path):
@@ -176,10 +174,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
     else:
-        # Guarantee a fresh empty token file exists to clear stale local git tracking
         pd.DataFrame(columns=["symbol", "probability", "trigger"]).to_csv(f"scan_results_{scan_mode}.csv", index=False)
 
-    # Append strategy outputs onto the central root summary dashboard file
     with open("summary.md", "a") as master_f:
         if os.path.exists(f"summary_{scan_mode}.md"):
             with open(f"summary_{scan_mode}.md", "r") as sf:
@@ -244,4 +240,12 @@ if __name__ == "__main__":
     elif args.command == "run_all":
         logger.info("⚡ Central Data Lake Engaged: Verifying active storage pathways...")
         
+        # Cleanly wipe old dashboard states to handle fresh string streaming
         if os.path.exists("summary.md"):
+            os.remove("summary.md")
+            
+        universe = load_universe()
+        if test_lim:
+            universe = universe[: int(test_lim)]
+            
+        store = _get_store()
