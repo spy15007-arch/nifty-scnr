@@ -1,6 +1,6 @@
 """
 Entry point. Centralized rate-insulated data lake with explicit strategy siloing,
-empty-state tracking overrides, and root directory dashboard exports.
+advanced consolidation filtering, and structured two-tier root dashboard tracking.
 """
 import argparse
 import logging
@@ -53,42 +53,37 @@ def _ensure_report_directories():
         os.makedirs(folder, exist_ok=True)
 
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
-    """Generates a clean strategy summary report, ensuring explicit empty state tracking updates."""
-    date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    """Generates a neat, prioritized high-conviction Markdown dashboard view."""
+    date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     
     if scan_mode == "morning":
-        title = "⚡ MORNING INTRADAY BREAKOUTS"
-        hold_time = "Intraday Square-off Window"
+        title = "⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)"
+        hold_time = "Intraday (EOD Squareoff)"
     elif scan_mode == "afternoon":
-        title = "🌙 AFTERNOON LIVE BTST ACCUMULATIONS"
+        title = "🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)"
         hold_time = "Overnight (1 Session)"
     else:
-        title = "📈 POSITION SWING WATCHLISTS"
-        hold_time = "7-10 Days Horizon Hold"
+        title = "📈 POSITION SWING BREAKOUTS (Top High-Conviction)"
+        hold_time = "7-10 Days Trend Horizon"
 
     lines = [
         f"# {title}\n",
-        f"*Last Evaluation Run:* `{date_str}`\n",
-        f"**{len(recs)} candidates** passed strategy filters today.\n",
-        "---",
-        ""
+        f"*Evaluation Window:* `{date_str}`\n",
+        f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas** prioritized by probability. The expanded comprehensive dataset can be viewed in the corresponding session CSV matrix sheet.\n",
+        "| Rank | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Hold Horizon |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- |"
     ]
     
     if not recs:
-        lines.append(f"ℹ️ *No active RSI 60 launchpad setups met the special structural rules during this session market scan.*")
-        lines.append("")
+        lines.append("| - | No candidates met strategy coiling or crossover triggers for this session. | - | - | - | - |")
     else:
-        for r in recs:
-            lines.append(f"### {r.symbol}")
-            if r.levels:
-                lv = r.levels
-                lines.append(f"**Trade Vector:** Buy Trigger **{lv.entry_trigger}** | Stop Loss **{lv.stop_loss}**")
-                targets_str = " | ".join(f"T{i+1}: {t}" for i, t in enumerate(lv.targets[:4]))
-                lines.append(f"**Targets:** {targets_str}")
-            lines.append(f"**Execution Window:** {hold_time}")
-            lines.append(f"*Metrics:* {', '.join(r.top_reasons) if r.top_reasons else 'RSI Breakout Match'}")
-            lines.append("")
-        
+        for idx, r in enumerate(recs, 1):
+            entry = r.levels.entry_trigger if r.levels else "Market"
+            sl = r.levels.stop_loss if r.levels else "Dynamic"
+            tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
+            lines.append(f"| **#{idx}** | **{r.symbol}** | {entry} | {sl} | {tg} | {hold_time} |")
+            
+    lines.append("\n---\n")
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
@@ -112,11 +107,10 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
     recs = []
     
-    # Process scan metrics only if valid data segments exist
     if bars and len(bars) > 0:
         engine = ScannerEngine()
         try:
-            candidates = engine.scan_universe(bars, benchmark, top_n=40)
+            candidates = engine.scan_universe(bars, benchmark, top_n=100) # Open to top 100 comprehensive stocks
         except Exception:
             candidates = []
             
@@ -129,7 +123,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             if not rsi_analysis["flagged"]:
                 continue
 
-            # Strategy Dynamic Variations
+            # Apply separate strategy configuration filters
             if scan_mode == "morning":
                 avg_volume = df['volume'].tail(20).mean()
                 if df['volume'].iloc[-1] < (avg_volume * 1.1):
@@ -158,26 +152,28 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
                 execution.__dict__["style"] = style_label
 
             rec_package = explain(cand.symbol, cand.composite_score, feats, levels, execution)
-            rec_package.top_reasons = [f"[{strategy_title}] RSI Crossed 60 ({rsi_analysis['current_rsi']})"]
+            rec_package.top_reasons = [f"[{strategy_title}] RSI: {rsi_analysis['current_rsi']}"]
             recs.append(rec_package)
 
+    # Priority sorting based on score matrix metrics
     recs.sort(key=lambda r: r.probability, reverse=True)
-    recs = recs[:25]
     
-    # Generate backup report configurations
+    # Tier 1: Slice high-conviction segment down to top 20-25 ideas for dashboard visibility
+    high_conviction_recs = recs[:25]
+    
+    # Let standard output template run over full available dataset for massive deep research tracking
     try:
         path = daily_scan_report(recs)
     except Exception:
         path = f"{output_subfolder}/scan_raw.md"
         with open(path, "w") as pf:
-            f.write("# Temp")
+            pf.write("# Temp Initialization")
 
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
-    _generate_clean_dashboard_md(scan_mode, recs, f"{output_subfolder}/summary_{scan_mode}.md")
-    
-    # --- COCKPIT DISPATCH MAPPER: FORCES WRITE OPERATIONS STRAIGHT TO THE HOME DIRECTORY TREE ---
+    # Generate clean, uncluttered custom layout matrices
+    _generate_clean_dashboard_md(scan_mode, high_conviction_recs, f"{output_subfolder}/summary_{scan_mode}.md")
     shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
     
     if os.path.exists(path):
@@ -190,15 +186,17 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
     else:
-        pd.DataFrame(columns=["symbol", "probability", "trigger_price"]).to_csv(f"scan_results_{scan_mode}.csv", index=False)
+        # Structured empty layout fallback schema to clear git buffers
+        pd.DataFrame(columns=["symbol", "probability", "entry_trigger", "stop_loss"]).to_csv(f"scan_results_{scan_mode}.csv", index=False)
 
+    # Merge neat structural files onto central markdown cockpit panel view
     with open("summary.md", "a") as master_f:
         if os.path.exists(f"summary_{scan_mode}.md"):
             with open(f"summary_{scan_mode}.md", "r") as sf:
                 master_f.write(sf.read() + "\n\n")
 
-    if recs:
-        notify_scan_results(recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
+    if high_conviction_recs:
+        notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 def execute_isolated_scan(scan_mode: str, test_limit=None):
     universe = load_universe()
@@ -237,16 +235,3 @@ def cmd_options(args, shared_store=None):
 
     path = daily_options_report(plans)
     if plans:
-        notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["scan_morning", "scan_afternoon", "scan_eod", "options", "run_all"])
-    args = parser.parse_args()
-    
-    test_lim = os.getenv("TRADING_TEST_LIMIT")
-
-    if args.command == "scan_morning":
-        execute_isolated_scan("morning", test_lim)
-    elif args.command == "scan_afternoon":
-        execute_isolated_scan("afternoon", test_lim)
