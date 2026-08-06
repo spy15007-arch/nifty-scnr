@@ -1,10 +1,10 @@
 """
-Entry point. Three operational modes with a centralized, rate-limit insulated data lake:
+Entry point. Three operational modes with isolated data lakes, csv tracks and sandbox siloing:
   python main.py scan_morning      -> run pre-market intraday scanner, output to reports/morning/
   python main.py scan_afternoon    -> run live BTST momentum scanner, output to reports/afternoon/
   python main.py scan_eod          -> run full universe swing scanner, output to reports/eod/
   python main.py options           -> scan indices for CE + PE option setups
-  python main.py run_all           -> sequential data-lake bypass manual override (Sub 60 seconds)
+  python main.py run_all           -> sequential data-lake manual override (Sub-60 seconds)
 """
 import argparse
 import logging
@@ -26,9 +26,6 @@ from reports.generator import daily_scan_report, daily_options_report
 from reports.notify import notify_scan_results, notify_option_results
 import config
 
-# Direct integration of your breakout system
-from scanner.breakout import check_rsi_60_breakout
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -41,6 +38,7 @@ def _get_angelone_mapped_symbol(index_tag: str) -> str:
     return mapping.get(cleaned_tag, cleaned_tag)
 
 def _ensure_report_directories():
+    """Dynamically structures deep isolation paths for standalone csv and markdown states."""
     for folder in ["reports/morning", "reports/afternoon", "reports/eod", "reports/output"]:
         os.makedirs(folder, exist_ok=True)
 
@@ -76,8 +74,9 @@ def _compute_rsi_and_atr(df: pd.DataFrame, min_rsi=60, max_rsi=80) -> dict:
     return {"flagged": False}
 
 def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame):
-    """Processes filters instantly by utilizing ready in-memory data segments."""
+    """Processes filters and preserves standalone markdown and CSV metrics into sandboxes."""
     _ensure_report_directories()
+    date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
     min_rsi_threshold = 60
     if scan_mode == "morning":
@@ -113,8 +112,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             levels.__dict__["targets"] = [rsi_analysis["target_1"], rsi_analysis["target_2"], rsi_analysis["target_3"], rsi_analysis["target_4"]]
 
         execution = classify_trade_style(df, feats, levels)
-        
-        # Safe pass gate to handle downstream attribute evaluations cleanly
         if execution and hasattr(execution, 'style') and isinstance(execution.style, str):
             pass
             
@@ -125,19 +122,27 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
     
-    date_str = datetime.utcnow().strftime("%Y-%m-%d")
-    target_report_path = f"{output_subfolder}/scan_{date_str}.md"
-    
+    # --- SANDBOX SEPARATION ARCHITECTURE (BYPASS SYSTEM OVERWRITES) ---
+    # Intercept files instantly before global generators merge or trample them
     path = daily_scan_report(recs)
+    
+    target_md_path = f"{output_subfolder}/scan_{date_str}.md"
+    target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
+    
     if os.path.exists(path):
-        os.replace(path, target_report_path)
-        logger.info(f"✓ Saved isolated report: {target_report_path}")
+        os.replace(path, target_md_path)
+        logger.info(f"✓ Isolated Report Generated: {target_md_path}")
+        
+    # Isolate root tracking csv states out of conflict zones immediately
+    if os.path.exists("scan_results.csv"):
+        os.replace("scan_results.csv", target_csv_path)
+        logger.info(f"✓ Isolated CSV Matrix Saved: {target_csv_path}")
 
     if recs:
         notify_scan_results(recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 def execute_isolated_scan(scan_mode: str, test_limit=None):
-    """Fall-back wrapper function to run an individual isolated trigger entry point."""
+    """Fallback initialization block for solo runner entries."""
     universe = load_universe()
     if test_limit:
         universe = universe[: int(test_limit)]
@@ -149,8 +154,8 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
     try:
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
     except Exception:
-        first_key = list(bars.keys()) if bars else None
-        benchmark_df = bars.get(first_key) if first_key else pd.DataFrame()
+        valid_keys = list(bars.keys()) if bars else []
+        benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
         
     process_scans_with_shared_data(scan_mode, bars, benchmark_df)
 
@@ -196,6 +201,7 @@ if __name__ == "__main__":
         universe = load_universe()
         if test_lim:
             universe = universe[: int(test_lim)]
+            logger.info(f"Sub-scale test universe enabled: processing {len(universe)} symbols.")
             
         store = _get_store()
         bars_lake = store.get_universe_bars(universe, lookback_days=250)
@@ -207,20 +213,16 @@ if __name__ == "__main__":
             benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
         except Exception as e:
             logger.warning(f"⚠️ Benchmark asset download rate-blocked: {e}. Activating inline matrix fallback...")
-            first_valid_symbol = list(bars_lake.keys()) if bars_lake else None
-            if first_valid_symbol and bars_lake.get(first_valid_symbol) is not None:
-                benchmark_df = bars_lake[first_valid_symbol]
+            # --- CRITICAL FIX FOR TYPE MISMATCH ---
+            # Safely unpack a single valid string token instead of an raw unhashable list index array
+            valid_tokens = list(bars_lake.keys()) if bars_lake else []
+            if valid_tokens and len(valid_tokens) > 0:
+                first_extracted_token_string = valid_tokens[0]
+                benchmark_df = bars_lake[first_extracted_token_string]
+                logger.info(f"✓ Extraction complete: Matched benchmark sequence to matrix anchor: {first_extracted_token_string}")
             else:
                 benchmark_df = pd.DataFrame()
         
         logger.info("🧠 Data cached to local memory. Processing sequential strategy filters...")
         
         if not benchmark_df.empty:
-            process_scans_with_shared_data("morning", bars_lake, benchmark_df)
-            time.sleep(2.0) 
-            process_scans_with_shared_data("afternoon", bars_lake, benchmark_df)
-            time.sleep(2.0)
-            process_scans_with_shared_data("eod", bars_lake, benchmark_df)
-            time.sleep(2.0)
-            cmd_options(args, shared_store=store)
-            logger.info("🏆 All pipeline strategies successfully completed and sent to Telegram!")
