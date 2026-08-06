@@ -1,14 +1,11 @@
 """
-Entry point. Three operational modes with isolated data lakes, csv tracks and sandbox siloing:
-  python main.py scan_morning      -> run pre-market intraday scanner, output to reports/morning/
-  python main.py scan_afternoon    -> run live BTST momentum scanner, output to reports/afternoon/
-  python main.py scan_eod          -> run full universe swing scanner, output to reports/eod/
-  python main.py options           -> scan indices for CE + PE option setups
-  python main.py run_all           -> sequential data-lake manual override (Sub-60 seconds)
+Entry point. Centralized rate-insulated data lake with explicit strategy siloing 
+and root directory dashboard exports for ease of monitoring.
 """
 import argparse
 import logging
 import os
+import shutil
 import pandas as pd
 import time
 from datetime import datetime
@@ -26,9 +23,6 @@ from reports.generator import daily_scan_report, daily_options_report
 from reports.notify import notify_scan_results, notify_option_results
 import config
 
-# Direct integration of your breakout system
-from scanner.breakout import check_rsi_60_breakout
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -41,7 +35,6 @@ def _get_angelone_mapped_symbol(index_tag: str) -> str:
     return mapping.get(cleaned_tag, cleaned_tag)
 
 def _ensure_report_directories():
-    """Dynamically structures deep isolation paths for standalone csv and markdown states."""
     for folder in ["reports/morning", "reports/afternoon", "reports/eod", "reports/output"]:
         os.makedirs(folder, exist_ok=True)
 
@@ -77,21 +70,24 @@ def _compute_rsi_and_atr(df: pd.DataFrame, min_rsi=60, max_rsi=80) -> dict:
     return {"flagged": False}
 
 def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame):
-    """Processes filters and preserves standalone markdown and CSV metrics into sandboxes."""
+    """Processes strategies and pushes clean dashboards right to your main workspace windows."""
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
     min_rsi_threshold = 60
     if scan_mode == "morning":
-        strategy_title = "MORNING INTRADAY BREAKOUT"
+        strategy_title = "⚡ MORNING INTRADAY BREAKOUT"
         output_subfolder = "reports/morning"
+        style_label = "INTRADAY"
     elif scan_mode == "afternoon":
-        strategy_title = "AFTERNOON LIVE BTST MOMENTUM"
+        strategy_title = "🌙 AFTERNOON LIVE BTST MOMENTUM"
         output_subfolder = "reports/afternoon"
+        style_label = "BTST"
         min_rsi_threshold = 62
     else:
-        strategy_title = "END-OF-DAY SWING COMPILATION"
+        strategy_title = "📈 SWING breakout (7-10 Days Horizon)"
         output_subfolder = "reports/eod"
+        style_label = "SWING"
 
     engine = ScannerEngine()
     candidates = engine.scan_universe(bars, benchmark, top_n=40)
@@ -115,34 +111,42 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             levels.__dict__["targets"] = [rsi_analysis["target_1"], rsi_analysis["target_2"], rsi_analysis["target_3"], rsi_analysis["target_4"]]
 
         execution = classify_trade_style(df, feats, levels)
-        if execution and hasattr(execution, 'style') and isinstance(execution.style, str):
-            pass
-            
+        if execution:
+            execution.__dict__["style"] = style_label
+            if style_label == "SWING":
+                execution.__dict__["entry_window_ist"] = "03:15 PM"
+                execution.__dict__["exit_window_ist"] = "7-10 Days Hold"
+            elif style_label == "INTRADAY":
+                execution.__dict__["entry_window_ist"] = "09:15 AM - 09:45 AM"
+                execution.__dict__["exit_window_ist"] = "EOD Squareoff"
+
         rec_package = explain(cand.symbol, cand.composite_score, feats, levels, execution)
-        rec_package.top_reasons.insert(0, f"[{strategy_title}] RSI Crossed 60 ({rsi_analysis['current_rsi']})")
+        rec_package.top_reasons = [f"RSI Crossed 60 ({rsi_analysis['current_rsi']})"]
         recs.append(rec_package)
 
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
     
+    # Generate the global temporary data files
     path = daily_scan_report(recs)
     
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
+    # --- ROOT EXTENSION WORKSPACE INTERCEPTORS (FOR DASHBOARD VISIBILITY) ---
     if os.path.exists(path):
+        shutil.copy(path, "summary.md") # Copy to main window file dashboard
         os.replace(path, target_md_path)
-        logger.info(f"✓ Isolated Report Generated: {target_md_path}")
+        logger.info(f"✓ Saved Dashboard Summary to Main Window Framework")
         
     if os.path.exists("scan_results.csv"):
+        shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv") # Copy to main dashboard view
         os.replace("scan_results.csv", target_csv_path)
-        logger.info(f"✓ Isolated CSV Matrix Saved: {target_csv_path}")
 
     if recs:
         notify_scan_results(recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 def execute_isolated_scan(scan_mode: str, test_limit=None):
-    """Fallback initialization block for solo runner entries."""
     universe = load_universe()
     if test_limit:
         universe = universe[: int(test_limit)]
@@ -197,31 +201,20 @@ if __name__ == "__main__":
         cmd_options(args)
         
     elif args.command == "run_all":
-        logger.info("⚡ Central Data Lake Engaged: Downloading data matrix exactly once...")
+        logger.info("Central Data Lake Engaged...")
         universe = load_universe()
         if test_lim:
             universe = universe[: int(test_lim)]
-            logger.info(f"Sub-scale test universe enabled: processing {len(universe)} symbols.")
             
         store = _get_store()
         bars_lake = store.get_universe_bars(universe, lookback_days=250)
         
-        logger.info("⏳ Pacing session connections before benchmark extraction...")
         time.sleep(5.0) 
-        
         try:
             benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
-        except Exception as e:
-            logger.warning(f"⚠️ Benchmark asset download rate-blocked: {e}. Activating inline matrix fallback...")
+        except Exception:
             valid_tokens = list(bars_lake.keys()) if bars_lake else []
-            if valid_tokens and len(valid_tokens) > 0:
-                first_extracted_token_string = valid_tokens[0]
-                benchmark_df = bars_lake[first_extracted_token_string]
-                logger.info(f"✓ Extraction complete: Matched benchmark sequence to matrix anchor: {first_extracted_token_string}")
-            else:
-                benchmark_df = pd.DataFrame()
-        
-        logger.info("🧠 Data cached to local memory. Processing sequential strategy filters...")
+            benchmark_df = bars_lake[valid_tokens[0]] if (valid_tokens and len(valid_tokens) > 0) else pd.DataFrame()
         
         if not benchmark_df.empty:
             process_scans_with_shared_data("morning", bars_lake, benchmark_df)
@@ -229,3 +222,5 @@ if __name__ == "__main__":
             process_scans_with_shared_data("afternoon", bars_lake, benchmark_df)
             time.sleep(2.0)
             process_scans_with_shared_data("eod", bars_lake, benchmark_df)
+            time.sleep(2.0)
+            cmd_options(args, shared_store=store)
