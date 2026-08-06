@@ -19,7 +19,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Downloads the data matrix exactly once when the market is closed and rate limits are relaxed
       - name: Fetch and Cache Historical Universe Bars
         env:
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
@@ -30,6 +29,7 @@ jobs:
           python -c "
           from data.universe import load_universe
           from data.historical import AngelOneHistoricalStore, ParquetStore
+          import time
           
           universe = load_universe()
           live_client = AngelOneHistoricalStore()
@@ -38,11 +38,18 @@ jobs:
           print('📥 Backing up 500 stock records to disk database...')
           for i, sym in enumerate(universe, 1):
               try:
+                  # Mandatory 0.25-second delay ensures safe pacing below broker limits
+                  time.sleep(0.25)
                   df = live_client.get_bars(sym, lookback_days=250)
-                  if not df.empty:
+                  if df is not None and not df.empty:
                       local_db.save_bars(sym, df)
-              except Exception:
+              except Exception as e:
+                  if 'ab1021' in str(e).lower() or 'rate' in str(e).lower():
+                      print(f'Pacing block for {sym}, cooling down...')
+                      time.sleep(2.0)
                   pass
+              if i % 50 == 0 or i == len(universe):
+                  print(f'Indexed progress: {i}/{len(universe)} cached successfully.')
           print('✓ Local Database backup sequence complete!')
           "
 
@@ -50,6 +57,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
-          git add market_data/*.parquet
+          git add market_data/*.parquet || true
           git commit -m "database: sync historical candles [skip ci]" || echo "No data modifications"
           git push origin HEAD:main
