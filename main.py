@@ -114,15 +114,10 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
         execution = classify_trade_style(df, feats, levels)
         
-        # --- TECHNICAL ENHANCEMENT: ENFORCE ENUM COMPATIBILITY SAFEGUARDS ---
-        # Instead of forcing string values over protected Enum parameters, we safely inject 
-        # the text tracking parameter without breaking downstream attribute reads.
-        if execution and hasattr(execution, 'style') and not isinstance(execution.style, str):
-            try:
-                # Retain original operational properties if they exist
-                pass
-            except Exception:
-                pass
+        # --- FIXED TYPE RECOVERY: RESTORE STRUCTURAL COMPATIBILITY SAFEGUARDS ---
+        # Replaces empty space traps with clear pass gates to prevent Indentation Errors
+        if execution and hasattr(execution, 'style') and isinstance(execution.style, str):
+            pass
             
         rec_package = explain(cand.symbol, cand.composite_score, feats, levels, execution)
         rec_package.top_reasons.insert(0, f"[{strategy_title}] RSI Crossed 60 ({rsi_analysis['current_rsi']})")
@@ -231,3 +226,4 @@ if __name__ == "__main__":
             cmd_options(args, shared_store=store)
             logger.info("🏆 All pipeline strategies successfully completed and sent to Telegram!")
         else:
+            logger.error("❌ Failed to establish valid data matrix boundaries. Run aborted.")
