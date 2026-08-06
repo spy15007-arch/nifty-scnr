@@ -26,6 +26,9 @@ from reports.generator import daily_scan_report, daily_options_report
 from reports.notify import notify_scan_results, notify_option_results
 import config
 
+# Direct integration of your breakout system
+from scanner.breakout import check_rsi_60_breakout
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -122,8 +125,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
     
-    # --- SANDBOX SEPARATION ARCHITECTURE (BYPASS SYSTEM OVERWRITES) ---
-    # Intercept files instantly before global generators merge or trample them
     path = daily_scan_report(recs)
     
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
@@ -133,7 +134,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         os.replace(path, target_md_path)
         logger.info(f"✓ Isolated Report Generated: {target_md_path}")
         
-    # Isolate root tracking csv states out of conflict zones immediately
     if os.path.exists("scan_results.csv"):
         os.replace("scan_results.csv", target_csv_path)
         logger.info(f"✓ Isolated CSV Matrix Saved: {target_csv_path}")
@@ -155,7 +155,7 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
     except Exception:
         valid_keys = list(bars.keys()) if bars else []
-        benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
+        benchmark_df = bars[valid_keys[0]] if (valid_keys and len(valid_keys) > 0) else pd.DataFrame()
         
     process_scans_with_shared_data(scan_mode, bars, benchmark_df)
 
@@ -213,8 +213,6 @@ if __name__ == "__main__":
             benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
         except Exception as e:
             logger.warning(f"⚠️ Benchmark asset download rate-blocked: {e}. Activating inline matrix fallback...")
-            # --- CRITICAL FIX FOR TYPE MISMATCH ---
-            # Safely unpack a single valid string token instead of an raw unhashable list index array
             valid_tokens = list(bars_lake.keys()) if bars_lake else []
             if valid_tokens and len(valid_tokens) > 0:
                 first_extracted_token_string = valid_tokens[0]
@@ -226,3 +224,8 @@ if __name__ == "__main__":
         logger.info("🧠 Data cached to local memory. Processing sequential strategy filters...")
         
         if not benchmark_df.empty:
+            process_scans_with_shared_data("morning", bars_lake, benchmark_df)
+            time.sleep(2.0) 
+            process_scans_with_shared_data("afternoon", bars_lake, benchmark_df)
+            time.sleep(2.0)
+            process_scans_with_shared_data("eod", bars_lake, benchmark_df)
