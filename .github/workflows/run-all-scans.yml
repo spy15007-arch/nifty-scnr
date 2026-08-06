@@ -68,4 +68,3 @@ jobs:
             git push origin HEAD:main
           else
             echo "No strategy configuration variations detected."
-          fi
