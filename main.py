@@ -1,6 +1,6 @@
 """
 Entry point. Centralized rate-insulated data lake with explicit strategy siloing,
-mode-specific filtering logic, and root directory dashboard exports.
+mode-specific filtering logic, and root directory dashboard landing export filters.
 """
 import argparse
 import logging
@@ -29,11 +29,11 @@ from scanner.breakout import check_rsi_60_breakout
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Standardized parent path matching your visual screenshot folder tree
-DB_DIR = "data/market_data"
+# Standardize path strictly to absolute lowercase to prevent container drops
+DB_DIR = "market_data"
 
 def _get_store():
-    """Dynamically initializes local store layer with nested directory presence validation."""
+    """Dynamically initializes local store layer with folder presence validation."""
     os.makedirs(DB_DIR, exist_ok=True)
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
     
@@ -54,7 +54,7 @@ def _ensure_report_directories():
         os.makedirs(folder, exist_ok=True)
 
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
-    """Generates a clean strategy summary report for your main cockpit window."""
+    """Generates an explicit, custom strategy layout summary."""
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
     if scan_mode == "morning":
@@ -119,7 +119,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         if not rsi_analysis["flagged"]:
             continue
 
-        # Strategy Dynamic Variations
+        # Strategy Dynamic Filtering
         if scan_mode == "morning":
             avg_volume = df['volume'].tail(20).mean()
             if df['volume'].iloc[-1] < (avg_volume * 1.1):
@@ -154,27 +154,31 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     recs.sort(key=lambda r: r.probability, reverse=True)
     recs = recs[:25]
     
+    # Executes generation block which writes data files directly inside reports/output/
     path = daily_scan_report(recs)
     
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
     
+    # Generate standalone file templates into subfolders
     _generate_clean_dashboard_md(scan_mode, recs, f"{output_subfolder}/summary_{scan_mode}.md")
     
-    # --- ROOT DASHBOARD MAPPER: PIN FRESH DATA OBJECTS ONTO THE REPOSITORY DASHBOARD SCREEN ---
-    shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
-    
-    if os.path.exists(path):
+    # --- INTERCEPT GENERATOR OUTPUTS: DEPLOY REPLICAS ONTO THE ROOT MAIN TREE ---
+    if path and os.path.exists(path):
+        shutil.copy(path, f"scan_results_{scan_mode}.md")
         os.replace(path, target_md_path)
         
-    if os.path.exists("scan_results.csv"):
+    if os.path.exists("reports/output/scan_results.csv"):
+        shutil.copy("reports/output/scan_results.csv", f"scan_results_{scan_mode}.csv")
+        os.replace("reports/output/scan_results.csv", target_csv_path)
+    elif os.path.exists("scan_results.csv"):
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
 
-    # Concat strategies to the master landing summary.md screen
-    with open("summary.md", "a") as master_f:
-        if os.path.exists(f"summary_{scan_mode}.md"):
-            with open(f"summary_{scan_mode}.md", "r") as sf:
+    # Compile records right to the main tree home dashboard file
+    if os.path.exists(f"{output_subfolder}/summary_{scan_mode}.md"):
+        with open("summary.md", "a", encoding="utf-8") as master_f:
+            with open(f"{output_subfolder}/summary_{scan_mode}.md", "r", encoding="utf-8") as sf:
                 master_f.write(sf.read() + "\n\n")
 
     if recs:
@@ -236,16 +240,6 @@ if __name__ == "__main__":
     elif args.command == "run_all":
         logger.info("⚡ Central Data Lake Engaged: Verifying active storage pathways...")
         
+        # Clear out old outdated summaries from the main tree window
         if os.path.exists("summary.md"):
             os.remove("summary.md")
-            
-        universe = load_universe()
-        if test_lim:
-            universe = universe[: int(test_lim)]
-            
-        store = _get_store()
-        bars_lake = store.get_universe_bars(universe, lookback_days=250)
-        
-        try:
-            benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
-        except Exception:
