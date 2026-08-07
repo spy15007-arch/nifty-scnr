@@ -32,15 +32,36 @@ logger = logging.getLogger(__name__)
 DB_DIR = "market_data"
 
 def _get_store():
-    """Dynamically initializes local store layer with folder presence validation."""
+    """
+    ALWAYS live data - used by every live scan command (scan_morning,
+    scan_afternoon, scan_eod, options, run_all). Deliberately does NOT
+    check for cached Parquet files here, even though ParquetStore is
+    still imported (used by _get_training_store below). If a nightly
+    sync job ever populates ./market_data with .parquet files, live
+    scans must still fetch fresh - using a frozen snapshot for a "live"
+    scan means every scan mode analyzes identical stale data regardless
+    of when it actually runs, which silently produces the exact "same
+    stock everywhere" symptom this function exists to prevent.
+    """
+    return AngelOneHistoricalStore()
+
+
+def _get_training_store():
+    """
+    Training/backtesting ONLY - not currently wired to any command in
+    this file, but kept separate on purpose so that if train/backtest
+    commands are added later, they can safely use cached Parquet data
+    (fine for training - it doesn't need to be live) without that
+    logic ever being able to leak into the live scan path above.
+    """
     os.makedirs(DB_DIR, exist_ok=True)
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
-    
+
     if has_files:
-        logger.info(f"💾 Local data cache detected inside ./{DB_DIR}. Running via ultra-fast Parquet engine.")
+        logger.info(f"💾 Local data cache detected inside ./{DB_DIR}. Using it for training/backtesting.")
         return ParquetStore(root=DB_DIR)
     else:
-        logger.warning(f"⚠️ Local database path ./{DB_DIR} is blank. Shifting to live network gateway mode.")
+        logger.warning(f"⚠️ Local database path ./{DB_DIR} is blank. Falling back to live fetch for training.")
         return AngelOneHistoricalStore()
 
 def _get_angelone_mapped_symbol(index_tag: str) -> str:
@@ -55,7 +76,7 @@ def _ensure_report_directories():
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
     """Generates a neat, prioritized high-conviction Markdown dashboard view."""
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    
+
     if scan_mode == "morning":
         title = "⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)"
         hold_time = "Intraday (EOD Squareoff)"
@@ -73,7 +94,7 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
         "| Rank | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Hold Horizon |",
         "| :--- | :--- | :--- | :--- | :--- | :--- |"
     ]
-    
+
     if not recs:
         lines.append("| - | No candidates met strategy coiling or crossover triggers for this session. | - | - | - | - |")
     else:
@@ -82,7 +103,7 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
             sl = r.levels.stop_loss if r.levels else "Dynamic"
             tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
             lines.append(f"| **#{idx}** | **{r.symbol}** | {entry} | {sl} | {tg} | {hold_time} |")
-            
+
     lines.append("\n---\n")
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -91,7 +112,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     """Processes explicit strategy variations and pushes clean files directly to the root main tree."""
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
-    
+
     if scan_mode == "morning":
         strategy_title = "MORNING INTRADAY"
         output_subfolder = "reports/morning"
@@ -106,19 +127,19 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         style_label = "SWING"
 
     recs = []
-    
+
     if bars and len(bars) > 0:
         engine = ScannerEngine()
         try:
             candidates = engine.scan_universe(bars, benchmark, top_n=100)
         except Exception:
             candidates = []
-            
+
         for cand in candidates:
             df = bars.get(cand.symbol)
             if df is None or df.empty or len(df) < 20:
                 continue
-                
+
             rsi_analysis = check_rsi_60_breakout(df)
             if not rsi_analysis["flagged"]:
                 continue
@@ -141,7 +162,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             feats = build_features(df, benchmark)
             levels = compute_trade_levels(df)
-            
+
             if levels is not None:
                 levels.__dict__["entry_trigger"] = rsi_analysis["entry_price"]
                 levels.__dict__["stop_loss"] = rsi_analysis["stop_loss"]
@@ -157,10 +178,10 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
     # Priority sorting based on score matrix metrics
     recs.sort(key=lambda r: r.probability, reverse=True)
-    
+
     # Tier 1: Slice high-conviction segment down to top 25 ideas for dashboard visibility
     high_conviction_recs = recs[:25]
-    
+
     try:
         path = daily_scan_report(recs)
     except Exception:
@@ -170,17 +191,17 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
-    
+
     # Generate clean, uncluttered custom layout matrices
     _generate_clean_dashboard_md(scan_mode, high_conviction_recs, f"{output_subfolder}/summary_{scan_mode}.md")
     shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
-    
+
     if os.path.exists(path):
         try:
             os.replace(path, target_md_path)
         except Exception:
             pass
-        
+
     if os.path.exists("scan_results.csv"):
         shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
@@ -200,19 +221,19 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
     universe = load_universe()
     if test_limit:
         universe = universe[: int(test_limit)]
-    
+
     store = _get_store()
     try:
         bars = store.get_universe_bars(universe, lookback_days=250)
     except Exception:
         bars = {}
-        
+
     try:
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
     except Exception:
         valid_keys = list(bars.keys()) if bars else []
-        benchmark_df = bars[valid_keys] if (valid_keys and len(valid_keys) > 0) else pd.DataFrame()
-        
+        benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
+
     process_scans_with_shared_data(scan_mode, bars, benchmark_df)
 
 def cmd_options(args, shared_store=None):
@@ -235,6 +256,55 @@ def cmd_options(args, shared_store=None):
     if plans:
         notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["scan_morning", "scan_afternoon", "scan_eod", "options", "run_all"])
+    parser.add_argument("--test-limit", dest="test_limit", default=os.getenv("TRADING_TEST_LIMIT") or None,
+                         help="Limit scan to N symbols for testing")
+    args = parser.parse_args()
+
+    if args.command == "scan_morning":
+        execute_isolated_scan("morning", test_limit=args.test_limit)
+
+    elif args.command == "scan_afternoon":
+        execute_isolated_scan("afternoon", test_limit=args.test_limit)
+
+    elif args.command == "scan_eod":
+        execute_isolated_scan("eod", test_limit=args.test_limit)
+
+    elif args.command == "options":
+        cmd_options(args)
+
+    elif args.command == "run_all":
+        # NOTE (worth knowing): this fetches the universe ONCE and reuses
+        # that same snapshot for morning/afternoon/eod below. That's fast
+        # for manual testing, but means all three "modes" are analyzing
+        # identical underlying price data in a single run_all invocation -
+        # they only differ by their secondary filters (volume/wick/RSI
+        # ceiling), not by seeing different points in the trading day.
+        # The SEPARATE scheduled workflows (scan_morning at 08:30,
+        # scan_afternoon at 14:00, scan_eod at 16:00) each call
+        # execute_isolated_scan independently and DO fetch fresh data
+        # at their own time - only run_all shares one snapshot.
+        logger.info("⚡ Central Data Lake Engaged: Downloading data matrix exactly once...")
+        universe = load_universe()
+        if args.test_limit:
+            universe = universe[: int(args.test_limit)]
+
+        store = _get_store()
+        try:
+            bars = store.get_universe_bars(universe, lookback_days=250)
+        except Exception:
+            bars = {}
+
+        try:
+            benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
+        except Exception:
+            valid_keys = list(bars.keys()) if bars else []
+            benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
+
+        for mode in ["morning", "afternoon", "eod"]:
+            process_scans_with_shared_data(mode, bars, benchmark_df)
+
+        cmd_options(args, shared_store=store)
