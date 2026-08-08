@@ -25,6 +25,7 @@ import config
 
 # Direct integration of your breakout system
 from scanner.breakout import check_rsi_60_breakout
+from scanner.technicals import macd_bullish, higher_highs_higher_lows, rolling_vwap_position
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -162,18 +163,37 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             feats = build_features(df, benchmark)
             levels = compute_trade_levels(df)
+            # FIX: previously this overwrote the Fib+ATR blended entry/
+            # stop/targets with pure RSI-ATR-multiple values, discarding
+            # the more sophisticated Fib-extension + round-level target
+            # logic entirely. Now the Fib+ATR levels stay as the actual
+            # trade plan; RSI/MACD/HH-HL/VWAP instead contribute to
+            # CONVICTION SCORING and the displayed reasoning below.
 
-            if levels is not None:
-                levels.__dict__["entry_trigger"] = rsi_analysis["entry_price"]
-                levels.__dict__["stop_loss"] = rsi_analysis["stop_loss"]
-                levels.__dict__["targets"] = [rsi_analysis["target_1"], rsi_analysis["target_2"], rsi_analysis["target_3"], rsi_analysis["target_4"]]
+            macd_result = macd_bullish(df)
+            hh_hl_result = higher_highs_higher_lows(df)
+            vwap_result = rolling_vwap_position(df)
+
+            # Institutional confirmation: how many independent signals
+            # agree. More agreement = higher displayed conviction.
+            confirming_signals = [f"RSI {rsi_analysis['current_rsi']} (60+ crossover/coil)"]
+            if macd_result.passed:
+                confirming_signals.append(macd_result.reason)
+            if hh_hl_result.passed:
+                confirming_signals.append(hh_hl_result.reason)
+            if vwap_result.passed:
+                confirming_signals.append(vwap_result.reason)
+
+            n_extra_confirming = len(confirming_signals) - 1  # RSI is the baseline gate, not a "bonus"
+            conviction_boost = 1.0 + (0.08 * n_extra_confirming)  # each extra confirming signal adds 8%
+            adjusted_probability = min(0.99, cand.composite_score * conviction_boost)
 
             execution = classify_trade_style(df, feats, levels)
             if execution:
                 execution.__dict__["style"] = style_label
 
-            rec_package = explain(cand.symbol, cand.composite_score, feats, levels, execution)
-            rec_package.top_reasons = [f"[{strategy_title}] RSI: {rsi_analysis['current_rsi']}"]
+            rec_package = explain(cand.symbol, adjusted_probability, feats, levels, execution)
+            rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:4]
             recs.append(rec_package)
 
     # Priority sorting based on score matrix metrics
@@ -231,6 +251,10 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
     try:
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
     except Exception:
+        # FIX: was `bars[valid_keys]` - indexing a dict with a LIST of
+        # keys instead of one key, which raised TypeError and masked
+        # the original error. Use the first available symbol's bars as
+        # a rough fallback shape instead.
         valid_keys = list(bars.keys()) if bars else []
         benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
