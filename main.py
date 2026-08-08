@@ -74,8 +74,29 @@ def _ensure_report_directories():
     for folder in ["reports/morning", "reports/afternoon", "reports/eod", "reports/output"]:
         os.makedirs(folder, exist_ok=True)
 
+def _grade_for_recommendation(r) -> str:
+    """
+    Letter grade from conviction probability + how many independent
+    signals confirmed (RSI baseline + however many of MACD/HH-HL/VWAP
+    also agreed). More confirming signals at a higher probability =
+    higher grade - this rewards agreement across genuinely different
+    types of evidence, not just a high raw score from one signal.
+    """
+    n_signals = max(0, len(r.top_reasons) - 1)  # subtract the strategy-title tag
+    prob = r.probability
+
+    if prob >= 0.75 and n_signals >= 4:
+        return "A+"
+    elif prob >= 0.65 and n_signals >= 3:
+        return "A"
+    elif prob >= 0.55 and n_signals >= 2:
+        return "B+"
+    elif prob >= 0.45:
+        return "B"
+    return "C"
+
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
-    """Generates a neat, prioritized high-conviction Markdown dashboard view."""
+    """Generates a neat, prioritized, graded high-conviction Markdown dashboard view."""
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     if scan_mode == "morning":
@@ -91,21 +112,27 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
     lines = [
         f"# {title}\n",
         f"*Evaluation Window:* `{date_str}`\n",
-        f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas** prioritized by probability. The expanded comprehensive dataset can be viewed in the corresponding session CSV matrix sheet.\n",
-        "| Rank | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Hold Horizon |",
-        "| :--- | :--- | :--- | :--- | :--- | :--- |"
+        f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.\n",
+        "| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals Confirming | Hold Horizon |",
+        "| :--- | :---: | :--- | :--- | :--- | :--- | :--- | :--- |"
     ]
 
     if not recs:
-        lines.append("| - | No candidates met strategy coiling or crossover triggers for this session. | - | - | - | - |")
+        lines.append("| - | - | No candidates met strategy coiling or crossover triggers for this session. | - | - | - | - | - |")
     else:
         for idx, r in enumerate(recs, 1):
+            grade = _grade_for_recommendation(r)
             entry = r.levels.entry_trigger if r.levels else "Market"
             sl = r.levels.stop_loss if r.levels else "Dynamic"
             tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
-            lines.append(f"| **#{idx}** | **{r.symbol}** | {entry} | {sl} | {tg} | {hold_time} |")
+            n_signals = max(0, len(r.top_reasons) - 1)
+            lines.append(f"| **#{idx}** | **{grade}** | **{r.symbol}** | {entry} | {sl} | {tg} | {n_signals}/4 | {hold_time} |")
 
     lines.append("\n---\n")
+    lines.append(
+        "*Grade key: A+ = probability >=75% with all 4 signals (RSI, MACD, HH/HL, VWAP) agreeing. "
+        "A = >=65% with 3+ agreeing. B+ = >=55% with 2+ agreeing. B = >=45%. C = below that but still made the cut.*\n"
+    )
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
@@ -163,12 +190,9 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             feats = build_features(df, benchmark)
             levels = compute_trade_levels(df)
-            # FIX: previously this overwrote the Fib+ATR blended entry/
-            # stop/targets with pure RSI-ATR-multiple values, discarding
-            # the more sophisticated Fib-extension + round-level target
-            # logic entirely. Now the Fib+ATR levels stay as the actual
-            # trade plan; RSI/MACD/HH-HL/VWAP instead contribute to
-            # CONVICTION SCORING and the displayed reasoning below.
+            # Fib+ATR levels stay as the actual trade plan; RSI/MACD/
+            # HH-HL/VWAP contribute to CONVICTION SCORING and the
+            # displayed reasoning below, rather than overwriting targets.
 
             macd_result = macd_bullish(df)
             hh_hl_result = higher_highs_higher_lows(df)
@@ -196,7 +220,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:4]
             recs.append(rec_package)
 
-    # Priority sorting based on score matrix metrics
+    # Priority sorting based on score matrix metrics - best to worst
     recs.sort(key=lambda r: r.probability, reverse=True)
 
     # Tier 1: Slice high-conviction segment down to top 25 ideas for dashboard visibility
@@ -251,10 +275,6 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
     try:
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
     except Exception:
-        # FIX: was `bars[valid_keys]` - indexing a dict with a LIST of
-        # keys instead of one key, which raised TypeError and masked
-        # the original error. Use the first available symbol's bars as
-        # a rough fallback shape instead.
         valid_keys = list(bars.keys()) if bars else []
         benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
@@ -301,16 +321,10 @@ if __name__ == "__main__":
         cmd_options(args)
 
     elif args.command == "run_all":
-        # NOTE (worth knowing): this fetches the universe ONCE and reuses
-        # that same snapshot for morning/afternoon/eod below. That's fast
-        # for manual testing, but means all three "modes" are analyzing
-        # identical underlying price data in a single run_all invocation -
-        # they only differ by their secondary filters (volume/wick/RSI
-        # ceiling), not by seeing different points in the trading day.
-        # The SEPARATE scheduled workflows (scan_morning at 08:30,
-        # scan_afternoon at 14:00, scan_eod at 16:00) each call
-        # execute_isolated_scan independently and DO fetch fresh data
-        # at their own time - only run_all shares one snapshot.
+        # Single-click "run everything" entry point: one live data fetch,
+        # reused across morning/afternoon/eod scoring + index options.
+        # Triggered via the "Run All Scans Manual Override" workflow -
+        # go to Actions tab -> that workflow -> Run workflow button.
         logger.info("⚡ Central Data Lake Engaged: Downloading data matrix exactly once...")
         universe = load_universe()
         if args.test_limit:
