@@ -75,9 +75,9 @@ jobs:
           git add -A reports/output/*.md || true
           
           if ! git diff --cached --quiet; then
-            git commit -m "Morning intraday scan $(date -u +%Y-%m-%d) [skip ci]"
+            git commit -m "Automated scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
             git fetch origin main
-            git pull origin main --rebase
+            git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
             git push origin HEAD:main
           else
             echo "No new updates detected for the morning session."
