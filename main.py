@@ -238,7 +238,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
     # Generate clean, uncluttered custom layout matrices
     _generate_clean_dashboard_md(scan_mode, high_conviction_recs, f"{output_subfolder}/summary_{scan_mode}.md")
-    shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
+    (f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
 
     if os.path.exists(path):
         try:
@@ -247,7 +247,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             pass
 
     if os.path.exists("scan_results.csv"):
-        shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
+        ("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
     else:
         pd.DataFrame(columns=["symbol", "probability", "entry_trigger", "stop_loss"]).to_csv(f"scan_results_{scan_mode}.csv", index=False)
