@@ -14,7 +14,7 @@ from data.historical import AngelOneHistoricalStore, ParquetStore
 from data.universe import load_universe
 from scanner.engine import ScannerEngine
 from scanner.levels import compute_trade_levels
-from scanner.trade_style import classify_trade_style
+from scanner.trade_style import classify_trade_style, TradeStyle
 from scanner.index_options import recommend_index_options
 from ai.model import BreakoutModel
 from ai.features import build_features
@@ -214,7 +214,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             execution = classify_trade_style(df, feats, levels)
             if execution:
-                execution.__dict__["style"] = style_label
+                execution.__dict__["style"] = TradeStyle(style_label)
 
             rec_package = explain(cand.symbol, adjusted_probability, feats, levels, execution)
             rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:4]
