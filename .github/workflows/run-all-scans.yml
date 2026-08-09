@@ -55,10 +55,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
-          git add -f reports/morning/* || true
-          git add -f reports/afternoon/* || true
-          git add -f reports/eod/* || true
-          git add -f reports/output/* || true
+          git add -A reports/morning/* || true
+          git add -A reports/afternoon/* || true
+          git add -A reports/eod/* || true
+          git add -A reports/output/* || true
           git add summary.md || true
           git add scan_results_*.csv || true
           if ! git diff --cached --quiet; then
