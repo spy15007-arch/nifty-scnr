@@ -58,7 +58,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
-          git add -f reports/eod/*.md || true
+          git add -A reports/eod/*.md || true
           
           if ! git diff --cached --quiet; then
             git commit -m "EOD swing scan $(date -u +%Y-%m-%d) [skip ci]"
