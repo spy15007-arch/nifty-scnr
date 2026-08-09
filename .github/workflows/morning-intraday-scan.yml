@@ -71,8 +71,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
-          git add -f reports/morning/*.md || true
-          git add -f reports/output/*.md || true
+          git add -A reports/morning/*.md || true
+          git add -A reports/output/*.md || true
           
           if ! git diff --cached --quiet; then
             git commit -m "Morning intraday scan $(date -u +%Y-%m-%d) [skip ci]"
