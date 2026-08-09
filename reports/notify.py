@@ -27,7 +27,6 @@ def format_message(recommendations: list[Recommendation], max_items: int = 25) -
         style = rec.execution.style.value if rec.execution else "SWING"
         by_style.setdefault(style, []).append(rec)
 
-    # Replaced loose Markdown notation syntax with strict, safe HTML text formatting blocks
     lines = [f"📊 <b>Breakout Scan</b> — {len(recommendations)} candidates\n"]
 
     for style_name, emoji in [("INTRADAY", "⚡"), ("BTST", "🌙"), ("SWING", "📈")]:
@@ -41,12 +40,11 @@ def format_message(recommendations: list[Recommendation], max_items: int = 25) -
             entry_line = ""
             if rec.levels:
                 lv = rec.levels
-                # HTML entities dynamically insulate special formatting tags like '>' from crashing Telegram
                 entry_line = f"\nBuy &gt; {lv.entry_trigger} | SL {lv.stop_loss}\n{_targets_compact(lv.targets)}"
             timing_line = ""
             if rec.execution:
                 timing_line = f"\n🕐 In: {rec.execution.entry_window_ist} | Out: {rec.execution.exit_window_ist}"
-            lines.append(f"<b>{symbol_clean}</b> — {rec.probability:.0%}{entry_line}{timing_line}\n<i>{reasons}</i>\n")
+            lines.append(f"<b>{symbol_clean}</b> — {rec.probability:.0%}{entry_line}{timing_line}\n<i>{reasons}</i>")
 
     lines.append("\n⚠️ <i>Probabilities, not guarantees — see full report for caveats.</i>")
     return "\n\n".join(lines)
@@ -60,17 +58,36 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
         return False
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    
-    # Chunk messages tightly under the boundary mark to avoid parsing failures
-    max_len = 4000
-    chunks = [text[i:i + max_len] for i in range(0, len(text), max_len)] or [text]
+
+    # Telegram caps messages at 4096 chars. Splitting by a fixed
+    # character offset can cut a message in the MIDDLE of an HTML tag
+    # (e.g. <i>...</i> spanning the cut point) - Telegram then rejects
+    # the whole chunk with a parse error ("can't find end tag"). Split
+    # only on the "\n\n" block boundaries the messages are built from
+    # instead, so each block (one stock/index's info) stays intact and
+    # every chunk has balanced open/close tags.
+    max_len = 3900
+    blocks = text.split("\n\n")
+    chunks: list[str] = []
+    current = ""
+    for block in blocks:
+        candidate = f"{current}\n\n{block}" if current else block
+        if len(candidate) > max_len and current:
+            chunks.append(current)
+            current = block
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    if not chunks:
+        chunks = [text]
 
     ok = True
     for chunk in chunks:
         payload = {
-            "chat_id": chat_id, 
-            "text": chunk, 
-            "parse_mode": "HTML", # Swapped out volatile Markdown processing structure
+            "chat_id": chat_id,
+            "text": chunk,
+            "parse_mode": "HTML",
             "disable_web_page_preview": True
         }
         try:
@@ -100,7 +117,7 @@ def format_options_message(plans: list) -> str:
             dir_clean = html.escape(plan.direction)
             strike_clean = html.escape(str(plan.suggested_strike))
             type_clean = html.escape(str(plan.strike_type))
-            
+
             lines.append(
                 f"{emoji} {dir_clean} — Strike {strike_clean} ({type_clean})\n"
                 f"Spot {plan.spot_entry} | SL {plan.spot_stop}\n"
