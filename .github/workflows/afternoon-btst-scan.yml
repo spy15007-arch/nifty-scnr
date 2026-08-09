@@ -60,7 +60,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
-          git add -f reports/afternoon/*.md || true
+          git add -A reports/afternoon/*.md || true
           
           if ! git diff --cached --quiet; then
             git commit -m "Afternoon BTST scan $(date -u +%Y-%m-%d) [skip ci]"
