@@ -8,9 +8,9 @@ on:
         required: false
         default: ''
   schedule:
-    # 14:00 IST weekdays = 08:30 UTC. 
-    # Buffer before the late-session BTST execution window opens.
-    - cron: '30 8 * * 1-5'
+    # 14:50 IST weekdays = 09:20 UTC. Targets completion in the
+    # 15:10-15:15 window based on observed ~500-symbol pace.
+    - cron: '20 9 * * 1-5'
 
 jobs:
   scan:
