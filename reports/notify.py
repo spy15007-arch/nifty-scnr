@@ -1,10 +1,5 @@
 """
 Sends the scan summary to Telegram using parse-safe HTML entities.
-Set up once:
-  1. Message @BotFather on Telegram, /newbot, get a bot token
-  2. Message your new bot anything, then visit
-     https://api.telegram.org/bot<TOKEN>/getUpdates to find your chat_id
-  3. Store both as GitHub secrets: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 """
 from __future__ import annotations
 import logging
@@ -34,7 +29,7 @@ def format_message(recommendations: list[Recommendation], max_items: int = 25) -
         if not group:
             continue
         lines.append(f"{emoji} <b>{style_name}</b> ({len(group)})")
-        for rec in group[:max_items]:
+        for idx, rec in enumerate(group[:max_items], 1):
             reasons = html.escape(", ".join(rec.top_reasons[:2]))
             symbol_clean = html.escape(rec.symbol)
             entry_line = ""
@@ -43,8 +38,8 @@ def format_message(recommendations: list[Recommendation], max_items: int = 25) -
                 entry_line = f"\nBuy &gt; {lv.entry_trigger} | SL {lv.stop_loss}\n{_targets_compact(lv.targets)}"
             timing_line = ""
             if rec.execution:
-                timing_line = f"\n🕐 In: {rec.execution.entry_window_ist} | Out: {rec.execution.exit_window_ist}"
-            lines.append(f"<b>{symbol_clean}</b> — {rec.probability:.0%}{entry_line}{timing_line}\n<i>{reasons}</i>")
+                timing_line = f"\n🕐 {rec.execution.entry_window_ist}"
+            lines.append(f"<b>{idx}. {symbol_clean}</b> — {rec.probability:.0%}{entry_line}{timing_line}\n<i>{reasons}</i>")
 
     lines.append("\n⚠️ <i>Probabilities, not guarantees — see full report for caveats.</i>")
     return "\n\n".join(lines)
@@ -59,13 +54,6 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
-    # Telegram caps messages at 4096 chars. Splitting by a fixed
-    # character offset can cut a message in the MIDDLE of an HTML tag
-    # (e.g. <i>...</i> spanning the cut point) - Telegram then rejects
-    # the whole chunk with a parse error ("can't find end tag"). Split
-    # only on the "\n\n" block boundaries the messages are built from
-    # instead, so each block (one stock/index's info) stays intact and
-    # every chunk has balanced open/close tags.
     max_len = 3900
     blocks = text.split("\n\n")
     chunks: list[str] = []
@@ -112,14 +100,14 @@ def format_options_message(plans: list) -> str:
     lines = [f"📈 <b>Index Options Scan</b> — {len(plans)} setup(s)\n"]
     for index_symbol, index_plans in by_index.items():
         lines.append(f"<b>{html.escape(index_symbol)}</b>")
-        for plan in index_plans:
+        for idx, plan in enumerate(index_plans, 1):
             emoji = "🟢" if "CE" in plan.direction else "🔴"
             dir_clean = html.escape(plan.direction)
             strike_clean = html.escape(str(plan.suggested_strike))
             type_clean = html.escape(str(plan.strike_type))
 
             lines.append(
-                f"{emoji} {dir_clean} — Strike {strike_clean} ({type_clean})\n"
+                f"{emoji} <b>{idx}.</b> {dir_clean} — Strike {strike_clean} ({type_clean})\n"
                 f"Spot {plan.spot_entry} | SL {plan.spot_stop}\n"
                 f"{_targets_compact(plan.spot_targets)}\n"
                 f"🕐 {plan.execution.entry_window_ist}"
