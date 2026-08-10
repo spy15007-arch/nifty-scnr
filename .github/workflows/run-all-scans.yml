@@ -55,7 +55,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
-          git add -A reports/morning/* || true
+      - name: Archive reports older than 30 days
+        run: |
+          find reports/morning reports/afternoon reports/eod -name "*.md" -mtime +30 -delete 2>/dev/null || true
+          find reports/morning reports/afternoon reports/eod -name "*.csv" -mtime +30 -delete 2>/dev/null || true
+          find . -maxdepth 1 -name "scan_results_*.csv" -mtime +30 -delete 2>/dev/null || true
+          find . -maxdepth 1 -name "summary_*.md" -mtime +30 -delete 2>/dev/null || truegit add -A reports/morning/* || true
           git add -A reports/afternoon/* || true
           git add -A reports/eod/* || true
           git add -A reports/output/* || true
