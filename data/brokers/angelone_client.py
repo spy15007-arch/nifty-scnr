@@ -1,22 +1,26 @@
 """
 Angel One SmartAPI wrapper. Requires: pip install smartapi-python pyotp
 
-Auth note: Angel One login also expires (session-based), but supports
-TOTP-based login, which CAN be fully automated - no manual step needed
-each day.
-
 Rate limiting: uses an ADAPTIVE throttle shared across every call from
-this client instance, not a fixed per-symbol retry schedule. Starts
-fast (0.4s between calls) and only slows down when it actually hits a
-rate-limit error - and once it slows down, EVERY subsequent symbol
-uses that new, safer pace too (not just the one that failed). This is
-much faster in the common case (no fixed floor per symbol) and more
-effective under real throttling (learns the safe pace once instead of
-paying a slow retry penalty on every single symbol).
+this client instance. Starts fast (0.4s) and slows down when it hits a
+rate-limit error - and once slowed, EVERY subsequent symbol uses that
+safer pace too.
+
+Detects TWO different rate-limit response formats from Angel One (both
+observed in practice, not just documented ones):
+  - "Access denied because of exceeding access rate" (contains "rate")
+  - "Too many requests" with errorcode AB1021 (does NOT contain "rate" -
+    this was a real gap: it used to be treated as non-retryable and
+    raised immediately instead of backing off)
 """
 from __future__ import annotations
 import pandas as pd
 from datetime import datetime, timedelta
+
+
+def _is_rate_limit_error(e: Exception) -> bool:
+    msg = str(e).lower()
+    return "rate" in msg or "too many" in msg or "ab1021" in msg
 
 
 class AngelOneDataClient:
@@ -32,7 +36,15 @@ class AngelOneDataClient:
 
         self._instrument_cache: dict[str, str] = {}
         self._current_delay = 0.4
-        self._max_delay = 4.0
+        self._max_delay = 8.0  # raised from 4.0 - today's throttling needed more backoff headroom
+
+    INDEX_ALIASES = {
+        "NIFTY": "Nifty 50",
+        "BANKNIFTY": "Nifty Bank",
+        "FINNIFTY": "Nifty Fin Service",
+        "MIDCPNIFTY": "Nifty Midcap Select",
+        "SENSEX": "SENSEX",
+    }
 
     def _symbol_token(self, tradingsymbol: str, exchange: str = "NSE") -> str:
         import requests
@@ -58,6 +70,10 @@ class AngelOneDataClient:
             for row in data:
                 if row.get("exch_seg") == exchange:
                     self._instrument_cache[row["symbol"]] = row["token"]
+
+        alias = self.INDEX_ALIASES.get(tradingsymbol.upper())
+        if alias and alias in self._instrument_cache:
+            return self._instrument_cache[alias]
 
         key = f"{tradingsymbol}-EQ" if not tradingsymbol.endswith("-EQ") else tradingsymbol
         if key not in self._instrument_cache:
@@ -94,7 +110,7 @@ class AngelOneDataClient:
                 return df.set_index("timestamp").tail(days)
             except Exception as e:
                 last_error = e
-                if "rate" not in str(e).lower():
+                if not _is_rate_limit_error(e):
                     raise
                 self._current_delay = min(self._current_delay * 1.8, self._max_delay)
                 continue
