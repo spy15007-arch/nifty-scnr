@@ -36,24 +36,14 @@ def _get_store():
     """
     ALWAYS live data - used by every live scan command (scan_morning,
     scan_afternoon, scan_eod, options, run_all). Deliberately does NOT
-    check for cached Parquet files here, even though ParquetStore is
-    still imported (used by _get_training_store below). If a nightly
-    sync job ever populates ./market_data with .parquet files, live
-    scans must still fetch fresh - using a frozen snapshot for a "live"
-    scan means every scan mode analyzes identical stale data regardless
-    of when it actually runs, which silently produces the exact "same
-    stock everywhere" symptom this function exists to prevent.
+    check for cached Parquet files here.
     """
     return AngelOneHistoricalStore()
 
 
 def _get_training_store():
     """
-    Training/backtesting ONLY - not currently wired to any command in
-    this file, but kept separate on purpose so that if train/backtest
-    commands are added later, they can safely use cached Parquet data
-    (fine for training - it doesn't need to be live) without that
-    logic ever being able to leak into the live scan path above.
+    Training/backtesting ONLY - not currently wired to any command.
     """
     os.makedirs(DB_DIR, exist_ok=True)
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
@@ -78,11 +68,9 @@ def _grade_for_recommendation(r) -> str:
     """
     Letter grade from conviction probability + how many independent
     signals confirmed (RSI baseline + however many of MACD/HH-HL/VWAP
-    also agreed). More confirming signals at a higher probability =
-    higher grade - this rewards agreement across genuinely different
-    types of evidence, not just a high raw score from one signal.
+    also agreed).
     """
-    n_signals = max(0, len(r.top_reasons) - 1)  # subtract the strategy-title tag
+    n_signals = max(0, len(r.top_reasons) - 1)
     prob = r.probability
 
     if prob >= 0.75 and n_signals >= 4:
@@ -172,17 +160,16 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             if not rsi_analysis["flagged"]:
                 continue
 
-            # Apply separate strategy configuration filters
             if scan_mode == "morning":
                 avg_volume = df['volume'].tail(20).mean()
-                if df['volume'].iloc[-1] < (avg_volume * 1.1):
+                if df['volume'].iloc[-1] < (avg_volume * 1.0):  # loosened from 1.1x to reach 20-25 candidates
                     continue
             elif scan_mode == "afternoon":
                 day_high = df['high'].iloc[-1]
                 day_low = df['low'].iloc[-1]
                 day_close = df['close'].iloc[-1]
                 range_span = (day_high - day_low) + 1e-10
-                if ((day_high - day_close) / range_span) > 0.30:
+                if ((day_high - day_close) / range_span) > 0.40:  # loosened from 0.30 to reach 20-25 candidates
                     continue
             elif scan_mode == "eod":
                 if rsi_analysis["current_rsi"] > 75:
@@ -190,16 +177,11 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             feats = build_features(df, benchmark)
             levels = compute_trade_levels(df)
-            # Fib+ATR levels stay as the actual trade plan; RSI/MACD/
-            # HH-HL/VWAP contribute to CONVICTION SCORING and the
-            # displayed reasoning below, rather than overwriting targets.
 
             macd_result = macd_bullish(df)
             hh_hl_result = higher_highs_higher_lows(df)
             vwap_result = rolling_vwap_position(df)
 
-            # Institutional confirmation: how many independent signals
-            # agree. More agreement = higher displayed conviction.
             confirming_signals = [f"RSI {rsi_analysis['current_rsi']} (60+ crossover/coil)"]
             if macd_result.passed:
                 confirming_signals.append(macd_result.reason)
@@ -208,8 +190,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             if vwap_result.passed:
                 confirming_signals.append(vwap_result.reason)
 
-            n_extra_confirming = len(confirming_signals) - 1  # RSI is the baseline gate, not a "bonus"
-            conviction_boost = 1.0 + (0.08 * n_extra_confirming)  # each extra confirming signal adds 8%
+            n_extra_confirming = len(confirming_signals) - 1
+            conviction_boost = 1.0 + (0.08 * n_extra_confirming)
             adjusted_probability = min(0.99, cand.composite_score * conviction_boost)
 
             execution = classify_trade_style(df, feats, levels)
@@ -220,10 +202,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:4]
             recs.append(rec_package)
 
-    # Priority sorting based on score matrix metrics - best to worst
     recs.sort(key=lambda r: r.probability, reverse=True)
-
-    # Tier 1: Slice high-conviction segment down to top 25 ideas for dashboard visibility
     high_conviction_recs = recs[:25]
 
     try:
@@ -236,9 +215,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
 
-    # Generate clean, uncluttered custom layout matrices
     _generate_clean_dashboard_md(scan_mode, high_conviction_recs, f"{output_subfolder}/summary_{scan_mode}.md")
-    (f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
+    shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
 
     if os.path.exists(path):
         try:
@@ -247,12 +225,11 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             pass
 
     if os.path.exists("scan_results.csv"):
-        ("scan_results.csv", f"scan_results_{scan_mode}.csv")
+        shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
         os.replace("scan_results.csv", target_csv_path)
     else:
         pd.DataFrame(columns=["symbol", "probability", "entry_trigger", "stop_loss"]).to_csv(f"scan_results_{scan_mode}.csv", index=False)
 
-    # Merge neat structural files onto central markdown cockpit panel view
     with open("summary.md", "a") as master_f:
         if os.path.exists(f"summary_{scan_mode}.md"):
             with open(f"summary_{scan_mode}.md", "r") as sf:
@@ -321,10 +298,6 @@ if __name__ == "__main__":
         cmd_options(args)
 
     elif args.command == "run_all":
-        # Single-click "run everything" entry point: one live data fetch,
-        # reused across morning/afternoon/eod scoring + index options.
-        # Triggered via the "Run All Scans Manual Override" workflow -
-        # go to Actions tab -> that workflow -> Run workflow button.
         logger.info("⚡ Central Data Lake Engaged: Downloading data matrix exactly once...")
         universe = load_universe()
         if args.test_limit:
