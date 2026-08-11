@@ -93,10 +93,8 @@ class AngelOneDataClient:
         self._current_delay = min(self._current_delay * 1.8, self._max_delay)
         self._consecutive_successes = 0
 
-    def get_historical_bars(self, tradingsymbol: str, days: int = 250,
-                             interval: str = "ONE_DAY", exchange: str = "NSE") -> pd.DataFrame:
+    def get_historical_bars(self, tradingsymbol: str, days: int = 250, interval: str = "ONE_DAY", exchange: str = "NSE") -> pd.DataFrame:
         import time
-
         token = self._symbol_token(tradingsymbol, exchange)
         to_date = datetime.now()
         from_date = to_date - timedelta(days=days * 2)
@@ -111,16 +109,22 @@ class AngelOneDataClient:
 
         max_attempts = 6
         last_error = None
+
         for attempt in range(max_attempts):
             with self._api_lock:
                 time.sleep(self._current_delay)
                 try:
                     response = self.client.getCandleData(params)
+
+                    # Explicitly catch Angel One API error responses
+                    if isinstance(response, dict) and response.get("status") is False:
+                        raise Exception(f"Angel API Error {response.get('errorcode')}: {response.get('message')}")
+
                     candles = response.get("data", [])
                     if not candles:
                         self._on_success()
                         return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
-                    
+
                     df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
                     df["timestamp"] = pd.to_datetime(df["timestamp"])
                     self._on_success()
@@ -132,4 +136,4 @@ class AngelOneDataClient:
                     self._on_rate_limit()
                     continue
 
-        raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts at delay={self._current_delay:.1f}s: {last_error}")
+        raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts at delay={self._current_delay:.1f}s: {last_error}")}")
