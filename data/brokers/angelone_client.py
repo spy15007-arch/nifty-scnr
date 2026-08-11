@@ -37,7 +37,7 @@ class AngelOneDataClient:
         self._instrument_cache: dict[str, str] = {}
         self._current_delay = 0.4
         self._min_delay = 0.4
-        self._max_delay = 8.0
+        self._max_delay = 60.0
         self._consecutive_successes = 0
         self._decay_after = 10  # after this many clean successes, ease the delay back down
 
@@ -109,7 +109,7 @@ class AngelOneDataClient:
             "todate": to_date.strftime("%Y-%m-%d %H:%M"),
         }
 
-        max_attempts = 3
+        max_attempts = 6
         last_error = None
         for attempt in range(max_attempts):
             time.sleep(self._current_delay)
