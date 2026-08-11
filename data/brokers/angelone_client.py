@@ -136,4 +136,4 @@ class AngelOneDataClient:
                     self._on_rate_limit()
                     continue
 
-        raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts at delay={self._current_delay:.1f}s: {last_error}")}")
+        raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts at delay={self._current_delay:.1f}s: {last_error}")
