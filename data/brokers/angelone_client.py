@@ -16,7 +16,7 @@ Detects two Angel One rate-limit response formats:
 from __future__ import annotations
 import pandas as pd
 from datetime import datetime, timedelta
-
+import threading
 
 def _is_rate_limit_error(e: Exception) -> bool:
     msg = str(e).lower()
@@ -37,10 +37,10 @@ class AngelOneDataClient:
         self._instrument_cache: dict[str, str] = {}
         self._current_delay = 0.4
         self._min_delay = 0.4
-        self._max_delay = 60.0
+        self._max_delay = 8.0
         self._consecutive_successes = 0
         self._decay_after = 10  # after this many clean successes, ease the delay back down
-
+        self._api_lock = threading.Lock()
     INDEX_ALIASES = {
         "NIFTY": "Nifty 50",
         "BANKNIFTY": "Nifty Bank",
@@ -112,22 +112,24 @@ class AngelOneDataClient:
         max_attempts = 6
         last_error = None
         for attempt in range(max_attempts):
-            time.sleep(self._current_delay)
-            try:
-                response = self.client.getCandleData(params)
-                candles = response.get("data", [])
-                if not candles:
+            with self._api_lock:
+                time.sleep(self._current_delay)
+                try:
+                    response = self.client.getCandleData(params)
+                    candles = response.get("data", [])
+                    if not candles:
+                        self._on_success()
+                        return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+                    
+                    df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                    df["timestamp"] = pd.to_datetime(df["timestamp"])
                     self._on_success()
-                    return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
-                df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
-                df["timestamp"] = pd.to_datetime(df["timestamp"])
-                self._on_success()
-                return df.set_index("timestamp").tail(days)
-            except Exception as e:
-                last_error = e
-                if not _is_rate_limit_error(e):
-                    raise
-                self._on_rate_limit()
-                continue
+                    return df.set_index("timestamp").tail(days)
+                except Exception as e:
+                    last_error = e
+                    if not _is_rate_limit_error(e):
+                        raise
+                    self._on_rate_limit()
+                    continue
 
         raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts at delay={self._current_delay:.1f}s: {last_error}")
