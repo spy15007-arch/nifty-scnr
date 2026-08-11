@@ -1,17 +1,17 @@
 """
 Angel One SmartAPI wrapper. Requires: pip install smartapi-python pyotp
 
-Rate limiting: uses an ADAPTIVE throttle shared across every call from
-this client instance. Starts fast (0.4s) and slows down when it hits a
-rate-limit error - and once slowed, EVERY subsequent symbol uses that
-safer pace too.
+Rate limiting: ADAPTIVE throttle shared across every call from this
+client instance. Starts fast (0.4s), slows down on rate-limit errors,
+and - critically - RECOVERS speed after a sustained run of successes.
+Without recovery, one early bad patch permanently slows the entire
+rest of a 1500-symbol run even after the throttling clears (this was
+the actual cause of the ~2 hour EOD runtimes - not detection, but no
+way back down once the delay climbed).
 
-Detects TWO different rate-limit response formats from Angel One (both
-observed in practice, not just documented ones):
-  - "Access denied because of exceeding access rate" (contains "rate")
-  - "Too many requests" with errorcode AB1021 (does NOT contain "rate" -
-    this was a real gap: it used to be treated as non-retryable and
-    raised immediately instead of backing off)
+Detects two Angel One rate-limit response formats:
+  - "Access denied because of exceeding access rate"
+  - "Too many requests" / errorcode AB1021
 """
 from __future__ import annotations
 import pandas as pd
@@ -36,7 +36,10 @@ class AngelOneDataClient:
 
         self._instrument_cache: dict[str, str] = {}
         self._current_delay = 0.4
-        self._max_delay = 8.0  # raised from 4.0 - today's throttling needed more backoff headroom
+        self._min_delay = 0.4
+        self._max_delay = 8.0
+        self._consecutive_successes = 0
+        self._decay_after = 10  # after this many clean successes, ease the delay back down
 
     INDEX_ALIASES = {
         "NIFTY": "Nifty 50",
@@ -80,6 +83,16 @@ class AngelOneDataClient:
             raise KeyError(f"Symbol {tradingsymbol} not found in Angel One instrument master")
         return self._instrument_cache[key]
 
+    def _on_success(self):
+        self._consecutive_successes += 1
+        if self._consecutive_successes >= self._decay_after:
+            self._current_delay = max(self._current_delay * 0.85, self._min_delay)
+            self._consecutive_successes = 0
+
+    def _on_rate_limit(self):
+        self._current_delay = min(self._current_delay * 1.8, self._max_delay)
+        self._consecutive_successes = 0
+
     def get_historical_bars(self, tradingsymbol: str, days: int = 250,
                              interval: str = "ONE_DAY", exchange: str = "NSE") -> pd.DataFrame:
         import time
@@ -104,15 +117,17 @@ class AngelOneDataClient:
                 response = self.client.getCandleData(params)
                 candles = response.get("data", [])
                 if not candles:
+                    self._on_success()
                     return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
                 df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
                 df["timestamp"] = pd.to_datetime(df["timestamp"])
+                self._on_success()
                 return df.set_index("timestamp").tail(days)
             except Exception as e:
                 last_error = e
                 if not _is_rate_limit_error(e):
                     raise
-                self._current_delay = min(self._current_delay * 1.8, self._max_delay)
+                self._on_rate_limit()
                 continue
 
         raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts at delay={self._current_delay:.1f}s: {last_error}")
