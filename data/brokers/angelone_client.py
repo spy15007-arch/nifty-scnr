@@ -115,11 +115,11 @@ class AngelOneDataClient:
                 time.sleep(self._current_delay)
                 try:
                     response = self.client.getCandleData(params)
-
-                    # Explicitly catch Angel One API error responses
+                    
+                    # 🚨 ADD THESE TWO LINES: Manually raise an exception if Angel One returns an error dictionary
                     if isinstance(response, dict) and response.get("status") is False:
                         raise Exception(f"Angel API Error {response.get('errorcode')}: {response.get('message')}")
-
+                    
                     candles = response.get("data", [])
                     if not candles:
                         self._on_success()
