@@ -13,6 +13,7 @@ proven reliable (500/500 symbols, 0 failures in testing).
 """
 from __future__ import annotations
 import logging
+import time
 import pandas as pd
 from pathlib import Path
 
@@ -44,6 +45,7 @@ class HistoricalStore:
         for i, symbol in enumerate(symbols, 1):
             try:
                 df = self.get_bars(symbol, lookback_days)
+                time.sleep(0.5) # Add base delay here to respect API limits
                 if df is not None and not df.empty:
                     results[symbol] = df
                 consecutive_blocked = 0
