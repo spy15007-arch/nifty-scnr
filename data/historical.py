@@ -43,9 +43,9 @@ class HistoricalStore:
         breaker_threshold = 15
 
         for i, symbol in enumerate(symbols, 1):
+            time.sleep(0.5) # Guarantee a delay before every single request
             try:
                 df = self.get_bars(symbol, lookback_days)
-                time.sleep(0.5) # Add base delay here to respect API limits
                 if df is not None and not df.empty:
                     results[symbol] = df
                 consecutive_blocked = 0
