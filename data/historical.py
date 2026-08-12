@@ -32,8 +32,8 @@ class HistoricalStore:
         consecutive_blocked = 0
         breaker_threshold = 15
         
-        # Use 3 concurrent workers to speed things up safely without overwhelming the API
-        max_workers = 3
+        # Use 5 concurrent workers to speed things up safely without overwhelming the API
+        max_workers = 5
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_symbol = {
