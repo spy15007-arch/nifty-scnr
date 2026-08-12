@@ -46,6 +46,7 @@ jobs:
         env:
           TRADING_BROKER: angelone
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
+          TRADING_MAX_UNIVERSE: '500'
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
