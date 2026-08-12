@@ -239,11 +239,22 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         })
     pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
 
-    with open("summary.md", "a") as master_f:
-        if os.path.exists(f"summary_{scan_mode}.md"):
-            with open(f"summary_{scan_mode}.md", "r") as sf:
-                master_f.write(sf.read() + "\n\n")
+    # Read existing summary content if it exists
+        existing_content = ""
+        if os.path.exists("summary.md"):
+            with open("summary.md", "r", encoding="utf-8") as master_f:
+                existing_content = master_f.read()
 
+        # Read the new scan summary
+        new_content = ""
+        summary_path = f"summary_{scan_mode}.md"
+        if os.path.exists(summary_path):
+            with open(summary_path, "r", encoding="utf-8") as sf:
+                new_content = sf.read()
+
+        # Write back with the new content prepended at the top
+        with open("summary.md", "w", encoding="utf-8") as master_f:
+            master_f.write(new_content + "\n\n" + existing_content)
     if high_conviction_recs:
         notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
