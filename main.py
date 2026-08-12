@@ -237,16 +237,17 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             "target_3": r.levels.targets[2] if r.levels else None,
             "target_4": r.levels.targets[3] if r.levels else None,
         })
-    pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
-
-    # Read existing summary content if it exists
-        existing_content = "
+    pd.DataFrame(csv_rows).to_csv(target_csv_path, index=
+    if high_conviction_recs:
+        notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
+        # Read existing summary content if it exists
+        existing_content = ""
         if os.path.exists("summary.md"):
             with open("summary.md", "r", encoding="utf-8") as master_f:
                 existing_content = master_f.read()
 
-        # Read the new scan summary
-        new_content = "
+     # Read the new scan summary
+        new_content = ""
         summary_path = f"summary_{scan_mode}.md"
         if os.path.exists(summary_path):
             with open(summary_path, "r", encoding="utf-8") as sf:
@@ -255,8 +256,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         # Write back with the new content prepended at the top
         with open("summary.md", "w", encoding="utf-8") as master_f:
             master_f.write(new_content + "\n\n" + existing_content)
-    if high_conviction_recs:
-        notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 def execute_isolated_scan(scan_mode: str, test_limit=None):
     universe = load_universe()
