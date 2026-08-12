@@ -237,7 +237,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             "target_3": r.levels.targets[2] if r.levels else None,
             "target_4": r.levels.targets[3] if r.levels else None,
         })
-    pd.DataFrame(csv_rows).to_csv(target_csv_path, index=
+    pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
     if high_conviction_recs:
         notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
         # Read existing summary content if it exists
