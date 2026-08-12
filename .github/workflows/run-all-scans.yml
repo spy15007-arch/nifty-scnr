@@ -12,6 +12,8 @@ jobs:
   execute-all:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      TZ: 'Asia/Kolkata'
     steps:
       - uses: actions/checkout@v4
         with:
