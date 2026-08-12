@@ -16,7 +16,7 @@ Detects two Angel One rate-limit response formats:
 from __future__ import annotations
 import pandas as pd
 from datetime import datetime, timedelta
-import threading
+
 
 def _is_rate_limit_error(e: Exception) -> bool:
     msg = str(e).lower()
@@ -40,7 +40,7 @@ class AngelOneDataClient:
         self._max_delay = 8.0
         self._consecutive_successes = 0
         self._decay_after = 10  # after this many clean successes, ease the delay back down
-        self._api_lock = threading.Lock()
+
     INDEX_ALIASES = {
         "NIFTY": "Nifty 50",
         "BANKNIFTY": "Nifty Bank",
@@ -93,9 +93,10 @@ class AngelOneDataClient:
         self._current_delay = min(self._current_delay * 1.8, self._max_delay)
         self._consecutive_successes = 0
 
-    def get_historical_bars(self, tradingsymbol: str, days: int = 250, interval: str = "ONE_DAY", exchange: str = "NSE") -> pd.DataFrame:
+    def get_historical_bars(self, tradingsymbol: str, days: int = 250,
+                             interval: str = "ONE_DAY", exchange: str = "NSE") -> pd.DataFrame:
         import time
-        print(f"Fetching: {tradingsymbol} | Current Delay: {self._current_delay:.1f}s", flush=True)
+
         token = self._symbol_token(tradingsymbol, exchange)
         to_date = datetime.now()
         from_date = to_date - timedelta(days=days * 2)
@@ -108,33 +109,25 @@ class AngelOneDataClient:
             "todate": to_date.strftime("%Y-%m-%d %H:%M"),
         }
 
-        max_attempts = 6
+        max_attempts = 3
         last_error = None
-
         for attempt in range(max_attempts):
-            with self._api_lock:
-                time.sleep(self._current_delay)
-                try:
-                    response = self.client.getCandleData(params)
-                    
-                    # 🚨 ADD THESE TWO LINES: Manually raise an exception if Angel One returns an error dictionary
-                    if isinstance(response, dict) and response.get("status") is False:
-                        raise Exception(f"Angel API Error {response.get('errorcode')}: {response.get('message')}")
-                    
-                    candles = response.get("data", [])
-                    if not candles:
-                        self._on_success()
-                        return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
-
-                    df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
-                    df["timestamp"] = pd.to_datetime(df["timestamp"])
+            time.sleep(self._current_delay)
+            try:
+                response = self.client.getCandleData(params)
+                candles = response.get("data", [])
+                if not candles:
                     self._on_success()
-                    return df.set_index("timestamp").tail(days)
-                except Exception as e:
-                    last_error = e
-                    if not _is_rate_limit_error(e):
-                        raise
-                    self._on_rate_limit()
-                    continue
+                    return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+                df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                df["timestamp"] = pd.to_datetime(df["timestamp"])
+                self._on_success()
+                return df.set_index("timestamp").tail(days)
+            except Exception as e:
+                last_error = e
+                if not _is_rate_limit_error(e):
+                    raise
+                self._on_rate_limit()
+                continue
 
         raise RuntimeError(f"{tradingsymbol}: rate-limited after {max_attempts} attempts at delay={self._current_delay:.1f}s: {last_error}")
