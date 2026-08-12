@@ -224,11 +224,20 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         except Exception:
             pass
 
-    if os.path.exists("scan_results.csv"):
-        shutil.copy("scan_results.csv", f"scan_results_{scan_mode}.csv")
-        os.replace("scan_results.csv", target_csv_path)
-    else:
-        pd.DataFrame(columns=["symbol", "probability", "entry_trigger", "stop_loss"]).to_csv(f"scan_results_{scan_mode}.csv", index=False)
+    csv_rows = []
+    for r in recs:
+        csv_rows.append({
+            "symbol": r.symbol,
+            "probability": round(r.probability, 4),
+            "grade": _grade_for_recommendation(r),
+            "entry_trigger": r.levels.entry_trigger if r.levels else None,
+            "stop_loss": r.levels.stop_loss if r.levels else None,
+            "target_1": r.levels.targets[0] if r.levels else None,
+            "target_2": r.levels.targets[1] if r.levels else None,
+            "target_3": r.levels.targets[2] if r.levels else None,
+            "target_4": r.levels.targets[3] if r.levels else None,
+        })
+    pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
 
     with open("summary.md", "a") as master_f:
         if os.path.exists(f"summary_{scan_mode}.md"):
