@@ -96,7 +96,8 @@ class AngelOneDataClient:
     def get_historical_bars(self, tradingsymbol: str, days: int = 250,
                              interval: str = "ONE_DAY", exchange: str = "NSE") -> pd.DataFrame:
         import time
-
+                               
+        print(f"Fetching: {tradingsymbol} | Current Delay: {self._current_delay:.1f}s", flush=True)
         token = self._symbol_token(tradingsymbol, exchange)
         to_date = datetime.now()
         from_date = to_date - timedelta(days=days * 2)
