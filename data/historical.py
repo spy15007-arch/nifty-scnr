@@ -3,16 +3,19 @@ Historical OHLCV storage/retrieval. Same interface whether it's backed
 by TimescaleDB, plain Postgres, or (for local dev) parquet files on
 disk - swap HistoricalStore implementations without touching callers.
 
-NOTE: Universe fetches use a controlled 3-thread parallel pool. Thanks
-to the thread lock in AngelOneDataClient, concurrent requests queue safely
-without violating broker limits, speeding up scans to ~3-4 minutes.
+Fetches are SEQUENTIAL. Circuit breaker has TWO triggers:
+  1. Consecutive rate-limit failures (15 in a row) - catches a hard block
+  2. Rolling-window failure RATE (30%+ of the last 50 attempts) - catches
+     SCATTERED persistent throttling that never strings together 15 in a
+     row but still burns huge time retrying a steady trickle of failures
+     across the whole run (this was the actual cause of ~2hr EOD runs -
+     a ~13% scattered failure rate with 0 consecutive-streak triggers).
 """
 from __future__ import annotations
 import logging
-import time
+from collections import deque
 import pandas as pd
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
@@ -22,49 +25,51 @@ class HistoricalStore:
         raise NotImplementedError
 
     def get_universe_bars(self, symbols: list[str], lookback_days: int) -> dict[str, pd.DataFrame]:
-        """
-        Fetches symbols concurrently using a small thread pool with controlled pacing,
-        drastically reducing overall scan time while honoring broker limits.
-        """
         results: dict[str, pd.DataFrame] = {}
         total = len(symbols)
         failures = 0
         consecutive_blocked = 0
         breaker_threshold = 15
-        
-        # Use 5 concurrent workers to speed things up safely without overwhelming the API
-        max_workers = 5
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_symbol = {
-                executor.submit(self.get_bars, symbol, lookback_days): symbol 
-                for symbol in symbols
-            }
-            
-            for i, future in enumerate(as_completed(future_to_symbol), 1):
-                symbol = future_to_symbol[future]
-                try:
-                    df = future.result()
-                    if df is not None and not df.empty:
-                        results[symbol] = df
-                    consecutive_blocked = 0
-                except Exception as e:
-                    failures += 1
-                    is_blocked = "rate" in str(e).lower() or "access denied" in str(e).lower() or "ab1021" in str(e).lower()
-                    consecutive_blocked = consecutive_blocked + 1 if is_blocked else 0
-                    logger.warning(f"Skipping {symbol}: {e}")
+        window_size = 50
+        rate_threshold = 0.30
+        recent_outcomes: deque = deque(maxlen=window_size)
 
-                    if consecutive_blocked >= breaker_threshold:
+        for i, symbol in enumerate(symbols, 1):
+            try:
+                df = self.get_bars(symbol, lookback_days)
+                if df is not None and not df.empty:
+                    results[symbol] = df
+                consecutive_blocked = 0
+                recent_outcomes.append(False)
+            except Exception as e:
+                failures += 1
+                is_blocked = "rate" in str(e).lower() or "access denied" in str(e).lower() or "too many" in str(e).lower()
+                consecutive_blocked = consecutive_blocked + 1 if is_blocked else 0
+                recent_outcomes.append(is_blocked)
+                logger.warning(f"Skipping {symbol}: {e}")
+
+                if consecutive_blocked >= breaker_threshold:
+                    logger.error(
+                        f"Stopping early: {consecutive_blocked} symbols in a row rejected on rate/access "
+                        f"errors - account-level block/cooldown, not fixable by slower pacing. "
+                        f"Got {len(results)}/{total} symbols before this happened."
+                    )
+                    break
+
+                if len(recent_outcomes) == window_size:
+                    window_fail_rate = sum(recent_outcomes) / window_size
+                    if window_fail_rate >= rate_threshold:
                         logger.error(
-                            f"Stopping early: {consecutive_blocked} symbols in a row rejected on rate/access "
-                            f"errors - this looks like an account-level block or cooldown. Got {len(results)}/{total} symbols."
+                            f"Stopping early: {window_fail_rate:.0%} of the last {window_size} symbols were "
+                            f"rate-limited (scattered, not consecutive) - sustained throttling makes the rest "
+                            f"of this run mostly wasted retry time. Got {len(results)}/{total} symbols before "
+                            f"this happened. Try again later."
                         )
-                        for f in future_to_symbol:
-                            f.cancel()
                         break
 
-                if i % 100 == 0 or i == total:
-                    logger.info(f"Fetched {i}/{total} symbols ({failures} failed so far)")
+            if i % 100 == 0 or i == total:
+                logger.info(f"Fetched {i}/{total} symbols ({failures} failed so far)")
 
         if failures:
             logger.info(f"Universe fetch complete: {len(results)}/{total} symbols succeeded")
@@ -75,13 +80,6 @@ class HistoricalStore:
 
 
 class ParquetStore(HistoricalStore):
-    """
-    Local-disk cache. IMPORTANT: only used for training/backtesting
-    (see main.py's _get_training_store) - never for live scans. Using
-    a frozen snapshot for a "live" scan means every scan mode analyzes
-    the exact same stale data regardless of when it actually runs.
-    """
-
     def __init__(self, root: str = "./market_data"):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
