@@ -240,13 +240,13 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
 
     # Read existing summary content if it exists
-        existing_content = ""
+        existing_content = "
         if os.path.exists("summary.md"):
             with open("summary.md", "r", encoding="utf-8") as master_f:
                 existing_content = master_f.read()
 
         # Read the new scan summary
-        new_content = ""
+        new_content = "
         summary_path = f"summary_{scan_mode}.md"
         if os.path.exists(summary_path):
             with open(summary_path, "r", encoding="utf-8") as sf:
