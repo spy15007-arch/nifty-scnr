@@ -1,6 +1,6 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-12 19:13 UTC`
+*Evaluation Window:* `2026-08-13 01:20 UTC`
 
 🏆 Displaying the top **5 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
