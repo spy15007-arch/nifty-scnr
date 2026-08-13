@@ -8,7 +8,7 @@ on:
         required: false
         default: ''
   schedule:
-    # 15:00 IST weekdays = 09:30 UTC. Runs AFTER market close.
+    # 15:00 IST weekdays = 09:30 UTC. Runs half an hour before market close.
     - cron: '30 9 * * 1-5'
 
 jobs:
