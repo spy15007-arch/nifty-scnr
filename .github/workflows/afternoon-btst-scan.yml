@@ -9,7 +9,7 @@ on:
         default: ''
   schedule:
     # 14:45 IST weekdays = 09:15 UTC. Targets completion in the
-    # 15:05-15:10 window based on observed ~500-symbol pace.
+    # 15:05-15:10 window based on observed ~1200-symbol pace.
     - cron: '15 9 * * 1-5'
 
 jobs:
