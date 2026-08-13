@@ -8,9 +8,9 @@ on:
         required: false
         default: ''
   schedule:
-    # 14:50 IST weekdays = 09:20 UTC. Targets completion in the
-    # 15:10-15:15 window based on observed ~500-symbol pace.
-    - cron: '20 9 * * 1-5'
+    # 14:45 IST weekdays = 09:15 UTC. Targets completion in the
+    # 15:05-15:10 window based on observed ~500-symbol pace.
+    - cron: '15 9 * * 1-5'
 
 jobs:
   scan:
