@@ -1,32 +1,36 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-13 01:20 UTC`
+*Evaluation Window:* `2026-08-13 12:18 UTC`
 
-🏆 Displaying the top **21 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **25 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals Confirming | Hold Horizon |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
-| **#1** | **B** | **ELLEN** | 324.45 | 301.67 | 364.92 | 420 | 480 | 525 | 3/4 | 7-10 Days Trend Horizon |
-| **#2** | **B** | **JSWINFRA** | 356.51 | 340.73 | 389.8 | 440 | 480 | 525 | 3/4 | 7-10 Days Trend Horizon |
-| **#3** | **C** | **AYMSYNTEX** | 281.78 | 259.38 | 312.21 | 360 | 400 | 430 | 4/4 | 7-10 Days Trend Horizon |
-| **#4** | **C** | **BAJEL** | 215.93 | 206.15 | 237.8 | 270 | 300 | 320 | 3/4 | 7-10 Days Trend Horizon |
-| **#5** | **C** | **ETERNAL** | 320.34 | 306.27 | 346.71 | 390 | 420 | 450 | 3/4 | 7-10 Days Trend Horizon |
-| **#6** | **C** | **TATACAP** | 390.98 | 374.23 | 416.6 | 450 | 490 | 525 | 3/4 | 7-10 Days Trend Horizon |
-| **#7** | **C** | **TMPV** | 408.82 | 397.92 | 439.75 | 480 | 525 | 575 | 4/4 | 7-10 Days Trend Horizon |
-| **#8** | **C** | **SBFC** | 103.43 | 100.28 | 109.85 | 120 | 130 | 140 | 3/4 | 7-10 Days Trend Horizon |
-| **#9** | **C** | **EUREKAFORB** | 542.83 | 519.39 | 575.59 | 625 | 675 | 700 | 3/4 | 7-10 Days Trend Horizon |
-| **#10** | **C** | **ESTER** | 108.12 | 101.41 | 118.82 | 140 | 150 | 160 | 3/4 | 7-10 Days Trend Horizon |
-| **#11** | **C** | **GSFC** | 180.95 | 176.24 | 192.31 | 210 | 230 | 240 | 4/4 | 7-10 Days Trend Horizon |
-| **#12** | **C** | **INDORAMA** | 66.58 | 60.66 | 76.77 | 90 | 110 | 120 | 4/4 | 7-10 Days Trend Horizon |
-| **#13** | **C** | **THELEELA** | 528.05 | 499.93 | 566.65 | 625 | 675 | 725 | 4/4 | 7-10 Days Trend Horizon |
-| **#14** | **C** | **DALMIASUG** | 429.61 | 396.68 | 466.53 | 525 | 575 | 625 | 3/4 | 7-10 Days Trend Horizon |
-| **#15** | **C** | **PINELABS** | 214.6 | 202.15 | 236.21 | 270 | 300 | 320 | 3/4 | 7-10 Days Trend Horizon |
-| **#16** | **C** | **GKSL** | 148.64 | 143.27 | 161.67 | 180 | 200 | 210 | 3/4 | 7-10 Days Trend Horizon |
-| **#17** | **C** | **MAHABANK** | 94.69 | 91.96 | 103.79 | 120 | 130 | 140 | 3/4 | 7-10 Days Trend Horizon |
-| **#18** | **C** | **GUJENERGY** | 424.75 | 411.05 | 468.99 | 550 | 600 | 650 | 2/4 | 7-10 Days Trend Horizon |
-| **#19** | **C** | **ASIANENE** | 420.84 | 393.77 | 471.64 | 550 | 625 | 675 | 3/4 | 7-10 Days Trend Horizon |
-| **#20** | **C** | **IFGLEXPOR** | 248.4 | 230.23 | 283.28 | 330 | 380 | 420 | 3/4 | 7-10 Days Trend Horizon |
-| **#21** | **C** | **IOLCP** | 179.96 | 168.49 | 210.32 | 250 | 300 | 330 | 2/4 | 7-10 Days Trend Horizon |
+| **#1** | **B+** | **BLSE** | 325.55 | 307.5 | 376.17 | 450 | 525 | 575 | 4/4 | 7-10 Days Trend Horizon |
+| **#2** | **B** | **ETERNAL** | 320.34 | 306.75 | 346.44 | 380 | 420 | 450 | 3/4 | 7-10 Days Trend Horizon |
+| **#3** | **B** | **ASIANENE** | 420.84 | 394.29 | 471.64 | 550 | 625 | 675 | 3/4 | 7-10 Days Trend Horizon |
+| **#4** | **B** | **URBANCO** | 156.5 | 147.59 | 169.27 | 190 | 210 | 220 | 3/4 | 7-10 Days Trend Horizon |
+| **#5** | **B** | **DHAMPURSUG** | 167.63 | 157.49 | 181.21 | 200 | 220 | 240 | 3/4 | 7-10 Days Trend Horizon |
+| **#6** | **C** | **HFCL** | 231.41 | 216.33 | 276.22 | 340 | 400 | 450 | 3/4 | 7-10 Days Trend Horizon |
+| **#7** | **C** | **FIRSTCRY** | 270.17 | 264.38 | 288.41 | 320 | 340 | 360 | 4/4 | 7-10 Days Trend Horizon |
+| **#8** | **C** | **IFGLEXPOR** | 248.4 | 229.85 | 283.28 | 330 | 380 | 420 | 3/4 | 7-10 Days Trend Horizon |
+| **#9** | **C** | **AMBALALSA** | Market | Dynamic | ATR Based | 3/4 | 7-10 Days Trend Horizon |
+| **#10** | **C** | **SONATSOFTW** | 360.22 | 333.89 | 401.66 | 460 | 525 | 575 | 3/4 | 7-10 Days Trend Horizon |
+| **#11** | **C** | **FILATEX** | 85.87 | 79.89 | 99.32 | 120 | 140 | 150 | 4/4 | 7-10 Days Trend Horizon |
+| **#12** | **C** | **IFCI** | 95.99 | 91.98 | 109.43 | 130 | 150 | 160 | 3/4 | 7-10 Days Trend Horizon |
+| **#13** | **C** | **DYCL** | 469.94 | 442.44 | 533.1 | 625 | 725 | 775 | 4/4 | 7-10 Days Trend Horizon |
+| **#14** | **C** | **BECTORFOOD** | 246.9 | 232.7 | 269.04 | 300 | 330 | 360 | 3/4 | 7-10 Days Trend Horizon |
+| **#15** | **C** | **ESTER** | 108.12 | 100.94 | 118.82 | 140 | 150 | 160 | 4/4 | 7-10 Days Trend Horizon |
+| **#16** | **C** | **DALMIASUG** | 440.58 | 405.23 | 480.05 | 550 | 600 | 650 | 4/4 | 7-10 Days Trend Horizon |
+| **#17** | **C** | **BTML** | 9.17 | 8.17 | 10.28 | 15 | 20 | 25 | 4/4 | 7-10 Days Trend Horizon |
+| **#18** | **C** | **EPL** | 260.35 | 248.27 | 281.5 | 310 | 340 | 360 | 3/4 | 7-10 Days Trend Horizon |
+| **#19** | **C** | **DHARMAJ** | 298.6 | 283.03 | 318.22 | 350 | 380 | 400 | 4/4 | 7-10 Days Trend Horizon |
+| **#20** | **C** | **GUJENERGY** | 424.75 | 409.66 | 468.99 | 550 | 600 | 650 | 3/4 | 7-10 Days Trend Horizon |
+| **#21** | **C** | **BHARATSE** | 263.71 | 244.07 | 297.29 | 350 | 390 | 430 | 3/4 | 7-10 Days Trend Horizon |
+| **#22** | **C** | **EDELWEISS** | 134.17 | 127.93 | 143.66 | 160 | 170 | 180 | 3/4 | 7-10 Days Trend Horizon |
+| **#23** | **C** | **ALPHAGEO** | 315.63 | 282.2 | 356.48 | 410 | 470 | 525 | 4/4 | 7-10 Days Trend Horizon |
+| **#24** | **C** | **HONASA** | 492.33 | 470.69 | 554.17 | 650 | 725 | 800 | 3/4 | 7-10 Days Trend Horizon |
+| **#25** | **C** | **DECNGOLD** | Market | Dynamic | ATR Based | 4/4 | 7-10 Days Trend Horizon |
 
 ---
 
