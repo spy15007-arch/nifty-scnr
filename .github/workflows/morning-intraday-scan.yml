@@ -8,9 +8,9 @@ on:
         required: false
         default: ''
   schedule:
-    # 08:30 IST weekdays = 03:00 UTC.
+    # 09:15 IST weekdays = 03:45 UTC.
     # With our parallel pacing adjustments, this delivers alerts by 08:32 AM IST.
-    - cron: '30 3 * * 1-5'
+    - cron: '45 3 * * 1-5'
 
 jobs:
   scan:
