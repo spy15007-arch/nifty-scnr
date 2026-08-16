@@ -8,7 +8,6 @@ on:
         required: false
         default: ''
   schedule:
-    # 15:00 IST weekdays = 09:30 UTC. Runs half an hour before market close.
     - cron: '30 9 * * 1-5'
 
 jobs:
@@ -57,17 +56,18 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py scan_eod
 
+      - name: Archive reports older than 2 days
+        run: |
+          find reports/morning reports/afternoon reports/eod -name "*.md" -mtime +2 -delete 2>/dev/null || true
+          find reports/morning reports/afternoon reports/eod -name "*.csv" -mtime +2 -delete 2>/dev/null || true
+          find . -maxdepth 1 -name "scan_results_*.csv" -mtime +2 -delete 2>/dev/null || true
+          find . -maxdepth 1 -name "summary_*.md" -mtime +2 -delete 2>/dev/null || true
+
       - name: Sync and Commit report back to repo
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@://github.com"
-      - name: Archive reports older than 02 days
-        run: |
-          find reports/morning reports/afternoon reports/eod -name "*.md" -mtime +02 -delete 2>/dev/null || true
-          find reports/morning reports/afternoon reports/eod -name "*.csv" -mtime +02 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "scan_results_*.csv" -mtime +02 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "summary_*.md" -mtime +02 -delete 2>/dev/null || true git add -A reports/eod/*.md || true
-          
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A reports/eod/ || true
           if ! git diff --cached --quiet; then
             git commit -m "Automated scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
             git fetch origin main
