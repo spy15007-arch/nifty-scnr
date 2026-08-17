@@ -1,24 +1,28 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-16 13:37 UTC`
+*Evaluation Window:* `2026-08-17 11:48 UTC`
 
-🏆 Displaying the top **13 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **17 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals Confirming | Hold Horizon |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
-| **#1** | **B** | **HAPPSTMNDS** | 427.3 | 403.69 | 452.17 | 490 | 525 | 557.16 | 4/4 | Overnight (1 Session) |
-| **#2** | **B** | **IFGLEXPOR** | 248.4 | 229.64 | 283.28 | 330 | 380 | 420 | 3/4 | Overnight (1 Session) |
-| **#3** | **C** | **GIPCL** | 181.76 | 174.9 | 198.49 | 220 | 250 | 260 | 3/4 | Overnight (1 Session) |
-| **#4** | **C** | **BALUFORGE** | 571.04 | 542.85 | 621.33 | 700 | 775 | 825 | 4/4 | Overnight (1 Session) |
-| **#5** | **C** | **FINKURVE** | 75.54 | 69.37 | 82.98 | 95 | 110 | 120 | 3/4 | Overnight (1 Session) |
-| **#6** | **C** | **BHAGCHEM** | 317.53 | 296.02 | 357.32 | 410 | 470 | 525 | 3/4 | Overnight (1 Session) |
-| **#7** | **C** | **PETRONET** | 294.69 | 285.15 | 310.67 | 340 | 360 | 370 | 3/4 | Overnight (1 Session) |
-| **#8** | **C** | **HMAAGRO** | 27.05 | 24.93 | 29.17 | 35 | 40 | 45 | 3/4 | Overnight (1 Session) |
-| **#9** | **C** | **JINDALSAW** | 281.56 | 270.55 | 309.65 | 350 | 390 | 420 | 3/4 | Overnight (1 Session) |
-| **#10** | **C** | **ANDHRSUGAR** | 107.44 | 101.06 | 118.25 | 140 | 150 | 160 | 4/4 | Overnight (1 Session) |
-| **#11** | **C** | **BTML** | 9.17 | 8.16 | 10.28 | 15 | 20 | 25 | 4/4 | Overnight (1 Session) |
-| **#12** | **C** | **IOLCP** | 179.96 | 167.24 | 209.47 | 250 | 290 | 320 | 3/4 | Overnight (1 Session) |
-| **#13** | **C** | **BEPL** | 138.78 | 132.76 | 154.31 | 180 | 200 | 220 | 1/4 | Overnight (1 Session) |
+| **#1** | **B+** | **ASIANENE** | 432.86 | 400.23 | 486.92 | 575 | 650 | 700 | 3/4 | Overnight (1 Session) |
+| **#2** | **B** | **ASHOKLEY** | 183.07 | 175.08 | 195.22 | 220 | 230 | 240 | 3/4 | Overnight (1 Session) |
+| **#3** | **B** | **MRPL** | 200.98 | 190.06 | 216.61 | 240 | 260 | 280 | 4/4 | Overnight (1 Session) |
+| **#4** | **B** | **GOCOLORS** | 440.88 | 418.81 | 493.29 | 575 | 650 | 700 | 3/4 | Overnight (1 Session) |
+| **#5** | **C** | **TATAPOWER** | 465.83 | 457.42 | 492.23 | 550 | 575 | 600 | 3/4 | Overnight (1 Session) |
+| **#6** | **C** | **JINDALSAW** | 281.56 | 270.92 | 309.65 | 350 | 390 | 420 | 3/4 | Overnight (1 Session) |
+| **#7** | **C** | **HAPPSTMNDS** | 433.26 | 408.93 | 459.75 | 500 | 550 | 575 | 4/4 | Overnight (1 Session) |
+| **#8** | **C** | **DCMSRIND** | 50.1 | 46.69 | 55.02 | 65 | 70 | 75 | 3/4 | Overnight (1 Session) |
+| **#9** | **C** | **CPCAP** | 142.28 | 130.72 | 160.91 | 190 | 220 | 230 | 3/4 | Overnight (1 Session) |
+| **#10** | **C** | **AWL** | 216.44 | 209.56 | 227.95 | 250 | 260 | 280 | 4/4 | Overnight (1 Session) |
+| **#11** | **C** | **IFCI** | 95.99 | 91.8 | 109.43 | 130 | 150 | 160 | 3/4 | Overnight (1 Session) |
+| **#12** | **C** | **ARIS** | 159.32 | 150.96 | 176.9 | 200 | 230 | 250 | 3/4 | Overnight (1 Session) |
+| **#13** | **C** | **CENTEXT** | 24.05 | 21.86 | 26.32 | 30 | 35 | 40 | 2/4 | Overnight (1 Session) |
+| **#14** | **C** | **URBANCO** | 156.5 | 147.28 | 169.27 | 190 | 210 | 220 | 4/4 | Overnight (1 Session) |
+| **#15** | **C** | **NATIONALUM** | 446.04 | 424.68 | 476.98 | 525 | 575 | 600 | 3/4 | Overnight (1 Session) |
+| **#16** | **C** | **CANBK** | 147.18 | 143.33 | 154.36 | 170 | 180 | 190 | 4/4 | Overnight (1 Session) |
+| **#17** | **C** | **BHEL** | 447.39 | 431.51 | 503.78 | 600 | 675 | 725 | 3/4 | Overnight (1 Session) |
 
 ---
 
