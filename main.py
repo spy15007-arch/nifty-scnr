@@ -23,31 +23,27 @@ from reports.generator import daily_scan_report, daily_options_report
 from reports.notify import notify_scan_results, notify_option_results
 import config
 
-# Direct integration of your breakout system
-from scanner.breakout import check_rsi_60_breakout
-from scanner.technicals import macd_bullish, higher_highs_higher_lows, rolling_vwap_position
+from scanner.breakout import check_pre_breakout_setup
+from scanner.technicals import (
+    macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
+    obv_accumulation, adx_building,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DB_DIR = "market_data"
 
+
 def _get_store():
-    """
-    ALWAYS live data - used by every live scan command (scan_morning,
-    scan_afternoon, scan_eod, options, run_all). Deliberately does NOT
-    check for cached Parquet files here.
-    """
+    """ALWAYS live data - used by every live scan command."""
     return AngelOneHistoricalStore()
 
 
 def _get_training_store():
-    """
-    Training/backtesting ONLY - not currently wired to any command.
-    """
+    """Training/backtesting ONLY - not currently wired to any command."""
     os.makedirs(DB_DIR, exist_ok=True)
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
-
     if has_files:
         logger.info(f"💾 Local data cache detected inside ./{DB_DIR}. Using it for training/backtesting.")
         return ParquetStore(root=DB_DIR)
@@ -55,33 +51,99 @@ def _get_training_store():
         logger.warning(f"⚠️ Local database path ./{DB_DIR} is blank. Falling back to live fetch for training.")
         return AngelOneHistoricalStore()
 
+
 def _get_angelone_mapped_symbol(index_tag: str) -> str:
     mapping = {"NIFTY": "Nifty 50", "BANKNIFTY": "Nifty Bank", "FINNIFTY": "Nifty Fin Service"}
     cleaned_tag = index_tag.strip().upper()
     return mapping.get(cleaned_tag, cleaned_tag)
 
+
 def _ensure_report_directories():
     for folder in ["reports/morning", "reports/afternoon", "reports/eod", "reports/output"]:
         os.makedirs(folder, exist_ok=True)
 
+
 def _grade_for_recommendation(r) -> str:
     """
-    Letter grade from conviction probability + how many independent
-    signals confirmed (RSI baseline + however many of MACD/HH-HL/VWAP
-    also agreed).
+    Letter grade from conviction probability + how many of the 6
+    independent signals confirmed (RSI pre-breakout zone, MACD, HH/HL,
+    VWAP, OBV, ADX). More agreement = higher grade.
     """
-    n_signals = max(0, len(r.top_reasons) - 1)
+    n_signals = max(0, len(r.top_reasons) - 1)  # subtract the strategy-title tag
     prob = r.probability
 
-    if prob >= 0.75 and n_signals >= 4:
+    if prob >= 0.75 and n_signals >= 5:
         return "A+"
-    elif prob >= 0.65 and n_signals >= 3:
+    elif prob >= 0.65 and n_signals >= 4:
         return "A"
-    elif prob >= 0.55 and n_signals >= 2:
+    elif prob >= 0.55 and n_signals >= 3:
         return "B+"
     elif prob >= 0.45:
         return "B"
     return "C"
+
+
+def _build_table_lines(recs: list) -> list[str]:
+    """Shared table-building logic used by both the per-folder dashboard and the README section."""
+    lines = [
+        "| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |",
+        "| :--- | :---: | :--- | :--- | :--- | :--- | :--- |"
+    ]
+    if not recs:
+        lines.append("| - | - | No candidates this session | - | - | - | - |")
+    else:
+        for idx, r in enumerate(recs, 1):
+            grade = _grade_for_recommendation(r)
+            entry = r.levels.entry_trigger if r.levels else "Market"
+            sl = r.levels.stop_loss if r.levels else "Dynamic"
+            tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
+            n_signals = max(0, len(r.top_reasons) - 1)
+            lines.append(f"| **{idx}** | **{grade}** | **{r.symbol}** | {entry} | {sl} | {tg} | {n_signals}/6 |")
+    return lines
+
+
+def _update_readme_section(scan_mode: str, recs: list):
+    """Updates a marked section of README.md with the latest scan results."""
+    marker_tag = scan_mode.upper()
+    start_marker = f"<!-- {marker_tag}_TABLE_START -->"
+    end_marker = f"<!-- {marker_tag}_TABLE_END -->"
+    date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+    titles = {
+        "morning": "⚡ Latest Morning Intraday Watchlist",
+        "afternoon": "🌙 Latest Afternoon BTST Watchlist",
+        "eod": "📈 Latest EOD Swing Watchlist",
+    }
+    title = titles.get(scan_mode, scan_mode.title())
+
+    table_lines = _build_table_lines(recs)
+    section = "\n".join([
+        start_marker,
+        f"### {title}",
+        f"*Updated: {date_str}*",
+        "",
+        *table_lines,
+        "",
+        end_marker,
+    ])
+
+    readme_path = "README.md"
+    if os.path.exists(readme_path):
+        with open(readme_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    else:
+        content = "# NIFTY Scanner\n\nAutomated breakout scanner - live results below.\n\n"
+
+    if start_marker in content and end_marker in content:
+        pre = content.split(start_marker)[0]
+        post = content.split(end_marker)[1]
+        content = pre + section + post
+    else:
+        content = content.rstrip() + "\n\n" + section + "\n"
+
+    with open(readme_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
 
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
     """Generates a neat, prioritized, graded high-conviction Markdown dashboard view."""
@@ -101,28 +163,16 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
         f"# {title}\n",
         f"*Evaluation Window:* `{date_str}`\n",
         f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.\n",
-        "| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals Confirming | Hold Horizon |",
-        "| :--- | :---: | :--- | :--- | :--- | :--- | :--- | :--- |"
     ]
-
-    if not recs:
-        lines.append("| - | - | No candidates met strategy coiling or crossover triggers for this session. | - | - | - | - | - |")
-    else:
-        for idx, r in enumerate(recs, 1):
-            grade = _grade_for_recommendation(r)
-            entry = r.levels.entry_trigger if r.levels else "Market"
-            sl = r.levels.stop_loss if r.levels else "Dynamic"
-            tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
-            n_signals = max(0, len(r.top_reasons) - 1)
-            lines.append(f"| **#{idx}** | **{grade}** | **{r.symbol}** | {entry} | {sl} | {tg} | {n_signals}/4 | {hold_time} |")
-
+    lines.extend(_build_table_lines(recs))
     lines.append("\n---\n")
     lines.append(
-        "*Grade key: A+ = probability >=75% with all 4 signals (RSI, MACD, HH/HL, VWAP) agreeing. "
-        "A = >=65% with 3+ agreeing. B+ = >=55% with 2+ agreeing. B = >=45%. C = below that but still made the cut.*\n"
+        "*Grade key: A+ = probability >=75% with 5+ of 6 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX) agreeing. "
+        "A = >=65% with 4+ agreeing. B+ = >=55% with 3+ agreeing. B = >=45%. C = below that but still made the cut.*\n"
     )
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+
 
 def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame):
     """Processes explicit strategy variations and pushes clean files directly to the root main tree."""
@@ -156,23 +206,27 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             if df is None or df.empty or len(df) < 20:
                 continue
 
-            rsi_analysis = check_rsi_60_breakout(df)
+            # PRE-BREAKOUT gate - NOT a "has already broken out" gate.
+            # RSI is required to be BUILDING in a 45-65 zone (momentum
+            # accumulating) and is HARD-EXCLUDED above 68 (already
+            # overbought = the move likely already happened). This
+            # replaces the old RSI>=60 requirement, which - because RSI
+            # is a lagging measure - could only ever surface stocks
+            # that had ALREADY moved several percent to get RSI there.
+            rsi_analysis = check_pre_breakout_setup(df)
             if not rsi_analysis["flagged"]:
                 continue
 
             if scan_mode == "morning":
                 avg_volume = df['volume'].tail(20).mean()
-                if df['volume'].iloc[-1] < (avg_volume * 1.0):  # loosened from 1.1x to reach 20-25 candidates
+                if df['volume'].iloc[-1] < (avg_volume * 1.0):
                     continue
             elif scan_mode == "afternoon":
                 day_high = df['high'].iloc[-1]
                 day_low = df['low'].iloc[-1]
                 day_close = df['close'].iloc[-1]
                 range_span = (day_high - day_low) + 1e-10
-                if ((day_high - day_close) / range_span) > 0.40:  # loosened from 0.30 to reach 20-25 candidates
-                    continue
-            elif scan_mode == "eod":
-                if rsi_analysis["current_rsi"] > 75:
+                if ((day_high - day_close) / range_span) > 0.40:
                     continue
 
             feats = build_features(df, benchmark)
@@ -181,14 +235,20 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             macd_result = macd_bullish(df)
             hh_hl_result = higher_highs_higher_lows(df)
             vwap_result = rolling_vwap_position(df)
+            obv_result = obv_accumulation(df)
+            adx_result = adx_building(df)
 
-            confirming_signals = [f"RSI {rsi_analysis['current_rsi']} (60+ crossover/coil)"]
+            confirming_signals = [f"RSI {rsi_analysis['current_rsi']} (pre-breakout building zone)"]
             if macd_result.passed:
                 confirming_signals.append(macd_result.reason)
             if hh_hl_result.passed:
                 confirming_signals.append(hh_hl_result.reason)
             if vwap_result.passed:
                 confirming_signals.append(vwap_result.reason)
+            if obv_result.passed:
+                confirming_signals.append(obv_result.reason)
+            if adx_result.passed:
+                confirming_signals.append(adx_result.reason)
 
             n_extra_confirming = len(confirming_signals) - 1
             conviction_boost = 1.0 + (0.08 * n_extra_confirming)
@@ -199,7 +259,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
                 execution.__dict__["style"] = TradeStyle(style_label)
 
             rec_package = explain(cand.symbol, adjusted_probability, feats, levels, execution)
-            rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:4]
+            rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:6]
             recs.append(rec_package)
 
     recs.sort(key=lambda r: r.probability, reverse=True)
@@ -217,6 +277,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
     _generate_clean_dashboard_md(scan_mode, high_conviction_recs, f"{output_subfolder}/summary_{scan_mode}.md")
     shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
+    _update_readme_section(scan_mode, high_conviction_recs)
 
     if os.path.exists(path):
         try:
@@ -238,24 +299,16 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             "target_4": r.levels.targets[3] if r.levels else None,
         })
     pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
+    pd.DataFrame(csv_rows).to_csv(f"scan_results_{scan_mode}.csv", index=False)
+
+    with open("summary.md", "a") as master_f:
+        if os.path.exists(f"summary_{scan_mode}.md"):
+            with open(f"summary_{scan_mode}.md", "r") as sf:
+                master_f.write(sf.read() + "\n\n")
+
     if high_conviction_recs:
         notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
-        # Read existing summary content if it exists
-        existing_content = ""
-        if os.path.exists("summary.md"):
-            with open("summary.md", "r", encoding="utf-8") as master_f:
-                existing_content = master_f.read()
 
-     # Read the new scan summary
-        new_content = ""
-        summary_path = f"summary_{scan_mode}.md"
-        if os.path.exists(summary_path):
-            with open(summary_path, "r", encoding="utf-8") as sf:
-                new_content = sf.read()
-
-        # Write back with the new content prepended at the top
-        with open("summary.md", "w", encoding="utf-8") as master_f:
-            master_f.write(new_content + "\n\n" + existing_content)
 
 def execute_isolated_scan(scan_mode: str, test_limit=None):
     universe = load_universe()
@@ -276,6 +329,7 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
 
     process_scans_with_shared_data(scan_mode, bars, benchmark_df)
 
+
 def cmd_options(args, shared_store=None):
     store = shared_store if shared_store else _get_store()
     plans = []
@@ -284,7 +338,7 @@ def cmd_options(args, shared_store=None):
         mapped_spot_symbol = _get_angelone_mapped_symbol(raw_symbol)
         try:
             df = store.get_bars(mapped_spot_symbol, lookback_days=250)
-        except Exception as e:
+        except Exception:
             continue
         if df is None or df.empty or len(df) < 100:
             continue
