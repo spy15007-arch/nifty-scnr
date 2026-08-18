@@ -1,37 +1,34 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-17 11:50 UTC`
+*Evaluation Window:* `2026-08-18 15:21 UTC`
 
-🏆 Displaying the top **25 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **22 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
-| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals Confirming | Hold Horizon |
-| :--- | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
-| **#1** | **B+** | **ASIANENE** | 432.86 | 400.23 | 486.92 | 575 | 650 | 700 | 3/4 | 7-10 Days Trend Horizon |
-| **#2** | **B** | **ASHOKLEY** | 183.07 | 175.08 | 195.22 | 220 | 230 | 240 | 3/4 | 7-10 Days Trend Horizon |
-| **#3** | **B** | **GUFICBIO** | 448.9 | 425.72 | 496.5 | 575 | 625 | 675 | 3/4 | 7-10 Days Trend Horizon |
-| **#4** | **B** | **MRPL** | 200.98 | 190.06 | 216.61 | 240 | 260 | 280 | 4/4 | 7-10 Days Trend Horizon |
-| **#5** | **B** | **ETERNAL** | 325.65 | 314.08 | 353.19 | 390 | 430 | 460 | 3/4 | 7-10 Days Trend Horizon |
-| **#6** | **B** | **GOCOLORS** | 440.88 | 418.81 | 493.29 | 575 | 650 | 700 | 3/4 | 7-10 Days Trend Horizon |
-| **#7** | **B** | **GIPCL** | 181.76 | 174.79 | 198.49 | 220 | 250 | 260 | 4/4 | 7-10 Days Trend Horizon |
-| **#8** | **C** | **POONAWALLA** | 512.92 | 489.29 | 553.91 | 625 | 675 | 725 | 3/4 | 7-10 Days Trend Horizon |
-| **#9** | **C** | **CUPID** | 299.6 | 276.58 | 359.98 | 440 | 525 | 600 | 3/4 | 7-10 Days Trend Horizon |
-| **#10** | **C** | **TATAPOWER** | 465.83 | 457.42 | 492.23 | 550 | 575 | 600 | 3/4 | 7-10 Days Trend Horizon |
-| **#11** | **C** | **JINDALSAW** | 281.56 | 270.92 | 309.65 | 350 | 390 | 420 | 3/4 | 7-10 Days Trend Horizon |
-| **#12** | **C** | **HAPPSTMNDS** | 433.26 | 408.93 | 459.75 | 500 | 550 | 575 | 4/4 | 7-10 Days Trend Horizon |
-| **#13** | **C** | **DCMSRIND** | 50.1 | 46.69 | 55.02 | 65 | 70 | 75 | 3/4 | 7-10 Days Trend Horizon |
-| **#14** | **C** | **CPCAP** | 142.28 | 130.72 | 160.91 | 190 | 220 | 230 | 3/4 | 7-10 Days Trend Horizon |
-| **#15** | **C** | **AWL** | 216.44 | 209.56 | 227.95 | 250 | 260 | 280 | 4/4 | 7-10 Days Trend Horizon |
-| **#16** | **C** | **IFCI** | 95.99 | 91.8 | 109.43 | 130 | 150 | 160 | 3/4 | 7-10 Days Trend Horizon |
-| **#17** | **C** | **HFCL** | 231.41 | 216.94 | 276.22 | 340 | 400 | 450 | 3/4 | 7-10 Days Trend Horizon |
-| **#18** | **C** | **BLSE** | 325.55 | 307.75 | 376.17 | 450 | 525 | 575 | 2/4 | 7-10 Days Trend Horizon |
-| **#19** | **C** | **BANSALWIRE** | 370.74 | 353.46 | 410.86 | 470 | 525 | 575 | 3/4 | 7-10 Days Trend Horizon |
-| **#20** | **C** | **ARIS** | 159.32 | 150.96 | 176.9 | 200 | 230 | 250 | 3/4 | 7-10 Days Trend Horizon |
-| **#21** | **C** | **CENTEXT** | 24.05 | 21.86 | 26.32 | 30 | 35 | 40 | 2/4 | 7-10 Days Trend Horizon |
-| **#22** | **C** | **URBANCO** | 156.5 | 147.28 | 169.27 | 190 | 210 | 220 | 4/4 | 7-10 Days Trend Horizon |
-| **#23** | **C** | **NATIONALUM** | 446.04 | 424.68 | 476.98 | 525 | 575 | 600 | 3/4 | 7-10 Days Trend Horizon |
-| **#24** | **C** | **CANBK** | 147.18 | 143.33 | 154.36 | 170 | 180 | 190 | 4/4 | 7-10 Days Trend Horizon |
-| **#25** | **C** | **BHEL** | 447.39 | 431.51 | 503.78 | 600 | 675 | 725 | 3/4 | 7-10 Days Trend Horizon |
+| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |
+| :--- | :---: | :--- | :--- | :--- | :--- | :--- |
+| **1** | **A** | **MRPL** | 196.03 | 184.33 | 210.32 | 230 | 250 | 270 | 5/6 |
+| **2** | **B+** | **INDIQUBE** | 191.38 | 180.1 | 207.66 | 230 | 260 | 270 | 5/6 |
+| **3** | **B** | **WELSPUNLIV** | 183.27 | 171.76 | 203.89 | 240 | 260 | 280 | 6/6 |
+| **4** | **B** | **AEROFLEX** | 522.94 | 489.92 | 605.0 | 725 | 825 | 925 | 4/6 |
+| **5** | **B** | **ICIL** | 464.73 | 428.85 | 531.89 | 625 | 725 | 800 | 3/6 |
+| **6** | **B** | **BHAGYANGR** | 433.16 | 402.95 | 514.03 | 625 | 750 | 825 | 3/6 |
+| **7** | **B** | **GLOBAL** | 122.14 | 114.56 | 133.1 | 150 | 170 | 180 | 4/6 |
+| **8** | **B** | **GOCOLORS** | 440.88 | 419.22 | 493.29 | 575 | 650 | 700 | 5/6 |
+| **9** | **B** | **CANHLIFE** | 167.02 | 160.54 | 176.4 | 190 | 210 | 220 | 3/6 |
+| **10** | **C** | **EPL** | 260.35 | 247.99 | 281.5 | 310 | 340 | 360 | 5/6 |
+| **11** | **C** | **HARSHA** | 469.94 | 447.65 | 512.29 | 575 | 650 | 675 | 4/6 |
+| **12** | **C** | **GUJTHEM** | 442.08 | 421.51 | 500.87 | 600 | 675 | 725 | 3/6 |
+| **13** | **C** | **DCXINDIA** | 226.41 | 217.79 | 246.17 | 280 | 300 | 320 | 4/6 |
+| **14** | **C** | **JINDALSAW** | 281.56 | 270.98 | 309.65 | 350 | 390 | 420 | 5/6 |
+| **15** | **C** | **LTF** | 339.28 | 326.06 | 367.49 | 410 | 450 | 480 | 4/6 |
+| **16** | **C** | **AURUM** | 265.17 | 250.85 | 295.84 | 340 | 380 | 410 | 2/6 |
+| **17** | **C** | **DIFFNKG** | 454.81 | 417.06 | 511.48 | 600 | 675 | 725 | 3/6 |
+| **18** | **C** | **GROWW** | 227.65 | 220.85 | 248.91 | 280 | 310 | 330 | 2/6 |
+| **19** | **C** | **TATAPOWER** | 465.83 | 458.07 | 492.23 | 550 | 575 | 600 | 4/6 |
+| **20** | **C** | **GHCLTEXTIL** | 128.81 | 119.86 | 146.02 | 170 | 200 | 210 | 3/6 |
+| **21** | **C** | **GANDHAR** | 303.78 | 286.92 | 354.96 | 430 | 500 | 550 | 1/6 |
+| **22** | **C** | **GREENPLY** | 335.07 | 321.83 | 378.04 | 440 | 500 | 550 | 1/6 |
 
 ---
 
-*Grade key: A+ = probability >=75% with all 4 signals (RSI, MACD, HH/HL, VWAP) agreeing. A = >=65% with 3+ agreeing. B+ = >=55% with 2+ agreeing. B = >=45%. C = below that but still made the cut.*
+*Grade key: A+ = probability >=75% with 5+ of 6 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX) agreeing. A = >=65% with 4+ agreeing. B+ = >=55% with 3+ agreeing. B = >=45%. C = below that but still made the cut.*
