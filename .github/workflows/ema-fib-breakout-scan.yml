@@ -8,7 +8,8 @@ on:
         required: false
         default: ''
   schedule:
-    - cron: '30 9 * * 1-5'
+    # 16:00 IST = 10:30 UTC - gives afternoon a full hour buffer before this starts
+    - cron: '30 10 * * 1-5'
 
 jobs:
   scan:
@@ -47,7 +48,7 @@ jobs:
         env:
           TRADING_BROKER: angelone
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
-          TRADING_MAX_UNIVERSE: '1200'
+          TRADING_MAX_UNIVERSE: '750'
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
