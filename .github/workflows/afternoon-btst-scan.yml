@@ -8,7 +8,9 @@ on:
         required: false
         default: ''
   schedule:
-    - cron: '15 9 * * 1-5'
+    # 13:00 IST = 07:30 UTC - moved earlier so it can't overlap with
+    # morning even in a worst-case 120min run
+    - cron: '30 7 * * 1-5'
 
 jobs:
   scan:
@@ -47,7 +49,7 @@ jobs:
         env:
           TRADING_BROKER: angelone
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
-          TRADING_MAX_UNIVERSE: '1200'
+          TRADING_MAX_UNIVERSE: '750'
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
