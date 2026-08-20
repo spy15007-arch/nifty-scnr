@@ -45,7 +45,7 @@ jobs:
         env:
           TRADING_BROKER: angelone
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
-          TRADING_MAX_UNIVERSE: '1200'
+          TRADING_MAX_UNIVERSE: '750'
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
@@ -54,21 +54,23 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py run_all
 
+      - name: Archive reports older than 2 days
+        run: |
+          find reports/morning reports/afternoon reports/eod -name "*.md" -mtime +2 -delete 2>/dev/null || true
+          find reports/morning reports/afternoon reports/eod -name "*.csv" -mtime +2 -delete 2>/dev/null || true
+          find . -maxdepth 1 -name "scan_results_*.csv" -mtime +2 -delete 2>/dev/null || true
+          find . -maxdepth 1 -name "summary_*.md" -mtime +2 -delete 2>/dev/null || true
+
       - name: Sync and Commit All Isolated Reports
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@://github.com"
-      - name: Archive reports older than 02 days
-        run: |
-          find reports/morning reports/afternoon reports/eod -name "*.md" -mtime +02 -delete 2>/dev/null || true
-          find reports/morning reports/afternoon reports/eod -name "*.csv" -mtime +02 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "scan_results_*.csv" -mtime +02 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "summary_*.md" -mtime +02 -delete 2>/dev/null || truegit add -A reports/morning/* || true
-          git add -A reports/afternoon/* || true
-          git add -A reports/eod/* || true
-          git add -A reports/output/* || true
-          git add summary.md || true
-          git add scan_results_*.csv || true
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A reports/morning/ || true
+          git add -A reports/afternoon/ || true
+          git add -A reports/eod/ || true
+          git add -A reports/output/ || true
+          git add -A summary.md || true
+          git add -A scan_results_*.csv || true
           if ! git diff --cached --quiet; then
             git commit -m "Automated scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
             git fetch origin main
