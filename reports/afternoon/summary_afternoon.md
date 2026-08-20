@@ -1,21 +1,17 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-19 11:42 UTC`
+*Evaluation Window:* `2026-08-20 11:32 UTC`
 
-🏆 Displaying the top **10 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **6 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **C** | **BANSALWIRE** | 370.74 | 354.02 | 410.86 | 470 | 525 | 575 | 4/6 |
-| **2** | **C** | **ACMESOLAR** | 399.45 | 382.58 | 443.31 | 500 | 575 | 625 | 4/6 |
-| **3** | **C** | **AURUM** | 265.17 | 250.71 | 295.84 | 340 | 380 | 410 | 3/6 |
-| **4** | **C** | **ICIL** | 464.73 | 427.81 | 529.26 | 625 | 725 | 775 | 4/6 |
-| **5** | **C** | **CANHLIFE** | 167.02 | 160.35 | 176.4 | 190 | 210 | 220 | 3/6 |
-| **6** | **C** | **DLINKINDIA** | 550.3 | 532.11 | 597.14 | 675 | 725 | 775 | 4/6 |
-| **7** | **C** | **DDEVPLSTIK** | 315.63 | 292.97 | 350.95 | 400 | 450 | 490 | 4/6 |
-| **8** | **C** | **EMKAY** | 326.63 | 311.3 | 364.7 | 420 | 470 | 525 | 3/6 |
-| **9** | **C** | **BHAGCHEM** | 317.53 | 294.81 | 357.32 | 410 | 470 | 525 | 2/6 |
-| **10** | **C** | **20MICRONS** | 219.89 | 210.12 | 244.33 | 280 | 310 | 340 | 2/6 |
+| **1** | **B** | **PETRONET** | 294.69 | 285.13 | 309.2 | 330 | 350 | 370 | 6/6 |
+| **2** | **C** | **20MICRONS** | 219.89 | 211.05 | 244.33 | 280 | 310 | 340 | 3/6 |
+| **3** | **C** | **AURUM** | 265.17 | 251.01 | 295.84 | 340 | 380 | 410 | 4/6 |
+| **4** | **C** | **BANSALWIRE** | 370.74 | 354.38 | 410.86 | 470 | 525 | 575 | 3/6 |
+| **5** | **C** | **INDOSTAR** | 292.58 | 278.47 | 322.77 | 370 | 410 | 440 | 3/6 |
+| **6** | **C** | **GREENLAM** | 279.11 | 261.18 | 301.13 | 330 | 370 | 390 | 3/6 |
 
 ---
 
