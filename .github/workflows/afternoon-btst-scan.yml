@@ -8,8 +8,6 @@ on:
         required: false
         default: ''
   schedule:
-    # 13:00 IST = 07:30 UTC - moved earlier so it can't overlap with
-    # morning even in a worst-case 120min run
     - cron: '30 7 * * 1-5'
 
 jobs:
@@ -82,6 +80,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A reports/afternoon/ || true
           git add -A reports/output/ || true
+          git add -A scan_results_afternoon.csv || true
+          git add -A summary.md || true
           if ! git diff --cached --quiet; then
             git commit -m "Automated scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
             git fetch origin main
