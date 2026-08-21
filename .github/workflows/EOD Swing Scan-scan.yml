@@ -8,7 +8,6 @@ on:
         required: false
         default: ''
   schedule:
-    # 16:00 IST = 10:30 UTC - gives afternoon a full hour buffer before this starts
     - cron: '30 10 * * 1-5'
 
 jobs:
@@ -69,6 +68,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A reports/eod/ || true
+          git add -A scan_results_eod.csv || true
+          git add -A summary.md || true
           if ! git diff --cached --quiet; then
             git commit -m "Automated scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
             git fetch origin main
