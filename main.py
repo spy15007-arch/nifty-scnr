@@ -5,10 +5,11 @@ advanced consolidation filtering, and structured two-tier root dashboard trackin
 import argparse
 import logging
 import os
+import glob
 import shutil
 import pandas as pd
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from data.historical import AngelOneHistoricalStore, ParquetStore
 from data.universe import load_universe
@@ -16,10 +17,11 @@ from scanner.engine import ScannerEngine
 from scanner.levels import compute_trade_levels
 from scanner.trade_style import classify_trade_style, TradeStyle
 from scanner.index_options import recommend_index_options
+from scanner.global_cues import fetch_global_snapshot, compute_market_regime_bias
 from ai.model import BreakoutModel
 from ai.features import build_features
 from ai.explain import explain
-from reports.generator import daily_scan_report, daily_options_report
+from reports.generator import daily_scan_report, daily_options_report, calibration_report
 from reports.notify import notify_scan_results, notify_option_results
 import config
 
@@ -36,12 +38,10 @@ DB_DIR = "market_data"
 
 
 def _get_store():
-    """ALWAYS live data - used by every live scan command."""
     return AngelOneHistoricalStore()
 
 
 def _get_training_store():
-    """Training/backtesting ONLY - not currently wired to any command."""
     os.makedirs(DB_DIR, exist_ok=True)
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
     if has_files:
@@ -64,12 +64,7 @@ def _ensure_report_directories():
 
 
 def _grade_for_recommendation(r) -> str:
-    """
-    Letter grade from conviction probability + how many of the 6
-    independent signals confirmed (RSI pre-breakout zone, MACD, HH/HL,
-    VWAP, OBV, ADX). More agreement = higher grade.
-    """
-    n_signals = max(0, len(r.top_reasons) - 1)  # subtract the strategy-title tag
+    n_signals = max(0, len(r.top_reasons) - 1)
     prob = r.probability
 
     if prob >= 0.75 and n_signals >= 5:
@@ -84,7 +79,6 @@ def _grade_for_recommendation(r) -> str:
 
 
 def _build_table_lines(recs: list) -> list[str]:
-    """Shared table-building logic used by both the per-folder dashboard and the README section."""
     lines = [
         "| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |",
         "| :--- | :---: | :--- | :--- | :--- | :--- | :--- |"
@@ -103,7 +97,6 @@ def _build_table_lines(recs: list) -> list[str]:
 
 
 def _update_readme_section(scan_mode: str, recs: list):
-    """Updates a marked section of README.md with the latest scan results."""
     marker_tag = scan_mode.upper()
     start_marker = f"<!-- {marker_tag}_TABLE_START -->"
     end_marker = f"<!-- {marker_tag}_TABLE_END -->"
@@ -145,8 +138,7 @@ def _update_readme_section(scan_mode: str, recs: list):
         f.write(content)
 
 
-def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
-    """Generates a neat, prioritized, graded high-conviction Markdown dashboard view."""
+def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, market_regime_label: str = ""):
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     if scan_mode == "morning":
@@ -162,8 +154,12 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
     lines = [
         f"# {title}\n",
         f"*Evaluation Window:* `{date_str}`\n",
-        f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.\n",
     ]
+    if market_regime_label:
+        lines.append(f"*Global market backdrop:* {market_regime_label}\n")
+    lines.append(
+        f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.\n"
+    )
     lines.extend(_build_table_lines(recs))
     lines.append("\n---\n")
     lines.append(
@@ -174,8 +170,7 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str):
         f.write("\n".join(lines))
 
 
-def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame):
-    """Processes explicit strategy variations and pushes clean files directly to the root main tree."""
+def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame, market_multiplier: float = 1.0, market_regime_label: str = ""):
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
 
@@ -195,7 +190,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     recs = []
 
     if bars and len(bars) > 0:
-        engine = ScannerEngine()
+        engine = ScannerEngine(scan_mode=scan_mode)
         try:
             candidates = engine.scan_universe(bars, benchmark, top_n=100)
         except Exception:
@@ -206,13 +201,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             if df is None or df.empty or len(df) < 20:
                 continue
 
-            # PRE-BREAKOUT gate - NOT a "has already broken out" gate.
-            # RSI is required to be BUILDING in a 45-65 zone (momentum
-            # accumulating) and is HARD-EXCLUDED above 68 (already
-            # overbought = the move likely already happened). This
-            # replaces the old RSI>=60 requirement, which - because RSI
-            # is a lagging measure - could only ever surface stocks
-            # that had ALREADY moved several percent to get RSI there.
             rsi_analysis = check_pre_breakout_setup(df)
             if not rsi_analysis["flagged"]:
                 continue
@@ -252,7 +240,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             n_extra_confirming = len(confirming_signals) - 1
             conviction_boost = 1.0 + (0.08 * n_extra_confirming)
-            adjusted_probability = min(0.99, cand.composite_score * conviction_boost)
+            adjusted_probability = min(0.99, cand.composite_score * conviction_boost * market_multiplier)
 
             execution = classify_trade_style(df, feats, levels)
             if execution:
@@ -275,7 +263,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     target_md_path = f"{output_subfolder}/scan_{date_str}.md"
     target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
 
-    _generate_clean_dashboard_md(scan_mode, high_conviction_recs, f"{output_subfolder}/summary_{scan_mode}.md")
+    _generate_clean_dashboard_md(scan_mode, high_conviction_recs, f"{output_subfolder}/summary_{scan_mode}.md", market_regime_label)
     shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
     _update_readme_section(scan_mode, high_conviction_recs)
 
@@ -310,6 +298,17 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 
+def _get_market_multiplier() -> tuple[str, float]:
+    try:
+        snapshot = fetch_global_snapshot()
+        label, multiplier = compute_market_regime_bias(snapshot)
+        logger.info(f"🌍 Global market backdrop: {label} -> {multiplier}x conviction multiplier")
+        return label, multiplier
+    except Exception as e:
+        logger.warning(f"Global cues fetch failed ({e}) - treating as neutral")
+        return "unknown (fetch failed)", 1.0
+
+
 def execute_isolated_scan(scan_mode: str, test_limit=None):
     universe = load_universe()
     if test_limit:
@@ -327,7 +326,8 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
         valid_keys = list(bars.keys()) if bars else []
         benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
-    process_scans_with_shared_data(scan_mode, bars, benchmark_df)
+    label, multiplier = _get_market_multiplier()
+    process_scans_with_shared_data(scan_mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label)
 
 
 def cmd_options(args, shared_store=None):
@@ -351,11 +351,87 @@ def cmd_options(args, shared_store=None):
         notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 
+def cmd_calibrate(scan_mode: str = "eod", horizon_days: int = 10, min_days_old: int = 10):
+    folder = f"reports/{scan_mode}"
+    pattern = f"{folder}/scan_results_{scan_mode}_*.csv"
+    files = sorted(glob.glob(pattern))
+
+    if not files:
+        logger.warning(f"No historical scan_results CSVs found under {folder}/ yet - nothing to calibrate against.")
+        return
+
+    cutoff_date = datetime.utcnow() - timedelta(days=min_days_old)
+    store = _get_store()
+    predictions = []
+
+    for filepath in files:
+        date_str = os.path.basename(filepath).replace(f"scan_results_{scan_mode}_", "").replace(".csv", "")
+        try:
+            entry_date = datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            continue
+        if entry_date > cutoff_date:
+            continue
+
+        try:
+            df = pd.read_csv(filepath)
+        except Exception:
+            continue
+
+        for _, row in df.iterrows():
+            symbol = row.get("symbol")
+            entry_trigger = row.get("entry_trigger")
+            stop_loss = row.get("stop_loss")
+            target_1 = row.get("target_1")
+            prob = row.get("probability")
+            if pd.isna(symbol) or pd.isna(entry_trigger) or pd.isna(stop_loss) or pd.isna(target_1) or pd.isna(prob):
+                continue
+
+            try:
+                symbol_bars = store.get_bars(symbol, lookback_days=250)
+            except Exception:
+                continue
+            if symbol_bars is None or symbol_bars.empty:
+                continue
+
+            future_bars = symbol_bars[symbol_bars.index > entry_date].head(horizon_days)
+            if future_bars.empty:
+                continue
+
+            hit_target = (future_bars["high"] >= target_1).any()
+            hit_stop = (future_bars["low"] <= stop_loss).any()
+
+            if hit_target and not hit_stop:
+                outcome = 1
+            elif hit_stop and not hit_target:
+                outcome = 0
+            elif hit_target and hit_stop:
+                target_day = future_bars[future_bars["high"] >= target_1].index[0]
+                stop_day = future_bars[future_bars["low"] <= stop_loss].index[0]
+                outcome = 1 if target_day <= stop_day else 0
+            else:
+                continue
+
+            predictions.append({"symbol": symbol, "predicted_prob": float(prob), "actual_outcome": outcome})
+
+    if not predictions:
+        logger.warning(
+            f"No resolved predictions found yet for {scan_mode} (need scans at least {min_days_old} "
+            f"days old with a clear target/stop outcome within {horizon_days} days) - check back later."
+        )
+        return
+
+    path = calibration_report(predictions)
+    logger.info(f"Calibration report written to {path} based on {len(predictions)} resolved predictions")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["scan_morning", "scan_afternoon", "scan_eod", "options", "run_all"])
+    parser.add_argument("command", choices=["scan_morning", "scan_afternoon", "scan_eod", "options", "run_all", "calibrate"])
     parser.add_argument("--test-limit", dest="test_limit", default=os.getenv("TRADING_TEST_LIMIT") or None,
                          help="Limit scan to N symbols for testing")
+    parser.add_argument("--calibrate-mode", dest="calibrate_mode", default="eod", choices=["morning", "afternoon", "eod"],
+                         help="Which scan mode's history to calibrate (used only with the 'calibrate' command)")
     args = parser.parse_args()
 
     if args.command == "scan_morning":
@@ -369,6 +445,9 @@ if __name__ == "__main__":
 
     elif args.command == "options":
         cmd_options(args)
+
+    elif args.command == "calibrate":
+        cmd_calibrate(scan_mode=args.calibrate_mode)
 
     elif args.command == "run_all":
         logger.info("⚡ Central Data Lake Engaged: Downloading data matrix exactly once...")
@@ -388,7 +467,9 @@ if __name__ == "__main__":
             valid_keys = list(bars.keys()) if bars else []
             benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
+        label, multiplier = _get_market_multiplier()
+
         for mode in ["morning", "afternoon", "eod"]:
-            process_scans_with_shared_data(mode, bars, benchmark_df)
+            process_scans_with_shared_data(mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label)
 
         cmd_options(args, shared_store=store)
