@@ -11,3 +11,4 @@ websocket-client>=1.2
 pyotp>=2.9
 requests>=2.31
 redis>=5.0
+yfinance>=0.2.40
