@@ -2,20 +2,22 @@
 Scanner engine: runs all filters across a universe of symbols and
 produces a ranked watchlist of "pre-breakout" candidates.
 
-Weights are configurable - start equal, then tune against your
-backtest / calibration reports once you have enough history to know
-which signals actually carry information for your universe.
+Weights are MODE-AWARE: a good intraday/BTST setup and a good 7-day
+swing setup don't emphasize the same things. Intraday cares most about
+immediate volume/trigger proximity; swing cares most about durable
+relative strength and trend structure. Each profile is its own
+probability distribution (sums to 1.0), hand-tuned for now - once
+enough calibration data exists (see main.py's `calibrate` command),
+these should be tuned against actual hit rates instead of intuition.
 """
 from __future__ import annotations
 import pandas as pd
 from dataclasses import dataclass, field
-
 from scanner.filters import (
     volatility_squeeze, relative_volume, quiet_accumulation,
     coiled_at_resistance, relative_strength, ema_alignment, fibonacci_reclaim,
 )
 import config
-
 
 DEFAULT_WEIGHTS = {
     "volatility_squeeze": 0.18,
@@ -25,6 +27,42 @@ DEFAULT_WEIGHTS = {
     "relative_strength": 0.12,
     "ema_alignment": 0.15,
     "fibonacci_reclaim": 0.10,
+}
+
+INTRADAY_WEIGHTS = {
+    "volatility_squeeze": 0.12,
+    "relative_volume": 0.25,
+    "quiet_accumulation": 0.10,
+    "coiled_at_resistance": 0.20,
+    "relative_strength": 0.08,
+    "ema_alignment": 0.10,
+    "fibonacci_reclaim": 0.15,
+}
+
+BTST_WEIGHTS = {
+    "volatility_squeeze": 0.18,
+    "relative_volume": 0.18,
+    "quiet_accumulation": 0.15,
+    "coiled_at_resistance": 0.17,
+    "relative_strength": 0.12,
+    "ema_alignment": 0.12,
+    "fibonacci_reclaim": 0.08,
+}
+
+SWING_WEIGHTS = {
+    "volatility_squeeze": 0.15,
+    "relative_volume": 0.10,
+    "quiet_accumulation": 0.15,
+    "coiled_at_resistance": 0.10,
+    "relative_strength": 0.25,
+    "ema_alignment": 0.20,
+    "fibonacci_reclaim": 0.05,
+}
+
+WEIGHTS_BY_MODE = {
+    "morning": INTRADAY_WEIGHTS,
+    "afternoon": BTST_WEIGHTS,
+    "eod": SWING_WEIGHTS,
 }
 
 
@@ -37,8 +75,13 @@ class ScanResult:
 
 
 class ScannerEngine:
-    def __init__(self, weights: dict[str, float] | None = None):
-        self.weights = weights or DEFAULT_WEIGHTS
+    def __init__(self, weights: dict[str, float] | None = None, scan_mode: str | None = None):
+        if weights is not None:
+            self.weights = weights
+        elif scan_mode is not None:
+            self.weights = WEIGHTS_BY_MODE.get(scan_mode, DEFAULT_WEIGHTS)
+        else:
+            self.weights = DEFAULT_WEIGHTS
 
     def _passes_universe_filter(self, df: pd.DataFrame) -> bool:
         if df.empty or len(df) < 20:
@@ -67,7 +110,6 @@ class ScannerEngine:
         passed = [name for name, r in results.items() if r.passed]
         reasons = [r.reason for r in results.values() if r.passed]
 
-        # require at least 2 independent signals to agree - cuts noise a lot
         if len(passed) < 2:
             return None
 
