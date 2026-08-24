@@ -1091,9 +1091,9 @@
 
 # ⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-24 11:26 UTC`
+*Evaluation Window:* `2026-08-24 11:49 UTC`
 
-*Global market backdrop:* supportive (composite +0.95%)
+*Global market backdrop:* supportive (composite +1.07%)
 
 🏆 Displaying the top **13 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
