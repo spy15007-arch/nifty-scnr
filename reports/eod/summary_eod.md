@@ -1,6 +1,6 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-24 11:26 UTC`
+*Evaluation Window:* `2026-08-24 12:04 UTC`
 
 *Global market backdrop:* supportive (composite +0.95%)
 
