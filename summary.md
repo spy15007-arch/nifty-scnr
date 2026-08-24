@@ -1089,3 +1089,100 @@
 *Grade key: A+ = probability >=75% with 5+ of 6 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX) agreeing. A = >=65% with 4+ agreeing. B+ = >=55% with 3+ agreeing. B = >=45%. C = below that but still made the cut.*
 
 
+# ⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)
+
+*Evaluation Window:* `2026-08-24 11:26 UTC`
+
+*Global market backdrop:* supportive (composite +0.95%)
+
+🏆 Displaying the top **13 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+
+| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |
+| :--- | :---: | :--- | :--- | :--- | :--- | :--- |
+| **1** | **B** | **AWL** | 216.44 | 209.67 | 227.59 | 250 | 260 | 270 | 4/6 |
+| **2** | **B** | **AWFIS** | 424.85 | 412.23 | 477.88 | 550 | 625 | 675 | 4/6 |
+| **3** | **C** | **IDBI** | 92.43 | 89.82 | 100.93 | 120 | 130 | 140 | 4/6 |
+| **4** | **C** | **SAIL** | 210.12 | 201.3 | 227.72 | 260 | 280 | 300 | 3/6 |
+| **5** | **C** | **TARIL** | 372.74 | 360.34 | 405.11 | 450 | 500 | 525 | 4/6 |
+| **6** | **C** | **CGCL** | 265.06 | 252.84 | 293.46 | 330 | 370 | 400 | 3/6 |
+| **7** | **C** | **NCC** | 172.11 | 166.23 | 183.47 | 200 | 220 | 230 | 5/6 |
+| **8** | **C** | **VMM** | 129.66 | 124.77 | 137.25 | 150 | 160 | 170 | 3/6 |
+| **9** | **C** | **AFIL** | 11.12 | 10.3 | 12.1 | 15 | 20 | 25 | 4/6 |
+| **10** | **C** | **AHCL** | 17.23 | 16.49 | 18.89 | 25 | 30 | 35 | 4/6 |
+| **11** | **C** | **PFOCUS** | 367.73 | 345.37 | 412.46 | 470 | 550 | 600 | 4/6 |
+| **12** | **C** | **BALMLAWRIE** | 199.9 | 195.75 | 213.81 | 240 | 260 | 270 | 4/6 |
+| **13** | **C** | **ADFFOODS** | 347.64 | 334.79 | 400.17 | 470 | 550 | 600 | 3/6 |
+
+---
+
+*Grade key: A+ = probability >=75% with 5+ of 6 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX) agreeing. A = >=65% with 4+ agreeing. B+ = >=55% with 3+ agreeing. B = >=45%. C = below that but still made the cut.*
+
+
+# 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
+
+*Evaluation Window:* `2026-08-24 11:26 UTC`
+
+*Global market backdrop:* supportive (composite +0.95%)
+
+🏆 Displaying the top **14 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+
+| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |
+| :--- | :---: | :--- | :--- | :--- | :--- | :--- |
+| **1** | **A+** | **PETRONET** | 297.39 | 288.28 | 312.64 | 340 | 360 | 370 | 6/6 |
+| **2** | **B+** | **AWL** | 216.44 | 209.67 | 227.59 | 250 | 260 | 270 | 4/6 |
+| **3** | **B** | **JSWINFRA** | 356.51 | 342.72 | 389.8 | 440 | 480 | 525 | 5/6 |
+| **4** | **B** | **CGCL** | 265.06 | 252.84 | 293.46 | 330 | 370 | 400 | 3/6 |
+| **5** | **C** | **IDBI** | 92.43 | 89.82 | 100.93 | 120 | 130 | 140 | 4/6 |
+| **6** | **C** | **KARURVYSYA** | 352.5 | 341.78 | 377.2 | 410 | 450 | 470 | 2/6 |
+| **7** | **C** | **SAIL** | 210.12 | 201.3 | 227.72 | 260 | 280 | 300 | 3/6 |
+| **8** | **C** | **HONASA** | 510.82 | 486.59 | 571.1 | 650 | 750 | 800 | 3/6 |
+| **9** | **C** | **PFOCUS** | 367.73 | 345.37 | 412.46 | 470 | 550 | 600 | 4/6 |
+| **10** | **C** | **TATACAP** | 390.98 | 377.68 | 416.6 | 450 | 490 | 525 | 3/6 |
+| **11** | **C** | **AFIL** | 11.12 | 10.3 | 12.1 | 15 | 20 | 25 | 4/6 |
+| **12** | **C** | **EMMVEE** | 372.29 | 357.66 | 416.22 | 480 | 550 | 600 | 5/6 |
+| **13** | **C** | **AHCL** | 17.23 | 16.49 | 18.89 | 25 | 30 | 35 | 4/6 |
+| **14** | **C** | **VMM** | 129.66 | 124.77 | 137.25 | 150 | 160 | 170 | 3/6 |
+
+---
+
+*Grade key: A+ = probability >=75% with 5+ of 6 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX) agreeing. A = >=65% with 4+ agreeing. B+ = >=55% with 3+ agreeing. B = >=45%. C = below that but still made the cut.*
+
+
+# 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
+
+*Evaluation Window:* `2026-08-24 11:26 UTC`
+
+*Global market backdrop:* supportive (composite +0.95%)
+
+🏆 Displaying the top **22 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+
+| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |
+| :--- | :---: | :--- | :--- | :--- | :--- | :--- |
+| **1** | **A+** | **PETRONET** | 297.39 | 288.28 | 312.64 | 340 | 360 | 370 | 6/6 |
+| **2** | **B+** | **JSWINFRA** | 356.51 | 342.72 | 389.8 | 440 | 480 | 525 | 5/6 |
+| **3** | **B+** | **BBTCL** | 262.52 | 244.71 | 291.35 | 330 | 370 | 400 | 4/6 |
+| **4** | **B** | **IDFCFIRSTB** | 88.94 | 87.18 | 97.28 | 110 | 120 | 130 | 3/6 |
+| **5** | **B** | **CGCL** | 265.06 | 252.84 | 293.46 | 330 | 370 | 400 | 3/6 |
+| **6** | **B** | **ZEEL** | 118.59 | 110.6 | 131.43 | 150 | 170 | 180 | 4/6 |
+| **7** | **B** | **HONASA** | 510.82 | 486.59 | 571.1 | 650 | 750 | 800 | 3/6 |
+| **8** | **B** | **IDBI** | 92.43 | 89.82 | 100.93 | 120 | 130 | 140 | 4/6 |
+| **9** | **B** | **PFOCUS** | 367.73 | 345.37 | 412.46 | 470 | 550 | 600 | 4/6 |
+| **10** | **B** | **KARURVYSYA** | 352.5 | 341.78 | 377.2 | 410 | 450 | 470 | 2/6 |
+| **11** | **C** | **AWL** | 216.44 | 209.67 | 227.59 | 250 | 260 | 270 | 4/6 |
+| **12** | **C** | **PARADEEP** | 159.82 | 153.61 | 174.37 | 200 | 220 | 230 | 2/6 |
+| **13** | **C** | **TATACAP** | 390.98 | 377.68 | 416.6 | 450 | 490 | 525 | 3/6 |
+| **14** | **C** | **AWFIS** | 424.85 | 412.23 | 477.88 | 550 | 625 | 675 | 4/6 |
+| **15** | **C** | **EMMVEE** | 372.29 | 357.66 | 416.22 | 480 | 550 | 600 | 5/6 |
+| **16** | **C** | **NCC** | 172.11 | 166.23 | 183.47 | 200 | 220 | 230 | 5/6 |
+| **17** | **C** | **BAJEL** | 215.93 | 203.91 | 237.8 | 270 | 300 | 320 | 4/6 |
+| **18** | **C** | **PCBL** | 374.75 | 360.67 | 411.2 | 460 | 525 | 550 | 1/6 |
+| **19** | **C** | **AHCL** | 17.23 | 16.49 | 18.89 | 25 | 30 | 35 | 4/6 |
+| **20** | **C** | **AARTIDRUGS** | 454.56 | 434.47 | 491.2 | 550 | 600 | 650 | 2/6 |
+| **21** | **C** | **SAIL** | 210.12 | 201.3 | 227.72 | 260 | 280 | 300 | 3/6 |
+| **22** | **C** | **MANAPPURAM** | 382.31 | 365.91 | 418.69 | 470 | 525 | 575 | 2/6 |
+
+---
+
+*Grade key: A+ = probability >=75% with 5+ of 6 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX) agreeing. A = >=65% with 4+ agreeing. B+ = >=55% with 3+ agreeing. B = >=45%. C = below that but still made the cut.*
+
+
