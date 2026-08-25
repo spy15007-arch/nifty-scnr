@@ -1,0 +1,78 @@
+name: Backtest & Calibrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Which to run'
+        required: true
+        type: choice
+        options:
+          - backtest
+          - calibrate
+        default: 'backtest'
+      scan_mode:
+        description: 'Which scan mode to test/calibrate'
+        required: true
+        type: choice
+        options:
+          - eod
+          - morning
+          - afternoon
+        default: 'eod'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TZ: 'Asia/Kolkata'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache Broker Instrument Master Data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/angelone
+            ./data/*.json
+            ./data/*.pkl
+          key: angelone-instruments-${{ secrets.ANGEL_CLIENT_ID }}-${{ github.run_id }}
+          restore-keys: |
+            angelone-instruments-${{ secrets.ANGEL_CLIENT_ID }}-
+            angelone-instruments-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run backtest or calibrate
+        env:
+          TRADING_BROKER: angelone
+          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
+          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
+          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
+          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+        run: python main.py ${{ inputs.command }} --calibrate-mode ${{ inputs.scan_mode }}
+
+      - name: Sync and Commit report back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A reports/output/ || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Backtest/calibrate report $(date -u +%Y-%m-%d)" || echo "No changes to commit"
+            git fetch origin main
+            git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
+            git push origin HEAD:main
+          else
+            echo "No report changes to commit."
+          fi
