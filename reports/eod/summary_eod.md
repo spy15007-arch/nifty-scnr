@@ -1,10 +1,10 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-24 12:04 UTC`
+*Evaluation Window:* `2026-08-25 03:06 UTC`
 
-*Global market backdrop:* supportive (composite +0.95%)
+*Global market backdrop:* supportive (composite +0.67%)
 
-🏆 Displaying the top **22 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **23 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
@@ -28,8 +28,9 @@
 | **18** | **C** | **PCBL** | 374.75 | 360.67 | 411.2 | 460 | 525 | 550 | 1/6 |
 | **19** | **C** | **AHCL** | 17.23 | 16.49 | 18.89 | 25 | 30 | 35 | 4/6 |
 | **20** | **C** | **AARTIDRUGS** | 454.56 | 434.47 | 491.2 | 550 | 600 | 650 | 2/6 |
-| **21** | **C** | **SAIL** | 210.12 | 201.3 | 227.72 | 260 | 280 | 300 | 3/6 |
-| **22** | **C** | **MANAPPURAM** | 382.31 | 365.91 | 418.69 | 470 | 525 | 575 | 2/6 |
+| **21** | **C** | **AFIL** | 11.12 | 10.3 | 12.1 | 15 | 20 | 25 | 4/6 |
+| **22** | **C** | **SAIL** | 210.12 | 201.3 | 227.72 | 260 | 280 | 300 | 3/6 |
+| **23** | **C** | **MANAPPURAM** | 382.31 | 365.91 | 418.69 | 470 | 525 | 575 | 2/6 |
 
 ---
 
