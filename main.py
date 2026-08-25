@@ -22,6 +22,7 @@ from ai.model import BreakoutModel
 from ai.features import build_features
 from ai.explain import explain
 from reports.generator import daily_scan_report, daily_options_report, calibration_report
+from backtest.engine import run_backtest, summarize_backtest, write_backtest_report
 from reports.notify import notify_scan_results, notify_option_results
 import config
 
@@ -425,13 +426,33 @@ def cmd_calibrate(scan_mode: str = "eod", horizon_days: int = 10, min_days_old: 
     logger.info(f"Calibration report written to {path} based on {len(predictions)} resolved predictions")
 
 
+def cmd_backtest(scan_mode: str = "eod", test_days: int = 120):
+    """
+    Backtests the current scanning logic against historical data - see
+    backtest/engine.py for the no-lookahead-bias design. Gives you an
+    answer in minutes instead of waiting weeks for `calibrate` to
+    accumulate enough live outcomes.
+    """
+    universe = load_universe()
+    store = _get_store()
+    bars = store.get_universe_bars(universe, lookback_days=280)
+    benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=280)
+
+    logger.info(f"Running backtest for {scan_mode} over last {test_days} trading days across {len(bars)} symbols...")
+    trades = run_backtest(bars, benchmark_df, scan_mode=scan_mode, test_days=test_days)
+    summary = summarize_backtest(trades)
+    path = write_backtest_report(trades, summary, scan_mode)
+    logger.info(f"Backtest report written to {path}")
+    logger.info(f"Summary: {summary}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["scan_morning", "scan_afternoon", "scan_eod", "options", "run_all", "calibrate"])
+    parser.add_argument("command", choices=["scan_morning", "scan_afternoon", "scan_eod", "options", "run_all", "calibrate", "backtest"])
     parser.add_argument("--test-limit", dest="test_limit", default=os.getenv("TRADING_TEST_LIMIT") or None,
                          help="Limit scan to N symbols for testing")
     parser.add_argument("--calibrate-mode", dest="calibrate_mode", default="eod", choices=["morning", "afternoon", "eod"],
-                         help="Which scan mode's history to calibrate (used only with the 'calibrate' command)")
+                         help="Which scan mode's history to calibrate/backtest (used with 'calibrate' and 'backtest' commands)")
     args = parser.parse_args()
 
     if args.command == "scan_morning":
@@ -448,6 +469,9 @@ if __name__ == "__main__":
 
     elif args.command == "calibrate":
         cmd_calibrate(scan_mode=args.calibrate_mode)
+
+    elif args.command == "backtest":
+        cmd_backtest(scan_mode=args.calibrate_mode)
 
     elif args.command == "run_all":
         logger.info("⚡ Central Data Lake Engaged: Downloading data matrix exactly once...")
