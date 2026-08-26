@@ -290,10 +290,19 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
     pd.DataFrame(csv_rows).to_csv(f"scan_results_{scan_mode}.csv", index=False)
 
-    with open("summary.md", "a") as master_f:
-        if os.path.exists(f"summary_{scan_mode}.md"):
-            with open(f"summary_{scan_mode}.md", "r") as sf:
-                master_f.write(sf.read() + "\n\n")
+    # Prepend (not append) so the NEWEST scan's section is always at
+    # the top of summary.md - opening the file shows today's report
+    # first, without scrolling past every older entry to find it.
+    new_section = ""
+    if os.path.exists(f"summary_{scan_mode}.md"):
+        with open(f"summary_{scan_mode}.md", "r") as sf:
+            new_section = sf.read() + "\n\n"
+    existing_summary = ""
+    if os.path.exists("summary.md"):
+        with open("summary.md", "r") as ef:
+            existing_summary = ef.read()
+    with open("summary.md", "w") as master_f:
+        master_f.write(new_section + existing_summary)
 
     if high_conviction_recs:
         notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
