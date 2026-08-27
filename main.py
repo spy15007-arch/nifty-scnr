@@ -31,6 +31,7 @@ from scanner.technicals import (
     macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
     obv_accumulation, adx_building,
 )
+from scanner.patterns import resample_to_weekly, ascending_triangle_setup, FilterResult as PatternResult
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,14 +66,19 @@ def _ensure_report_directories():
 
 
 def _grade_for_recommendation(r) -> str:
+    """
+    Letter grade from conviction probability + how many of the 7
+    independent signals confirmed (RSI pre-breakout zone, MACD, HH/HL,
+    VWAP, OBV, ADX, ascending triangle). More agreement = higher grade.
+    """
     n_signals = max(0, len(r.top_reasons) - 1)
     prob = r.probability
 
-    if prob >= 0.75 and n_signals >= 5:
+    if prob >= 0.75 and n_signals >= 6:
         return "A+"
-    elif prob >= 0.65 and n_signals >= 4:
+    elif prob >= 0.65 and n_signals >= 5:
         return "A"
-    elif prob >= 0.55 and n_signals >= 3:
+    elif prob >= 0.55 and n_signals >= 4:
         return "B+"
     elif prob >= 0.45:
         return "B"
@@ -81,7 +87,7 @@ def _grade_for_recommendation(r) -> str:
 
 def _build_table_lines(recs: list) -> list[str]:
     lines = [
-        "| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |",
+        "| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |",
         "| :--- | :---: | :--- | :--- | :--- | :--- | :--- |"
     ]
     if not recs:
@@ -93,7 +99,7 @@ def _build_table_lines(recs: list) -> list[str]:
             sl = r.levels.stop_loss if r.levels else "Dynamic"
             tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
             n_signals = max(0, len(r.top_reasons) - 1)
-            lines.append(f"| **{idx}** | **{grade}** | **{r.symbol}** | {entry} | {sl} | {tg} | {n_signals}/6 |")
+            lines.append(f"| **{idx}** | **{grade}** | **{r.symbol}** | {entry} | {sl} | {tg} | {n_signals}/7 |")
     return lines
 
 
@@ -164,8 +170,8 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, m
     lines.extend(_build_table_lines(recs))
     lines.append("\n---\n")
     lines.append(
-        "*Grade key: A+ = probability >=75% with 5+ of 6 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX) agreeing. "
-        "A = >=65% with 4+ agreeing. B+ = >=55% with 3+ agreeing. B = >=45%. C = below that but still made the cut.*\n"
+        "*Grade key: A+ = probability >=75% with 6+ of 7 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX, ascending triangle) agreeing. "
+        "A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut.*\n"
     )
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -226,6 +232,11 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             vwap_result = rolling_vwap_position(df)
             obv_result = obv_accumulation(df)
             adx_result = adx_building(df)
+            try:
+                weekly_df = resample_to_weekly(df)
+                triangle_result = ascending_triangle_setup(weekly_df)
+            except Exception:
+                triangle_result = PatternResult(0.0, False, "weekly resample failed")
 
             confirming_signals = [f"RSI {rsi_analysis['current_rsi']} (pre-breakout building zone)"]
             if macd_result.passed:
@@ -238,6 +249,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
                 confirming_signals.append(obv_result.reason)
             if adx_result.passed:
                 confirming_signals.append(adx_result.reason)
+            if triangle_result.passed:
+                confirming_signals.append(triangle_result.reason)
 
             n_extra_confirming = len(confirming_signals) - 1
             conviction_boost = 1.0 + (0.08 * n_extra_confirming)
@@ -248,7 +261,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
                 execution.__dict__["style"] = TradeStyle(style_label)
 
             rec_package = explain(cand.symbol, adjusted_probability, feats, levels, execution)
-            rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:6]
+            rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:7]
             recs.append(rec_package)
 
     recs.sort(key=lambda r: r.probability, reverse=True)
@@ -290,9 +303,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
     pd.DataFrame(csv_rows).to_csv(f"scan_results_{scan_mode}.csv", index=False)
 
-    # Prepend (not append) so the NEWEST scan's section is always at
-    # the top of summary.md - opening the file shows today's report
-    # first, without scrolling past every older entry to find it.
     new_section = ""
     if os.path.exists(f"summary_{scan_mode}.md"):
         with open(f"summary_{scan_mode}.md", "r") as sf:
@@ -325,13 +335,19 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
         universe = universe[: int(test_limit)]
 
     store = _get_store()
+    # EOD gets more history to support weekly-resampled ascending-
+    # triangle detection (needs ~60 weeks = ~420+ days). Morning/
+    # afternoon stay at 250 - that pattern is irrelevant for same-day/
+    # overnight timeframes, and more history would just slow down
+    # time-critical scans for no benefit.
+    lookback = 450 if scan_mode == "eod" else 250
     try:
-        bars = store.get_universe_bars(universe, lookback_days=250)
+        bars = store.get_universe_bars(universe, lookback_days=lookback)
     except Exception:
         bars = {}
 
     try:
-        benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
+        benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=lookback)
     except Exception:
         valid_keys = list(bars.keys()) if bars else []
         benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
@@ -436,12 +452,6 @@ def cmd_calibrate(scan_mode: str = "eod", horizon_days: int = 10, min_days_old: 
 
 
 def cmd_backtest(scan_mode: str = "eod", test_days: int = 120):
-    """
-    Backtests the current scanning logic against historical data - see
-    backtest/engine.py for the no-lookahead-bias design. Gives you an
-    answer in minutes instead of waiting weeks for `calibrate` to
-    accumulate enough live outcomes.
-    """
     universe = load_universe()
     store = _get_store()
     bars = store.get_universe_bars(universe, lookback_days=280)
@@ -490,12 +500,12 @@ if __name__ == "__main__":
 
         store = _get_store()
         try:
-            bars = store.get_universe_bars(universe, lookback_days=250)
+            bars = store.get_universe_bars(universe, lookback_days=450)
         except Exception:
             bars = {}
 
         try:
-            benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=250)
+            benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=450)
         except Exception:
             valid_keys = list(bars.keys()) if bars else []
             benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
