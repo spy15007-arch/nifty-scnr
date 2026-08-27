@@ -1,18 +1,19 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-27 01:52 UTC`
+*Evaluation Window:* `2026-08-27 08:46 UTC`
 
-*Global market backdrop:* neutral (composite +0.14%)
+*Global market backdrop:* neutral (composite +0.28%)
 
-🏆 Displaying the top **4 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **5 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
-| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 6) |
+| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **B** | **CGCL** | 265.06 | 250.88 | 292.71 | 330 | 370 | 400 | 3/6 |
-| **2** | **C** | **NYKAA** | 348.7 | 338.18 | 379.98 | 420 | 470 | 500 | 2/6 |
-| **3** | **C** | **ARIHANTCAP** | 84.97 | 81.07 | 91.65 | 110 | 120 | 130 | 4/6 |
-| **4** | **C** | **BAJAJHCARE** | 394.79 | 383.23 | 427.88 | 470 | 525 | 550 | 1/6 |
+| **1** | **B+** | **CANHLIFE** | 167.02 | 160.74 | 176.4 | 190 | 210 | 220 | 4/7 |
+| **2** | **C** | **NSLNISP** | 53.86 | 51.4 | 58.98 | 70 | 75 | 80 | 3/7 |
+| **3** | **C** | **AAREYDRUGS** | 96.19 | 89.47 | 107.53 | 130 | 140 | 150 | 3/7 |
+| **4** | **C** | **ADANIPOWER** | 254.71 | 247.65 | 280.05 | 320 | 350 | 380 | 3/7 |
+| **5** | **C** | **BHEL** | 447.39 | 430.43 | 503.78 | 600 | 675 | 725 | 5/7 |
 
 ---
 
-*Grade key: A+ = probability >=75% with 5+ of 6 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX) agreeing. A = >=65% with 4+ agreeing. B+ = >=55% with 3+ agreeing. B = >=45%. C = below that but still made the cut.*
+*Grade key: A+ = probability >=75% with 6+ of 7 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX, ascending triangle) agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut.*
