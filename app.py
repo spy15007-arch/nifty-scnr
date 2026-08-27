@@ -43,7 +43,7 @@ def render_scan_tab(mode: str, label: str):
         color = GRADE_COLORS.get(val, "#333333")
         return f"background-color: {color}; color: white; font-weight: bold; text-align: center;"
 
-    styled = df.style.applymap(grade_style, subset=["grade"]).format({
+    styled = df.style.map(grade_style, subset=["grade"]).format({
         "probability": "{:.1%}",
         "entry_trigger": "{:.2f}",
         "stop_loss": "{:.2f}",
