@@ -1,18 +1,19 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-27 08:46 UTC`
+*Evaluation Window:* `2026-08-27 18:37 UTC`
 
-*Global market backdrop:* neutral (composite +0.28%)
+*Global market backdrop:* neutral (composite -0.43%)
 
-🏆 Displaying the top **5 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **6 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **B+** | **CANHLIFE** | 167.02 | 160.74 | 176.4 | 190 | 210 | 220 | 4/7 |
-| **2** | **C** | **NSLNISP** | 53.86 | 51.4 | 58.98 | 70 | 75 | 80 | 3/7 |
-| **3** | **C** | **AAREYDRUGS** | 96.19 | 89.47 | 107.53 | 130 | 140 | 150 | 3/7 |
-| **4** | **C** | **ADANIPOWER** | 254.71 | 247.65 | 280.05 | 320 | 350 | 380 | 3/7 |
-| **5** | **C** | **BHEL** | 447.39 | 430.43 | 503.78 | 600 | 675 | 725 | 5/7 |
+| **1** | **C** | **NSLNISP** | 53.86 | 51.4 | 58.98 | 70 | 75 | 80 | 3/7 |
+| **2** | **C** | **ANUHPHR** | 86.98 | 83.63 | 91.33 | 100 | 110 | 120 | 5/7 |
+| **3** | **C** | **ASIANHOTNR** | 403.36 | 386.48 | 436.64 | 480 | 550 | 575 | 4/7 |
+| **4** | **C** | **BLKASHYAP** | 62.57 | 59.26 | 67.49 | 75 | 85 | 90 | 4/7 |
+| **5** | **C** | **BAJAJHFL** | 94.19 | 92.69 | 98.81 | 110 | 120 | 130 | 2/7 |
+| **6** | **C** | **LTF** | 339.28 | 326.6 | 365.53 | 400 | 440 | 470 | 4/7 |
 
 ---
 
