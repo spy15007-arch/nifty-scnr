@@ -1,3 +1,41 @@
+# 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
+
+*Evaluation Window:* `2026-08-27 20:54 UTC`
+
+*Global market backdrop:* neutral (composite -0.31%)
+
+🏆 Displaying the top **22 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+
+| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :--- | :--- | :--- | :--- |
+| **1** | **B+** | **TATACAP** | 390.98 | 381.11 | 416.6 | 450 | 490 | 525 | 4/7 |
+| **2** | **B+** | **CGCL** | 265.06 | 250.88 | 292.52 | 330 | 370 | 400 | 5/7 |
+| **3** | **B** | **NYKAA** | 348.7 | 338.53 | 377.18 | 420 | 460 | 490 | 4/7 |
+| **4** | **B** | **PFOCUS** | 367.73 | 347.72 | 412.46 | 470 | 550 | 600 | 4/7 |
+| **5** | **B** | **PCBL** | 374.75 | 361.45 | 407.53 | 450 | 500 | 550 | 2/7 |
+| **6** | **B** | **REDINGTON** | 371.54 | 350.4 | 419.19 | 480 | 550 | 600 | 3/7 |
+| **7** | **C** | **AYE** | 197.68 | 185.98 | 227.25 | 270 | 310 | 340 | 4/7 |
+| **8** | **C** | **ASHOKLEY** | 183.07 | 176.43 | 195.22 | 220 | 230 | 240 | 4/7 |
+| **9** | **C** | **ABCAPITAL** | 431.56 | 419.03 | 468.42 | 525 | 575 | 625 | 2/7 |
+| **10** | **C** | **BCLIND** | 40.08 | 37.88 | 43.05 | 50 | 55 | 60 | 4/7 |
+| **11** | **C** | **TMCV** | 488.78 | 468.67 | 524.34 | 575 | 625 | 675 | 3/7 |
+| **12** | **C** | **SBFC** | 103.58 | 99.79 | 109.51 | 120 | 130 | 140 | 5/7 |
+| **13** | **C** | **LTF** | 339.28 | 326.6 | 365.53 | 400 | 440 | 470 | 4/7 |
+| **14** | **C** | **BHAGCHEM** | 317.53 | 302.29 | 350.61 | 400 | 440 | 480 | 2/7 |
+| **15** | **C** | **ARIHANTCAP** | 84.97 | 81.21 | 91.4 | 100 | 110 | 120 | 4/7 |
+| **16** | **C** | **SWIGGY** | 305.61 | 294.36 | 324.45 | 350 | 380 | 400 | 2/7 |
+| **17** | **C** | **ANUHPHR** | 86.98 | 83.63 | 91.33 | 100 | 110 | 120 | 5/7 |
+| **18** | **C** | **KARURVYSYA** | 359.37 | 347.47 | 385.93 | 420 | 460 | 490 | 4/7 |
+| **19** | **C** | **AAREYDRUGS** | 96.19 | 89.47 | 107.53 | 130 | 140 | 150 | 3/7 |
+| **20** | **C** | **NSLNISP** | 53.86 | 51.4 | 58.98 | 70 | 75 | 80 | 3/7 |
+| **21** | **C** | **GROWW** | 227.65 | 219.41 | 245.35 | 270 | 300 | 320 | 5/7 |
+| **22** | **C** | **ASIANHOTNR** | 403.36 | 386.48 | 436.64 | 480 | 550 | 575 | 4/7 |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX, ascending triangle) agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut.*
+
+
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
 *Evaluation Window:* `2026-08-27 18:37 UTC`
