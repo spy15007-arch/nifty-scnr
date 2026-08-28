@@ -1,19 +1,19 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-27 18:37 UTC`
+*Evaluation Window:* `2026-08-28 07:45 UTC`
 
-*Global market backdrop:* neutral (composite -0.43%)
+*Global market backdrop:* supportive (composite +0.83%)
 
 🏆 Displaying the top **6 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **C** | **NSLNISP** | 53.86 | 51.4 | 58.98 | 70 | 75 | 80 | 3/7 |
-| **2** | **C** | **ANUHPHR** | 86.98 | 83.63 | 91.33 | 100 | 110 | 120 | 5/7 |
-| **3** | **C** | **ASIANHOTNR** | 403.36 | 386.48 | 436.64 | 480 | 550 | 575 | 4/7 |
-| **4** | **C** | **BLKASHYAP** | 62.57 | 59.26 | 67.49 | 75 | 85 | 90 | 4/7 |
-| **5** | **C** | **BAJAJHFL** | 94.19 | 92.69 | 98.81 | 110 | 120 | 130 | 2/7 |
-| **6** | **C** | **LTF** | 339.28 | 326.6 | 365.53 | 400 | 440 | 470 | 4/7 |
+| **1** | **B** | **LEMONTREE** | 128.64 | 125.66 | 135.41 | 150 | 160 | 170 | 2/7 |
+| **2** | **B** | **TATACAP** | 390.98 | 381.63 | 416.6 | 450 | 490 | 525 | 4/7 |
+| **3** | **B** | **AYE** | 197.68 | 186.33 | 227.13 | 270 | 310 | 340 | 4/7 |
+| **4** | **C** | **APTUS** | 309.62 | 300.42 | 340.72 | 390 | 430 | 460 | 3/7 |
+| **5** | **C** | **AEGISVOPAK** | 312.11 | 297.47 | 351.51 | 410 | 460 | 500 | 3/7 |
+| **6** | **C** | **ADVENTHTL** | 177.88 | 169.85 | 193.52 | 220 | 240 | 260 | 4/7 |
 
 ---
 
