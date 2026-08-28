@@ -519,9 +519,10 @@ if __name__ == "__main__":
             valid_keys = list(bars.keys()) if bars else []
             benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
-        label, multiplier = _get_market_multiplier()
+                label, multiplier = _get_market_multiplier()
+                sector_map = _get_sector_map()
 
-        for mode in ["morning", "afternoon", "eod"]:
-            def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame, market_multiplier: float = 1.0, market_regime_label: str = "", sector_map: dict = None):
+                for mode in ["morning", "afternoon", "eod"]:
+                    process_scans_with_shared_data(mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map)
 
         cmd_options(args, shared_store=store)
