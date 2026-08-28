@@ -32,7 +32,7 @@ from scanner.technicals import (
     obv_accumulation, adx_building,
 )
 from scanner.patterns import resample_to_weekly, ascending_triangle_setup, FilterResult as PatternResult
-
+from scanner.sectors import fetch_sector_map, apply_sector_clustering
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -264,7 +264,10 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:7]
             recs.append(rec_package)
 
-    recs.sort(key=lambda r: r.probability, reverse=True)
+        if sector_map:
+        recs = apply_sector_clustering(recs, sector_map)
+    else:
+        recs.sort(key=lambda r: r.probability, reverse=True)
     high_conviction_recs = recs[:25]
 
     try:
@@ -327,7 +330,12 @@ def _get_market_multiplier() -> tuple[str, float]:
     except Exception as e:
         logger.warning(f"Global cues fetch failed ({e}) - treating as neutral")
         return "unknown (fetch failed)", 1.0
-
+def _get_sector_map() -> dict:
+    try:
+        return fetch_sector_map()
+    except Exception as e:
+        logger.warning(f"Sector map fetch failed ({e}) - clustering will be skipped this run")
+        return {}
 
 def execute_isolated_scan(scan_mode: str, test_limit=None):
     universe = load_universe()
@@ -352,8 +360,9 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
         valid_keys = list(bars.keys()) if bars else []
         benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
-    label, multiplier = _get_market_multiplier()
-    process_scans_with_shared_data(scan_mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label)
+        label, multiplier = _get_market_multiplier()
+        sector_map = _get_sector_map()
+        process_scans_with_shared_data(scan_mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map)
 
 
 def cmd_options(args, shared_store=None):
@@ -513,6 +522,6 @@ if __name__ == "__main__":
         label, multiplier = _get_market_multiplier()
 
         for mode in ["morning", "afternoon", "eod"]:
-            process_scans_with_shared_data(mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label)
+            def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame, market_multiplier: float = 1.0, market_regime_label: str = "", sector_map: dict = None):
 
         cmd_options(args, shared_store=store)
