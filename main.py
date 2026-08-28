@@ -264,8 +264,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:7]
             recs.append(rec_package)
 
-        if sector_map:
-        recs = apply_sector_clustering(recs, sector_map)
+            if sector_map:
+            recs = apply_sector_clustering(recs, sector_map)
     else:
         recs.sort(key=lambda r: r.probability, reverse=True)
     high_conviction_recs = recs[:25]
