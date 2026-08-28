@@ -1,8 +1,8 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-28 17:23 UTC`
+*Evaluation Window:* `2026-08-28 18:30 UTC`
 
-*Global market backdrop:* neutral (composite -0.29%)
+*Global market backdrop:* neutral (composite -0.27%)
 
 🏆 Displaying the top **19 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
@@ -10,8 +10,8 @@
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
 | **1** | **B** | **AAREYDRUGS** | 96.19 | 89.74 | 106.75 | 130 | 140 | 150 | 3/7 |
 | **2** | **B+** | **TATACAP** | 390.98 | 381.63 | 416.6 | 450 | 490 | 525 | 4/7 |
-| **3** | **B** | **NYKAA** | 348.7 | 338.98 | 376.9 | 420 | 460 | 490 | 4/7 |
-| **4** | **B** | **BHAGYANGR** | 433.16 | 405.35 | 509.95 | 625 | 725 | 800 | 4/7 |
+| **3** | **B** | **BHAGYANGR** | 433.16 | 405.35 | 509.95 | 625 | 725 | 800 | 4/7 |
+| **4** | **B** | **NYKAA** | 348.7 | 338.98 | 376.9 | 420 | 460 | 490 | 4/7 |
 | **5** | **B** | **ATALREAL** | 36.77 | 34.67 | 40.52 | 50 | 55 | 60 | 4/7 |
 | **6** | **B** | **ARIHANTCAP** | 84.97 | 81.0 | 91.4 | 100 | 110 | 120 | 4/7 |
 | **7** | **B** | **PFOCUS** | 367.73 | 347.88 | 412.46 | 470 | 550 | 600 | 4/7 |
