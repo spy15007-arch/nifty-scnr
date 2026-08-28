@@ -1,19 +1,21 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-28 07:45 UTC`
+*Evaluation Window:* `2026-08-28 17:23 UTC`
 
-*Global market backdrop:* supportive (composite +0.83%)
+*Global market backdrop:* neutral (composite -0.29%)
 
-🏆 Displaying the top **6 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **8 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **B** | **LEMONTREE** | 128.64 | 125.66 | 135.41 | 150 | 160 | 170 | 2/7 |
-| **2** | **B** | **TATACAP** | 390.98 | 381.63 | 416.6 | 450 | 490 | 525 | 4/7 |
-| **3** | **B** | **AYE** | 197.68 | 186.33 | 227.13 | 270 | 310 | 340 | 4/7 |
-| **4** | **C** | **APTUS** | 309.62 | 300.42 | 340.72 | 390 | 430 | 460 | 3/7 |
-| **5** | **C** | **AEGISVOPAK** | 312.11 | 297.47 | 351.51 | 410 | 460 | 500 | 3/7 |
-| **6** | **C** | **ADVENTHTL** | 177.88 | 169.85 | 193.52 | 220 | 240 | 260 | 4/7 |
+| **1** | **B** | **AAREYDRUGS** | 96.19 | 89.74 | 106.75 | 130 | 140 | 150 | 3/7 |
+| **2** | **B** | **NSLNISP** | 53.86 | 51.04 | 58.4 | 65 | 75 | 80 | 3/7 |
+| **3** | **C** | **APTUS** | 309.62 | 300.4 | 340.72 | 390 | 430 | 460 | 3/7 |
+| **4** | **C** | **LEMONTREE** | 128.64 | 125.66 | 135.41 | 150 | 160 | 170 | 2/7 |
+| **5** | **C** | **ASIANHOTNR** | 403.36 | 386.34 | 436.64 | 480 | 550 | 575 | 4/7 |
+| **6** | **C** | **ATALREAL** | 36.77 | 34.67 | 40.52 | 50 | 55 | 60 | 4/7 |
+| **7** | **C** | **ARIHANTCAP** | 84.97 | 81.0 | 91.4 | 100 | 110 | 120 | 4/7 |
+| **8** | **C** | **APOLLO** | 467.43 | 452.83 | 540.88 | 650 | 750 | 825 | 3/7 |
 
 ---
 
