@@ -33,6 +33,7 @@ from scanner.technicals import (
 )
 from scanner.patterns import resample_to_weekly, ascending_triangle_setup, FilterResult as PatternResult
 from scanner.sectors import fetch_sector_map, apply_sector_clustering
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -40,10 +41,12 @@ DB_DIR = "market_data"
 
 
 def _get_store():
+    """ALWAYS live data - used by every live scan command."""
     return AngelOneHistoricalStore()
 
 
 def _get_training_store():
+    """Training/backtesting ONLY - not currently wired to any command."""
     os.makedirs(DB_DIR, exist_ok=True)
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
     if has_files:
@@ -71,7 +74,7 @@ def _grade_for_recommendation(r) -> str:
     independent signals confirmed (RSI pre-breakout zone, MACD, HH/HL,
     VWAP, OBV, ADX, ascending triangle). More agreement = higher grade.
     """
-    n_signals = max(0, len(r.top_reasons) - 1)
+    n_signals = max(0, len(r.top_reasons) - 1)  # subtract the strategy-title tag
     prob = r.probability
 
     if prob >= 0.75 and n_signals >= 6:
@@ -86,6 +89,7 @@ def _grade_for_recommendation(r) -> str:
 
 
 def _build_table_lines(recs: list) -> list[str]:
+    """Shared table-building logic used by both the per-folder dashboard and the README section."""
     lines = [
         "| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |",
         "| :--- | :---: | :--- | :--- | :--- | :--- | :--- |"
@@ -104,6 +108,7 @@ def _build_table_lines(recs: list) -> list[str]:
 
 
 def _update_readme_section(scan_mode: str, recs: list):
+    """Updates a marked section of README.md with the latest scan results."""
     marker_tag = scan_mode.upper()
     start_marker = f"<!-- {marker_tag}_TABLE_START -->"
     end_marker = f"<!-- {marker_tag}_TABLE_END -->"
@@ -146,6 +151,7 @@ def _update_readme_section(scan_mode: str, recs: list):
 
 
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, market_regime_label: str = ""):
+    """Generates a neat, prioritized, graded high-conviction Markdown dashboard view."""
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     if scan_mode == "morning":
@@ -178,6 +184,7 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, m
 
 
 def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame, market_multiplier: float = 1.0, market_regime_label: str = "", sector_map: dict = None):
+    """Processes explicit strategy variations and pushes clean files directly to the root main tree."""
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
 
@@ -264,8 +271,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:7]
             recs.append(rec_package)
 
-        if sector_map:
-            recs = apply_sector_clustering(recs, sector_map)
+    if sector_map:
+        recs = apply_sector_clustering(recs, sector_map)
     else:
         recs.sort(key=lambda r: r.probability, reverse=True)
     high_conviction_recs = recs[:25]
@@ -322,6 +329,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
 
 def _get_market_multiplier() -> tuple[str, float]:
+    """Fetches global cues ONCE per run (not per-symbol) and returns (label, multiplier)."""
     try:
         snapshot = fetch_global_snapshot()
         label, multiplier = compute_market_regime_bias(snapshot)
@@ -331,6 +339,7 @@ def _get_market_multiplier() -> tuple[str, float]:
         logger.warning(f"Global cues fetch failed ({e}) - treating as neutral")
         return "unknown (fetch failed)", 1.0
 
+
 def _get_sector_map() -> dict:
     try:
         return fetch_sector_map()
@@ -338,17 +347,13 @@ def _get_sector_map() -> dict:
         logger.warning(f"Sector map fetch failed ({e}) - clustering will be skipped this run")
         return {}
 
+
 def execute_isolated_scan(scan_mode: str, test_limit=None):
     universe = load_universe()
     if test_limit:
         universe = universe[: int(test_limit)]
 
     store = _get_store()
-    # EOD gets more history to support weekly-resampled ascending-
-    # triangle detection (needs ~60 weeks = ~420+ days). Morning/
-    # afternoon stay at 250 - that pattern is irrelevant for same-day/
-    # overnight timeframes, and more history would just slow down
-    # time-critical scans for no benefit.
     lookback = 450 if scan_mode == "eod" else 250
     try:
         bars = store.get_universe_bars(universe, lookback_days=lookback)
@@ -462,6 +467,12 @@ def cmd_calibrate(scan_mode: str = "eod", horizon_days: int = 10, min_days_old: 
 
 
 def cmd_backtest(scan_mode: str = "eod", test_days: int = 120):
+    """
+    Backtests the current scanning logic against historical data - see
+    backtest/engine.py for the no-lookahead-bias design. Gives you an
+    answer in minutes instead of waiting weeks for `calibrate` to
+    accumulate enough live outcomes.
+    """
     universe = load_universe()
     store = _get_store()
     bars = store.get_universe_bars(universe, lookback_days=280)
@@ -481,7 +492,7 @@ if __name__ == "__main__":
     parser.add_argument("--test-limit", dest="test_limit", default=os.getenv("TRADING_TEST_LIMIT") or None,
                          help="Limit scan to N symbols for testing")
     parser.add_argument("--calibrate-mode", dest="calibrate_mode", default="eod", choices=["morning", "afternoon", "eod"],
-                         help="Which scan mode's history to calibrate/backtest (used with 'calibrate' and 'backtest' commands)")
+                         help="Which scan mode's history to calibrate (used only with the 'calibrate' command)")
     args = parser.parse_args()
 
     if args.command == "scan_morning":
