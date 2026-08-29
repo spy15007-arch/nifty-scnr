@@ -1,8 +1,8 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-28 21:30 UTC`
+*Evaluation Window:* `2026-08-29 09:31 UTC`
 
-*Global market backdrop:* neutral (composite -0.26%)
+*Global market backdrop:* neutral (composite +nan%)
 
 🏆 Displaying the top **20 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
