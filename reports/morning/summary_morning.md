@@ -1,6 +1,6 @@
 # ⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)
 
-*Evaluation Window:* `2026-08-29 09:31 UTC`
+*Evaluation Window:* `2026-08-29 11:38 UTC`
 
 *Global market backdrop:* neutral (composite +nan%)
 
