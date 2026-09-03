@@ -1,23 +1,20 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-03 07:13 UTC`
+*Evaluation Window:* `2026-09-03 12:30 UTC`
 
-*Global market backdrop:* supportive (composite +0.77%)
+*Global market backdrop:* neutral (composite -0.39%)
 
-🏆 Displaying the top **10 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **7 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **B+** | **ANDHRAPAP** | 70.29 | 67.82 | 73.25 | 80 | 85 | 90 | 4/7 |
-| **2** | **B+** | **BFINVEST** | 585.87 | 565.73 | 642.7 | 725 | 800 | 875 | 4/7 |
-| **3** | **B+** | **JMFINANCIL** | 147.49 | 142.04 | 156.38 | 170 | 190 | 200 | 6/7 |
-| **4** | **C** | **PPLPHARMA** | 220.8 | 211.06 | 242.4 | 270 | 310 | 330 | 2/7 |
-| **5** | **C** | **AJMERA** | 146.29 | 140.75 | 157.6 | 180 | 190 | 200 | 2/7 |
-| **6** | **C** | **CANHLIFE** | 167.02 | 159.42 | 176.4 | 190 | 210 | 220 | 4/7 |
-| **7** | **C** | **YESBANK** | 25.83 | 25.18 | 27.82 | 35 | 40 | 45 | 1/7 |
-| **8** | **C** | **ANDHRSUGAR** | 107.44 | 100.83 | 116.04 | 130 | 140 | 150 | 1/7 |
-| **9** | **C** | **DELHIVERY** | 525.05 | 510.83 | 551.13 | 600 | 625 | 650 | 2/7 |
-| **10** | **C** | **APTUS** | 309.62 | 299.64 | 334.94 | 370 | 410 | 430 | 5/7 |
+| **1** | **B** | **IDFCFIRSTB** | 88.94 | 86.55 | 95.88 | 110 | 120 | 130 | 3/7 |
+| **2** | **C** | **LTFOODS** | 491.68 | 466.7 | 526.13 | 575 | 625 | 675 | 3/7 |
+| **3** | **C** | **LTF** | 339.28 | 324.56 | 361.72 | 400 | 430 | 450 | 3/7 |
+| **4** | **C** | **AEROPLANE** | 207.31 | 194.8 | 231.76 | 270 | 300 | 330 | 3/7 |
+| **5** | **C** | **PFOCUS** | 367.73 | 347.76 | 412.46 | 470 | 550 | 600 | 3/7 |
+| **6** | **C** | **NUVOCO** | 398.8 | 386.89 | 429.97 | 470 | 525 | 550 | 4/7 |
+| **7** | **C** | **PWL** | 159.75 | 150.98 | 178.69 | 210 | 230 | 250 | 2/7 |
 
 ---
 
