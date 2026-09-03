@@ -1,18 +1,15 @@
 # ⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-02 09:39 UTC`
+*Evaluation Window:* `2026-09-03 07:13 UTC`
 
-*Global market backdrop:* hostile (composite -0.84%)
+*Global market backdrop:* supportive (composite +0.77%)
 
-🏆 Displaying the top **5 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **2 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **C** | **IRB** | 24.0 | 23.45 | 25.41 | 30 | 35 | 40 | 2/7 |
-| **2** | **C** | **RBLBANK** | 395.29 | 383.98 | 419.33 | 450 | 490 | 525 | 3/7 |
-| **3** | **C** | **ACMESOLAR** | 412.32 | 386.98 | 451.71 | 525 | 575 | 600 | 6/7 |
-| **4** | **C** | **BHARATCOAL** | 44.49 | 43.17 | 47.9 | 55 | 60 | 65 | 4/7 |
-| **5** | **C** | **BPCL** | 330.61 | 319.71 | 345.12 | 370 | 390 | 400 | 4/7 |
+| **1** | **B+** | **BFINVEST** | 585.87 | 565.73 | 642.7 | 725 | 800 | 875 | 4/7 |
+| **2** | **B** | **ANDHRAPAP** | 70.29 | 67.82 | 73.25 | 80 | 85 | 90 | 4/7 |
 
 ---
 

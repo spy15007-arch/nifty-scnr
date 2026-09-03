@@ -1,26 +1,23 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-02 12:33 UTC`
+*Evaluation Window:* `2026-09-03 07:13 UTC`
 
-*Global market backdrop:* neutral (composite -0.31%)
+*Global market backdrop:* supportive (composite +0.77%)
 
-🏆 Displaying the top **13 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **10 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **C** | **COALINDIA** | 492.23 | 481.16 | 518.19 | 575 | 600 | 625 | 4/7 |
-| **2** | **C** | **REDINGTON** | 379.26 | 356.29 | 425.61 | 490 | 550 | 600 | 4/7 |
-| **3** | **C** | **AEGISVOPAK** | 312.11 | 295.97 | 347.27 | 400 | 450 | 480 | 3/7 |
-| **4** | **C** | **RBLBANK** | 395.29 | 383.98 | 419.33 | 450 | 490 | 525 | 3/7 |
-| **5** | **C** | **LTFOODS** | 491.68 | 467.05 | 526.13 | 575 | 625 | 675 | 3/7 |
-| **6** | **C** | **BATLIBOI** | Market | Dynamic | ATR Based | 2/7 |
-| **7** | **C** | **ANDHRAPAP** | 70.29 | 67.85 | 73.25 | 80 | 85 | 90 | 4/7 |
-| **8** | **C** | **BHAGYANGR** | 433.16 | 407.02 | 503.31 | 600 | 700 | 775 | 3/7 |
-| **9** | **C** | **BESTAGRO** | 22.71 | 21.61 | 25.34 | 30 | 35 | 40 | 1/7 |
-| **10** | **C** | **FEDERALBNK** | 372.44 | 361.22 | 398.17 | 440 | 470 | 500 | 2/7 |
-| **11** | **C** | **BANSALWIRE** | 370.74 | 359.66 | 400.39 | 440 | 480 | 525 | 2/7 |
-| **12** | **C** | **ASHIANA** | 436.77 | 424.59 | 470.25 | 525 | 575 | 600 | 2/7 |
-| **13** | **C** | **AJMERA** | 146.29 | 140.69 | 157.6 | 180 | 190 | 200 | 2/7 |
+| **1** | **B+** | **ANDHRAPAP** | 70.29 | 67.82 | 73.25 | 80 | 85 | 90 | 4/7 |
+| **2** | **B+** | **BFINVEST** | 585.87 | 565.73 | 642.7 | 725 | 800 | 875 | 4/7 |
+| **3** | **B+** | **JMFINANCIL** | 147.49 | 142.04 | 156.38 | 170 | 190 | 200 | 6/7 |
+| **4** | **C** | **PPLPHARMA** | 220.8 | 211.06 | 242.4 | 270 | 310 | 330 | 2/7 |
+| **5** | **C** | **AJMERA** | 146.29 | 140.75 | 157.6 | 180 | 190 | 200 | 2/7 |
+| **6** | **C** | **CANHLIFE** | 167.02 | 159.42 | 176.4 | 190 | 210 | 220 | 4/7 |
+| **7** | **C** | **YESBANK** | 25.83 | 25.18 | 27.82 | 35 | 40 | 45 | 1/7 |
+| **8** | **C** | **ANDHRSUGAR** | 107.44 | 100.83 | 116.04 | 130 | 140 | 150 | 1/7 |
+| **9** | **C** | **DELHIVERY** | 525.05 | 510.83 | 551.13 | 600 | 625 | 650 | 2/7 |
+| **10** | **C** | **APTUS** | 309.62 | 299.64 | 334.94 | 370 | 410 | 430 | 5/7 |
 
 ---
 
