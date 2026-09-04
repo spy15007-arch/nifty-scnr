@@ -1,8 +1,8 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-04 12:01 UTC`
+*Evaluation Window:* `2026-09-04 14:46 UTC`
 
-*Global market backdrop:* supportive (composite +1.07%)
+*Global market backdrop:* supportive (composite +0.91%)
 
 🏆 Displaying the top **25 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
@@ -14,8 +14,8 @@
 | **4** | **B+** | **PWL** | 128.63 | 120.32 | 147.57 | 180 | 200 | 220 | 4/7 |
 | **5** | **B+** | **AEGISVOPAK** | 300.1 | 282.86 | 335.19 | 380 | 430 | 470 | 4/7 |
 | **6** | **B+** | **AEROPLANE** | 195.39 | 182.85 | 219.84 | 260 | 290 | 310 | 4/7 |
-| **7** | **B** | **AYE** | 185.17 | 172.23 | 209.59 | 250 | 280 | 300 | 4/7 |
-| **8** | **B** | **BEPL** | 128.04 | 120.71 | 140.56 | 160 | 180 | 190 | 4/7 |
+| **7** | **B** | **BEPL** | 128.04 | 120.71 | 140.56 | 160 | 180 | 190 | 4/7 |
+| **8** | **B** | **AYE** | 185.17 | 172.23 | 209.59 | 250 | 280 | 300 | 4/7 |
 | **9** | **B** | **ARTEMISMED** | 334.37 | 318.98 | 364.98 | 410 | 450 | 480 | 4/7 |
 | **10** | **B** | **PINELABS** | 172.14 | 162.06 | 193.75 | 230 | 260 | 280 | 4/7 |
 | **11** | **B** | **JMFINANCIL** | 132.65 | 126.66 | 141.54 | 160 | 170 | 180 | 6/7 |
