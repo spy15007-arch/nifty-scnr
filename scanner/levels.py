@@ -4,18 +4,26 @@ stop loss, and FIVE profit targets. Works in both directions:
   - "bullish": breakout above resistance (used for stock longs and CE options)
   - "bearish": breakdown below support (used for PE options, market corrections)
 
-Target methodology (in order of preference), same in both directions:
-  1. Fibonacci extension of the most recent swing (27.2% / 61.8% / 100% / 127.2% / 161.8%)
-  2. The nearest round-number / psychological level beyond each fib
-     target (round numbers act as real support/resistance because
-     that's where retail limit orders and mental stops cluster)
-  Each target also has a minimum reward:risk floor (T1 >= 1:1, then
-  +1.5R per subsequent target) so a target never ends up sitting
-  uselessly close to entry just because a round number landed nearby.
+ENTRY TRIGGER uses the NEAREST genuine swing-high resistance above
+current price (bullish) / nearest swing-low support below current
+price (bearish) - NOT simply the highest high / lowest low over the
+whole lookback window. A stock that fell from a much higher peak
+earlier in the window would otherwise get an entry trigger anchored
+to that stale, distant level - sometimes 10-20%+ away from where it's
+actually trading now, which defeats the entire point of a "breakout
+trigger" (it should be a level the stock can plausibly reach soon, not
+a full recovery of an old decline). A hard sanity cap
+(max_trigger_distance_pct) rejects the candidate entirely if even the
+nearest identifiable level is still unreasonably far from current
+price, rather than presenting an unusable trade.
+
+TARGETS still use the full-window Fibonacci swing range (unchanged) -
+that's the ambitious, further-out part of the trade plan, and using
+the full historical volatility range there is appropriate; it's only
+the immediate ENTRY point that needs to be close to current price.
 
 Stop = beyond the trigger by an ATR-based buffer, OR beyond the most
-recent swing extreme, whichever is tighter (closer) - keeps risk
-defined without being so tight it gets shaken out by normal noise.
+recent swing extreme, whichever is tighter (closer).
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -30,7 +38,7 @@ REWARD_FLOOR_MULTIPLES = [1.0, 2.5, 4.0, 5.5, 7.0]  # cumulative min R:R per tar
 
 @dataclass
 class TradeLevels:
-    direction: str  # "bullish" or "bearish"
+    direction: str
     entry_trigger: float
     stop_loss: float
     target_1: float
@@ -67,7 +75,6 @@ def _round_step(price: float) -> float:
 
 
 def _nearest_round_level(price: float, direction: str) -> float:
-    """Rounds UP for bullish (resistance-like), DOWN for bearish (support-like)."""
     step = _round_step(price)
     if direction == "bullish":
         return math.ceil(price / step) * step
@@ -75,17 +82,45 @@ def _nearest_round_level(price: float, direction: str) -> float:
 
 
 def _beyond(a: float, b: float, direction: str) -> float:
-    """Whichever of a/b is further in the trade's direction (higher for bullish, lower for bearish)."""
     return max(a, b) if direction == "bullish" else min(a, b)
 
 
 def _nearer(a: float, b: float, direction: str) -> float:
-    """Whichever of a/b is closer to entry (lower for bullish, higher for bearish)."""
     return min(a, b) if direction == "bullish" else max(a, b)
 
 
+def _find_nearest_resistance_above(df: pd.DataFrame, current_price: float, lookback: int, swing_window: int = 3) -> float | None:
+    """
+    Finds the NEAREST genuine swing-high resistance above current
+    price - not just the single highest point over the whole window,
+    which could be a stale peak the stock has already fallen far away
+    from. Returns None if no swing high above current price exists in
+    the window (e.g. the stock is already near its own recent highs).
+    """
+    window = df.tail(lookback).reset_index(drop=True)
+    highs = window["high"]
+    candidates = []
+    for i in range(swing_window, len(highs) - swing_window):
+        seg = highs.iloc[i - swing_window: i + swing_window + 1]
+        if highs.iloc[i] == seg.max() and highs.iloc[i] > current_price:
+            candidates.append(highs.iloc[i])
+    return min(candidates) if candidates else None
+
+
+def _find_nearest_support_below(df: pd.DataFrame, current_price: float, lookback: int, swing_window: int = 3) -> float | None:
+    """Symmetric to the resistance finder above, for bearish/breakdown setups."""
+    window = df.tail(lookback).reset_index(drop=True)
+    lows = window["low"]
+    candidates = []
+    for i in range(swing_window, len(lows) - swing_window):
+        seg = lows.iloc[i - swing_window: i + swing_window + 1]
+        if lows.iloc[i] == seg.min() and lows.iloc[i] < current_price:
+            candidates.append(lows.iloc[i])
+    return max(candidates) if candidates else None
+
+
 def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: float = 1.5,
-                          direction: str = "bullish") -> TradeLevels | None:
+                          direction: str = "bullish", max_trigger_distance_pct: float = 0.08) -> TradeLevels | None:
     if len(df) < lookback:
         return None
     if direction not in ("bullish", "bearish"):
@@ -96,28 +131,48 @@ def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: f
         return None
 
     sign = 1 if direction == "bullish" else -1
+    current_price = df["close"].iloc[-1]
 
     if direction == "bullish":
-        level_ref = df["high"].tail(lookback).max()       # resistance
-        entry_trigger = round(level_ref * 1.002, 2)         # breakout buffer above
+        nearest_resistance = _find_nearest_resistance_above(df, current_price, lookback)
+        if nearest_resistance is None:
+            # No swing high above current price in the window - the
+            # stock is already near its own recent highs. Use a modest
+            # buffer above the recent (10d) high instead of a distant
+            # historical level that doesn't apply here.
+            level_ref = df["high"].tail(10).max()
+        else:
+            level_ref = nearest_resistance
+        entry_trigger = round(level_ref * 1.002, 2)
         atr_stop = entry_trigger - atr * atr_stop_mult
         swing_extreme = df["low"].tail(lookback).min()
-        stop_loss = round(max(atr_stop, swing_extreme), 2)   # tighter (higher) of the two
+        stop_loss = round(max(atr_stop, swing_extreme), 2)
         if stop_loss >= entry_trigger:
             return None
     else:
-        level_ref = df["low"].tail(lookback).min()          # support
-        entry_trigger = round(level_ref * 0.998, 2)          # breakdown buffer below
+        nearest_support = _find_nearest_support_below(df, current_price, lookback)
+        if nearest_support is None:
+            level_ref = df["low"].tail(10).min()
+        else:
+            level_ref = nearest_support
+        entry_trigger = round(level_ref * 0.998, 2)
         atr_stop = entry_trigger + atr * atr_stop_mult
         swing_extreme = df["high"].tail(lookback).max()
-        stop_loss = round(min(atr_stop, swing_extreme), 2)   # tighter (lower) of the two
+        stop_loss = round(min(atr_stop, swing_extreme), 2)
         if stop_loss <= entry_trigger:
             return None
+
+    # SANITY CAP: even with nearest-swing-based resistance/support, if
+    # it's still unreasonably far from current price, this isn't a
+    # genuine near-term setup - reject rather than present it.
+    distance_pct = abs(entry_trigger - current_price) / current_price
+    if distance_pct > max_trigger_distance_pct:
+        return None
 
     risk = abs(entry_trigger - stop_loss)
 
     fib = fibonacci_levels(df, lookback)
-    swing_range = fib["0.0"] - fib["1.0"]  # always positive (0.0 = swing high, 1.0 = swing low)
+    swing_range = fib["0.0"] - fib["1.0"]
     fib_exts = [entry_trigger + sign * swing_range * pct for pct in FIB_EXTENSION_PCTS]
 
     targets: list[float] = []
@@ -134,8 +189,9 @@ def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: f
     risk_rewards = [round(abs(t - entry_trigger) / risk, 2) if risk > 0 else 0 for t in targets]
 
     basis = (
-        f"{direction} {lookback}d {'resistance' if direction == 'bullish' else 'support'} "
-        f"+0.2% buffer trigger; stop = tighter of {atr_stop_mult}x ATR or {lookback}d swing extreme; "
+        f"{direction} nearest swing {'resistance' if direction == 'bullish' else 'support'} "
+        f"+0.2% buffer trigger (within {max_trigger_distance_pct:.0%} of current price); "
+        f"stop = tighter of {atr_stop_mult}x ATR or {lookback}d swing extreme; "
         f"targets = Fib extension (27.2/61.8/100/127.2/161.8%) blended with round levels, "
         f"minimum 1:1 through 7:1 reward:risk floors"
     )
