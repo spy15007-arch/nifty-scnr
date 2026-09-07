@@ -74,7 +74,7 @@ def _grade_for_recommendation(r) -> str:
     independent signals confirmed (RSI pre-breakout zone, MACD, HH/HL,
     VWAP, OBV, ADX, ascending triangle). More agreement = higher grade.
     """
-    n_signals = max(0, len(r.top_reasons) - 1)  # subtract the strategy-title tag
+    n_signals = max(0, len(r.top_reasons) - 1)
     prob = r.probability
 
     if prob >= 0.75 and n_signals >= 6:
@@ -91,11 +91,11 @@ def _grade_for_recommendation(r) -> str:
 def _build_table_lines(recs: list) -> list[str]:
     """Shared table-building logic used by both the per-folder dashboard and the README section."""
     lines = [
-        "| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |",
-        "| :--- | :---: | :--- | :--- | :--- | :--- | :--- |"
+        "| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |",
+        "| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |"
     ]
     if not recs:
-        lines.append("| - | - | No candidates this session | - | - | - | - |")
+        lines.append("| - | - | No candidates this session | - | - | - | - | - |")
     else:
         for idx, r in enumerate(recs, 1):
             grade = _grade_for_recommendation(r)
@@ -103,7 +103,9 @@ def _build_table_lines(recs: list) -> list[str]:
             sl = r.levels.stop_loss if r.levels else "Dynamic"
             tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
             n_signals = max(0, len(r.top_reasons) - 1)
-            lines.append(f"| **{idx}** | **{grade}** | **{r.symbol}** | {entry} | {sl} | {tg} | {n_signals}/7 |")
+            dist = getattr(r, "entry_distance_pct", None)
+            dist_str = f"{dist:+.1%}" if dist is not None else "N/A"
+            lines.append(f"| **{idx}** | **{grade}** | **{r.symbol}** | {dist_str} | {entry} | {sl} | {tg} | {n_signals}/7 |")
     return lines
 
 
@@ -177,7 +179,8 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, m
     lines.append("\n---\n")
     lines.append(
         "*Grade key: A+ = probability >=75% with 6+ of 7 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX, ascending triangle) agreeing. "
-        "A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut.*\n"
+        "A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. "
+        "CMP->Entry shows how far the trigger is from current price - should always be small/single-digit; large values would indicate a problem.*\n"
     )
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -233,6 +236,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             feats = build_features(df, benchmark)
             levels = compute_trade_levels(df)
+            current_price = df['close'].iloc[-1]
+            entry_distance_pct = ((levels.entry_trigger - current_price) / current_price) if levels else None
 
             macd_result = macd_bullish(df)
             hh_hl_result = higher_highs_higher_lows(df)
@@ -269,6 +274,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             rec_package = explain(cand.symbol, adjusted_probability, feats, levels, execution)
             rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:7]
+            rec_package.__dict__["entry_distance_pct"] = entry_distance_pct
             recs.append(rec_package)
 
     if sector_map:
@@ -299,10 +305,12 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
     csv_rows = []
     for r in recs:
+        dist = getattr(r, "entry_distance_pct", None)
         csv_rows.append({
             "symbol": r.symbol,
             "probability": round(r.probability, 4),
             "grade": _grade_for_recommendation(r),
+            "entry_distance_pct": round(dist, 4) if dist is not None else None,
             "entry_trigger": r.levels.entry_trigger if r.levels else None,
             "stop_loss": r.levels.stop_loss if r.levels else None,
             "target_1": r.levels.targets[0] if r.levels else None,
@@ -355,8 +363,9 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
 
     store = _get_store()
     lookback = 450 if scan_mode == "eod" else 250
+    time_budget = 1200 if scan_mode == "morning" else 5400
     try:
-        bars = store.get_universe_bars(universe, lookback_days=lookback)
+        bars = store.get_universe_bars(universe, lookback_days=lookback, max_duration_seconds=time_budget)
     except Exception:
         bars = {}
 
