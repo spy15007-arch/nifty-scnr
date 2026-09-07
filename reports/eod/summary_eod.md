@@ -1,39 +1,25 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-04 14:46 UTC`
+*Evaluation Window:* `2026-09-07 06:31 UTC`
 
-*Global market backdrop:* supportive (composite +0.91%)
+*Global market backdrop:* neutral (composite -0.05%)
 
-🏆 Displaying the top **25 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **11 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
-| Rank | Grade | Ticker | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
-| :--- | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **B+** | **PARADEEP** | 159.82 | 151.22 | 174.14 | 200 | 220 | 230 | 4/7 |
-| **2** | **B** | **LTFOODS** | Market | Dynamic | ATR Based | 3/7 |
-| **3** | **B** | **BANKINDIA** | 146.38 | 142.33 | 151.91 | 160 | 170 | 180 | 3/7 |
-| **4** | **B+** | **PWL** | 128.63 | 120.32 | 147.57 | 180 | 200 | 220 | 4/7 |
-| **5** | **B+** | **AEGISVOPAK** | 300.1 | 282.86 | 335.19 | 380 | 430 | 470 | 4/7 |
-| **6** | **B+** | **AEROPLANE** | 195.39 | 182.85 | 219.84 | 260 | 290 | 310 | 4/7 |
-| **7** | **B** | **BEPL** | 128.04 | 120.71 | 140.56 | 160 | 180 | 190 | 4/7 |
-| **8** | **B** | **AYE** | 185.17 | 172.23 | 209.59 | 250 | 280 | 300 | 4/7 |
-| **9** | **B** | **ARTEMISMED** | 334.37 | 318.98 | 364.98 | 410 | 450 | 480 | 4/7 |
-| **10** | **B** | **PINELABS** | 172.14 | 162.06 | 193.75 | 230 | 260 | 280 | 4/7 |
-| **11** | **B** | **JMFINANCIL** | 132.65 | 126.66 | 141.54 | 160 | 170 | 180 | 6/7 |
-| **12** | **C** | **PPLPHARMA** | 218.94 | 208.9 | 239.26 | 270 | 300 | 320 | 2/7 |
-| **13** | **C** | **AARTIDRUGS** | 434.87 | 415.9 | 461.4 | 500 | 550 | 575 | 4/7 |
-| **14** | **C** | **BATLIBOI** | Market | Dynamic | ATR Based | 4/7 |
-| **15** | **C** | **MRPL** | 176.65 | 167.56 | 190.72 | 210 | 230 | 250 | 2/7 |
-| **16** | **C** | **OIL** | 496.39 | 478.28 | 530.91 | 575 | 625 | 675 | 4/7 |
-| **17** | **C** | **BESTAGRO** | 19.46 | 18.07 | 22.09 | 30 | 35 | 40 | 3/7 |
-| **18** | **C** | **ADVANCE** | 117.94 | 110.78 | 130.92 | 150 | 170 | 180 | 1/7 |
-| **19** | **C** | **GICRE** | 362.52 | 352.24 | 383.29 | 410 | 440 | 460 | 4/7 |
-| **20** | **C** | **PCBL** | 328.16 | 315.49 | 358.39 | 400 | 440 | 470 | 2/7 |
-| **21** | **C** | **BFINVEST** | 472.94 | 453.91 | 526.58 | 600 | 675 | 725 | 3/7 |
-| **22** | **C** | **SCI** | 296.59 | 282.63 | 329.01 | 380 | 420 | 450 | 5/7 |
-| **23** | **C** | **NSLNISP** | 46.28 | 43.46 | 50.21 | 60 | 65 | 70 | 4/7 |
-| **24** | **C** | **ANGELONE** | 305.66 | 290.92 | 328.83 | 360 | 400 | 420 | 4/7 |
-| **25** | **C** | **ASIANTILES** | Market | Dynamic | ATR Based | 4/7 |
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| **1** | **B+** | **PWL** | +1.2% | 130.14 | 122.41 | 149.08 | 180 | 200 | 220 | 5/7 |
+| **2** | **B+** | **PFOCUS** | +1.0% | 311.62 | 292.18 | 356.35 | 420 | 480 | 525 | 5/7 |
+| **3** | **B** | **AARTIDRUGS** | +0.4% | 430.66 | 412.15 | 457.19 | 500 | 550 | 575 | 4/7 |
+| **4** | **B** | **ADVANCE** | +5.1% | 125.15 | 118.12 | 138.13 | 160 | 180 | 190 | 2/7 |
+| **5** | **C** | **LTFOODS** | N/A | Market | Dynamic | ATR Based | 3/7 |
+| **6** | **C** | **BFINVEST** | +0.8% | 466.33 | 447.23 | 519.97 | 600 | 675 | 725 | 2/7 |
+| **7** | **C** | **PINELABS** | +3.6% | 172.14 | 162.41 | 193.75 | 230 | 260 | 280 | 4/7 |
+| **8** | **C** | **JMFINANCIL** | +1.2% | 130.86 | 124.86 | 139.75 | 160 | 170 | 180 | 5/7 |
+| **9** | **C** | **GAIL** | +0.2% | 176.64 | 171.75 | 185.06 | 200 | 210 | 220 | 3/7 |
+| **10** | **C** | **BCG** | +0.8% | 9.65 | 9.31 | 11.12 | 15 | 20 | 25 | 3/7 |
+| **11** | **C** | **LICI** | +0.3% | 414.13 | 401.52 | 431.62 | 460 | 480 | 500 | 4/7 |
 
 ---
 
-*Grade key: A+ = probability >=75% with 6+ of 7 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX, ascending triangle) agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut.*
+*Grade key: A+ = probability >=75% with 6+ of 7 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX, ascending triangle) agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price - should always be small/single-digit; large values would indicate a problem.*
