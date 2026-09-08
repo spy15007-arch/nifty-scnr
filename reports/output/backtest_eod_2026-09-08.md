@@ -1,16 +1,16 @@
 # Backtest Report - EOD - 2026-09-08
 
-**2491 total signals** (1890 resolved, 601 still open at horizon end)
-**Overall hit rate: 20.8%** (target hit before stop)
+**3942 total signals** (3021 resolved, 921 still open at horizon end)
+**Overall hit rate: 21.0%** (target hit before stop)
 
 ## Hit rate by signal-agreement count
 | Signals confirming | Count | Hit rate |
 | :--- | :--- | :--- |
-| 1/6 | 107 | 13.1% |
-| 2/6 | 302 | 17.5% |
-| 3/6 | 622 | 19.9% |
-| 4/6 | 621 | 23.7% |
-| 5/6 | 204 | 22.5% |
-| 6/6 | 34 | 26.5% |
+| 1/6 | 166 | 12.0% |
+| 2/6 | 492 | 15.7% |
+| 3/6 | 972 | 21.5% |
+| 4/6 | 1001 | 23.8% |
+| 5/6 | 334 | 22.5% |
+| 6/6 | 56 | 25.0% |
 
 *If hit rate clearly rises with signal count, the grading system is working as intended - more agreement genuinely means better odds. If it's flat or inverted, the weights/thresholds need revisiting.*
