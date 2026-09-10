@@ -9,15 +9,21 @@ i). The actual outcome check afterward uses df.iloc[i+1:i+1+horizon] -
 bars the simulation never had access to when "deciding" to flag the
 symbol.
 
-DIAGNOSTIC ADDITION: every trade (resolved OR unresolved) now also
-records how close it got to target_1 (max_gain_pct, pct_of_target_reached)
-and where it ended up (final_gain_pct). Two consecutive backtest runs
-showed a stable ~21% overall hit rate plateauing around 22-25% even at
-the highest signal counts - this diagnostic exists to find out WHY,
-specifically for the ~920 trades per run that hit neither target nor
-stop: were they close to target (target too aggressive), going nowhere
-(setup not genuinely predictive), or drifting down without quite
-triggering the stop (a real warning sign)?
+HORIZON = 15 days (was 10): the diagnostic run showed 77% of unresolved
+trades simply "went nowhere" within a 10-day window rather than clearly
+failing - but the user's actual stated target was 15-20 days. Testing
+against a shorter window than what's actually being asked for
+understates real performance. 15 days matches that expectation more
+honestly.
+
+DIAGNOSTIC ADDITION: every trade (resolved OR unresolved) also records
+how close it got to target_1 (max_gain_pct, pct_of_target_reached) and
+where it ended up (final_gain_pct) - specifically for the trades that
+hit neither target nor stop within the (now 15-day, matching the
+user's actual 15-20 day target window rather than an artificially
+shorter 10-day test) horizon: were they close to target (target too
+aggressive), going nowhere (setup not genuinely predictive), or
+drifting down without quite triggering the stop (a real warning sign)?
 """
 from __future__ import annotations
 import logging
@@ -85,7 +91,7 @@ def run_backtest(
     benchmark_df: pd.DataFrame,
     scan_mode: str = "eod",
     test_days: int = 120,
-    horizon_days: int = 10,
+    horizon_days: int = 15,
     min_history: int = 100,
 ) -> list[BacktestTrade]:
     engine = ScannerEngine(scan_mode=scan_mode)
@@ -174,7 +180,6 @@ def summarize_backtest(trades: list[BacktestTrade]) -> dict:
         for n, ts in sorted(by_signals.items())
     }
 
-    # DIAGNOSTIC: what actually happened to the unresolved trades?
     unresolved_diagnostic = {}
     if unresolved:
         close_to_target = [t for t in unresolved if t.pct_of_target_reached >= 0.80]
