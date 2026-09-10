@@ -1,15 +1,14 @@
 # ⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-09 08:44 UTC`
+*Evaluation Window:* `2026-09-10 08:45 UTC`
 
-*Global market backdrop:* hostile (composite -1.05%)
+*Global market backdrop:* hostile (composite -0.81%)
 
-🏆 Displaying the top **2 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **0 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **C** | **NLCINDIA** | +2.0% | 277.35 | 267.67 | 311.21 | 360 | 410 | 440 | 4/7 |
-| **2** | **C** | **TATASTEEL** | +0.8% | 190.63 | 183.48 | 202.71 | 220 | 240 | 250 | 4/7 |
+| - | - | No candidates this session | - | - | - | - | - |
 
 ---
 
