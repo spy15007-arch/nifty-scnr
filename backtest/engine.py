@@ -9,21 +9,18 @@ i). The actual outcome check afterward uses df.iloc[i+1:i+1+horizon] -
 bars the simulation never had access to when "deciding" to flag the
 symbol.
 
-HORIZON = 15 days (was 10): the diagnostic run showed 77% of unresolved
-trades simply "went nowhere" within a 10-day window rather than clearly
-failing - but the user's actual stated target was 15-20 days. Testing
-against a shorter window than what's actually being asked for
-understates real performance. 15 days matches that expectation more
-honestly.
+HORIZON = 20 days (was 15, was 10 originally): 10->15 days showed a
+real, consistent hit-rate improvement (20.9%->24.7%) across every
+signal-count tier, confirmed stable across 3 separate runs. This tests
+20 days - the upper end of the user's stated 15-20 day window - as the
+FINAL horizon test: if this shows another meaningful jump, horizon
+length was the main constraint. If it doesn't move much, that's the
+signal to stop extending the window and focus on the entry/target
+mechanics themselves instead.
 
 DIAGNOSTIC ADDITION: every trade (resolved OR unresolved) also records
 how close it got to target_1 (max_gain_pct, pct_of_target_reached) and
-where it ended up (final_gain_pct) - specifically for the trades that
-hit neither target nor stop within the (now 15-day, matching the
-user's actual 15-20 day target window rather than an artificially
-shorter 10-day test) horizon: were they close to target (target too
-aggressive), going nowhere (setup not genuinely predictive), or
-drifting down without quite triggering the stop (a real warning sign)?
+where it ended up (final_gain_pct).
 """
 from __future__ import annotations
 import logging
@@ -91,7 +88,7 @@ def run_backtest(
     benchmark_df: pd.DataFrame,
     scan_mode: str = "eod",
     test_days: int = 120,
-    horizon_days: int = 15,
+    horizon_days: int = 20,
     min_history: int = 100,
 ) -> list[BacktestTrade]:
     engine = ScannerEngine(scan_mode=scan_mode)
