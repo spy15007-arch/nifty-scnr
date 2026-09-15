@@ -1,14 +1,14 @@
 # ⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-14 09:36 UTC`
+*Evaluation Window:* `2026-09-15 09:19 UTC`
 
-*Global market backdrop:* hostile (composite -1.45%)
+*Global market backdrop:* hostile (composite -1.37%)
 
-🏆 Displaying the top **1 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **0 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **B** | **ARVINDFASN** | +2.3% | 456.66 | 437.79 | 478.09 | 525 | 550 | 575 | 5/7 |
+| - | - | No candidates this session | - | - | - | - | - |
 
 ---
 
