@@ -1,16 +1,19 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-15 13:06 UTC`
+*Evaluation Window:* `2026-09-16 13:04 UTC`
 
-*Global market backdrop:* neutral (composite -0.43%)
+*Global market backdrop:* supportive (composite +0.69%)
 
-🏆 Displaying the top **3 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **6 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **C** | **FSL** | N/A | Market | Dynamic | ATR Based | 3/7 |
-| **2** | **C** | **CASTROLIND** | +0.3% | 188.58 | 185.03 | 192.52 | 200 | 210 | 220 | 3/7 |
-| **3** | **C** | **BAJAJHFL** | +1.4% | 85.15 | 82.98 | 88.49 | 95 | 100 | 110 | 2/7 |
+| **1** | **B** | **FSL** | +0.5% | 279.26 | 263.75 | 315.54 | 370 | 420 | 450 | 4/7 |
+| **2** | **C** | **OIL** | +1.8% | 496.39 | 476.13 | 530.91 | 575 | 625 | 675 | 3/7 |
+| **3** | **C** | **PNB** | +1.4% | 118.44 | 115.05 | 124.15 | 140 | 150 | 160 | 3/7 |
+| **4** | **C** | **CASTROLIND** | +0.3% | 189.33 | 185.73 | 193.27 | 200 | 210 | 220 | 3/7 |
+| **5** | **C** | **ALGOQUANT** | +3.0% | 67.08 | 63.64 | 72.21 | 80 | 90 | 95 | 4/7 |
+| **6** | **C** | **CANHLIFE** | +0.7% | 155.11 | 145.71 | 164.51 | 180 | 192.71 | 206.81 | 2/7 |
 
 ---
 
