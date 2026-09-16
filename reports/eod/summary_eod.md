@@ -1,22 +1,21 @@
 # 📈 POSITION SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-15 15:24 UTC`
+*Evaluation Window:* `2026-09-16 15:20 UTC`
 
-*Global market backdrop:* hostile (composite -2.24%)
+*Global market backdrop:* supportive (composite +2.20%)
 
-🏆 Displaying the top **9 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
+🏆 Displaying the top **8 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **B** | **PWL** | +0.7% | 131.68 | 122.7 | 150.62 | 180 | 210 | 230 | 5/7 |
-| **2** | **C** | **BHAGYANGR** | +0.9% | 408.82 | 383.74 | 469.68 | 550 | 650 | 700 | 4/7 |
-| **3** | **C** | **ARIHANTCAP** | +4.6% | 84.97 | 80.96 | 91.4 | 100 | 110 | 120 | 3/7 |
-| **4** | **C** | **FSL** | N/A | Market | Dynamic | ATR Based | 3/7 |
-| **5** | **C** | **CASTROLIND** | +0.3% | 188.58 | 185.03 | 192.52 | 200 | 210 | 220 | 3/7 |
-| **6** | **C** | **AWFIS** | +1.9% | 280.46 | 258.99 | 329.39 | 400 | 470 | 525 | 3/7 |
-| **7** | **C** | **BAJAJHFL** | +1.4% | 85.15 | 82.98 | 88.49 | 95 | 100 | 110 | 2/7 |
-| **8** | **C** | **FEDERALBNK** | +4.3% | 357.66 | 348.07 | 383.39 | 420 | 460 | 480 | 1/7 |
-| **9** | **C** | **YESBANK** | +0.6% | 23.2 | 22.39 | 24.84 | 30 | 35 | 40 | 4/7 |
+| **1** | **B+** | **FSL** | +0.5% | 279.26 | 263.75 | 315.54 | 370 | 420 | 450 | 4/7 |
+| **2** | **B** | **OIL** | +1.8% | 496.39 | 476.13 | 530.91 | 575 | 625 | 675 | 3/7 |
+| **3** | **B** | **PNB** | +1.4% | 118.44 | 115.05 | 124.15 | 140 | 150 | 160 | 3/7 |
+| **4** | **C** | **ALGOQUANT** | +3.0% | 67.08 | 63.64 | 72.21 | 80 | 90 | 95 | 4/7 |
+| **5** | **C** | **CASTROLIND** | +0.3% | 189.33 | 185.73 | 193.27 | 200 | 210 | 220 | 3/7 |
+| **6** | **C** | **CANHLIFE** | +0.7% | 155.11 | 145.71 | 164.51 | 180 | 192.71 | 206.81 | 2/7 |
+| **7** | **C** | **ACMESOLAR** | +3.2% | 431.36 | 405.15 | 475.66 | 550 | 600 | 650 | 4/7 |
+| **8** | **C** | **YESBANK** | +0.9% | 23.6 | 22.73 | 25.24 | 30 | 35 | 40 | 4/7 |
 
 ---
 
