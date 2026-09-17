@@ -1,19 +1,19 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-16 13:04 UTC`
+*Evaluation Window:* `2026-09-17 13:00 UTC`
 
-*Global market backdrop:* supportive (composite +0.69%)
+*Global market backdrop:* supportive (composite +1.07%)
 
 🏆 Displaying the top **6 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.
 
 | Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **B** | **FSL** | +0.5% | 279.26 | 263.75 | 315.54 | 370 | 420 | 450 | 4/7 |
-| **2** | **C** | **OIL** | +1.8% | 496.39 | 476.13 | 530.91 | 575 | 625 | 675 | 3/7 |
-| **3** | **C** | **PNB** | +1.4% | 118.44 | 115.05 | 124.15 | 140 | 150 | 160 | 3/7 |
-| **4** | **C** | **CASTROLIND** | +0.3% | 189.33 | 185.73 | 193.27 | 200 | 210 | 220 | 3/7 |
-| **5** | **C** | **ALGOQUANT** | +3.0% | 67.08 | 63.64 | 72.21 | 80 | 90 | 95 | 4/7 |
-| **6** | **C** | **CANHLIFE** | +0.7% | 155.11 | 145.71 | 164.51 | 180 | 192.71 | 206.81 | 2/7 |
+| **1** | **C** | **AWHCL** | +1.4% | 384.77 | 363.83 | 437.36 | 525 | 600 | 650 | 4/7 |
+| **2** | **C** | **IDFCFIRSTB** | +0.4% | 86.67 | 84.14 | 92.82 | 110 | 120 | 130 | 4/7 |
+| **3** | **C** | **ARIHANTCAP** | +4.2% | 84.97 | 80.82 | 91.4 | 100 | 110 | 120 | 4/7 |
+| **4** | **C** | **BANSALWIRE** | +3.3% | 323.55 | 309.86 | 347.91 | 380 | 420 | 440 | 1/7 |
+| **5** | **C** | **CANHLIFE** | +2.3% | 159.12 | 150.14 | 168.5 | 190 | 200 | 210 | 3/7 |
+| **6** | **C** | **BALAJITELE** | +0.2% | 96.2 | 90.4 | 109.81 | 130 | 150 | 160 | 4/7 |
 
 ---
 
