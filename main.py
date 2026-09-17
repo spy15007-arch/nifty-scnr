@@ -41,12 +41,10 @@ DB_DIR = "market_data"
 
 
 def _get_store():
-    """ALWAYS live data - used by every live scan command."""
     return AngelOneHistoricalStore()
 
 
 def _get_training_store():
-    """Training/backtesting ONLY - not currently wired to any command."""
     os.makedirs(DB_DIR, exist_ok=True)
     has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
     if has_files:
@@ -69,11 +67,6 @@ def _ensure_report_directories():
 
 
 def _grade_for_recommendation(r) -> str:
-    """
-    Letter grade from conviction probability + how many of the 7
-    independent signals confirmed (RSI pre-breakout zone, MACD, HH/HL,
-    VWAP, OBV, ADX, ascending triangle). More agreement = higher grade.
-    """
     n_signals = max(0, len(r.top_reasons) - 1)
     prob = r.probability
 
@@ -89,7 +82,6 @@ def _grade_for_recommendation(r) -> str:
 
 
 def _build_table_lines(recs: list) -> list[str]:
-    """Shared table-building logic used by both the per-folder dashboard and the README section."""
     lines = [
         "| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |",
         "| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |"
@@ -110,7 +102,6 @@ def _build_table_lines(recs: list) -> list[str]:
 
 
 def _update_readme_section(scan_mode: str, recs: list):
-    """Updates a marked section of README.md with the latest scan results."""
     marker_tag = scan_mode.upper()
     start_marker = f"<!-- {marker_tag}_TABLE_START -->"
     end_marker = f"<!-- {marker_tag}_TABLE_END -->"
@@ -153,18 +144,14 @@ def _update_readme_section(scan_mode: str, recs: list):
 
 
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, market_regime_label: str = ""):
-    """Generates a neat, prioritized, graded high-conviction Markdown dashboard view."""
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     if scan_mode == "morning":
         title = "⚡ MORNING INTRADAY WATCHLIST (Top High-Conviction)"
-        hold_time = "Intraday (EOD Squareoff)"
     elif scan_mode == "afternoon":
         title = "🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)"
-        hold_time = "Overnight (1 Session)"
     else:
         title = "📈 POSITION SWING BREAKOUTS (Top High-Conviction)"
-        hold_time = "7-10 Days Trend Horizon"
 
     lines = [
         f"# {title}\n",
@@ -173,21 +160,21 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, m
     if market_regime_label:
         lines.append(f"*Global market backdrop:* {market_regime_label}\n")
     lines.append(
-        f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement.\n"
+        f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. "
+        f"Only candidates with 3+ confirming signals are shown.\n"
     )
     lines.extend(_build_table_lines(recs))
     lines.append("\n---\n")
     lines.append(
-        "*Grade key: A+ = probability >=75% with 6+ of 7 signals (RSI pre-breakout zone, MACD, HH/HL, VWAP, OBV, ADX, ascending triangle) agreeing. "
+        "*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. "
         "A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. "
-        "CMP->Entry shows how far the trigger is from current price - should always be small/single-digit; large values would indicate a problem.*\n"
+        "CMP->Entry shows how far the trigger is from current price - should always be small/single-digit.*\n"
     )
     with open(target_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 
 def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame, market_multiplier: float = 1.0, market_regime_label: str = "", sector_map: dict = None):
-    """Processes explicit strategy variations and pushes clean files directly to the root main tree."""
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
 
@@ -264,6 +251,9 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             if triangle_result.passed:
                 confirming_signals.append(triangle_result.reason)
 
+            if len(confirming_signals) < 3:
+                continue
+
             n_extra_confirming = len(confirming_signals) - 1
             conviction_boost = 1.0 + (0.08 * n_extra_confirming)
             adjusted_probability = min(0.99, cand.composite_score * conviction_boost * market_multiplier)
@@ -337,7 +327,6 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
 
 def _get_market_multiplier() -> tuple[str, float]:
-    """Fetches global cues ONCE per run (not per-symbol) and returns (label, multiplier)."""
     try:
         snapshot = fetch_global_snapshot()
         label, multiplier = compute_market_regime_bias(snapshot)
@@ -476,12 +465,6 @@ def cmd_calibrate(scan_mode: str = "eod", horizon_days: int = 10, min_days_old: 
 
 
 def cmd_backtest(scan_mode: str = "eod", test_days: int = 120):
-    """
-    Backtests the current scanning logic against historical data - see
-    backtest/engine.py for the no-lookahead-bias design. Gives you an
-    answer in minutes instead of waiting weeks for `calibrate` to
-    accumulate enough live outcomes.
-    """
     universe = load_universe()
     store = _get_store()
     bars = store.get_universe_bars(universe, lookback_days=280)
@@ -501,7 +484,7 @@ if __name__ == "__main__":
     parser.add_argument("--test-limit", dest="test_limit", default=os.getenv("TRADING_TEST_LIMIT") or None,
                          help="Limit scan to N symbols for testing")
     parser.add_argument("--calibrate-mode", dest="calibrate_mode", default="eod", choices=["morning", "afternoon", "eod"],
-                         help="Which scan mode's history to calibrate (used only with the 'calibrate' command)")
+                         help="Which scan mode's history to calibrate/backtest")
     args = parser.parse_args()
 
     if args.command == "scan_morning":
