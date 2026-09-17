@@ -7,23 +7,19 @@ stop loss, and FIVE profit targets. Works in both directions:
 ENTRY TRIGGER uses the NEAREST genuine swing-high resistance above
 current price (bullish) / nearest swing-low support below current
 price (bearish) - NOT simply the highest high / lowest low over the
-whole lookback window. A stock that fell from a much higher peak
-earlier in the window would otherwise get an entry trigger anchored
-to that stale, distant level - sometimes 10-20%+ away from where it's
-actually trading now, which defeats the entire point of a "breakout
-trigger" (it should be a level the stock can plausibly reach soon, not
-a full recovery of an old decline). A hard sanity cap
-(max_trigger_distance_pct) rejects the candidate entirely if even the
-nearest identifiable level is still unreasonably far from current
-price, rather than presenting an unusable trade.
+whole lookback window. A hard sanity cap (max_trigger_distance_pct)
+rejects the candidate entirely if even the nearest identifiable level
+is still unreasonably far from current price.
 
-TARGETS still use the full-window Fibonacci swing range (unchanged) -
-that's the ambitious, further-out part of the trade plan, and using
-the full historical volatility range there is appropriate; it's only
-the immediate ENTRY point that needs to be close to current price.
-
-Stop = beyond the trigger by an ATR-based buffer, OR beyond the most
-recent swing extreme, whichever is tighter (closer).
+TARGET_1 TIGHTENED (2026-09-17): the backtest diagnostic showed a
+consistent ~30% of unresolved trades sitting at 80%+ of target_1's
+distance without quite completing it - across multiple horizon tests
+(10/15/20 days), this subset didn't resolve simply by waiting longer,
+suggesting target_1 itself was set a bit too far. Tightened from the
+27.2% Fibonacci extension to the 23.6% level (a real Fib ratio, not an
+arbitrary number) and lowered the minimum reward:risk floor from 1.0x
+to 0.75x - together about a 13% closer target_1, evidence-proportionate
+rather than an arbitrary guess. Targets 2-5 are unchanged.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -32,8 +28,8 @@ import pandas as pd
 
 from scanner.filters import _atr, fibonacci_levels
 
-FIB_EXTENSION_PCTS = [0.272, 0.618, 1.000, 1.272, 1.618]
-REWARD_FLOOR_MULTIPLES = [1.0, 2.5, 4.0, 5.5, 7.0]  # cumulative min R:R per target
+FIB_EXTENSION_PCTS = [0.236, 0.618, 1.000, 1.272, 1.618]
+REWARD_FLOOR_MULTIPLES = [0.75, 2.5, 4.0, 5.5, 7.0]  # cumulative min R:R per target
 
 
 @dataclass
@@ -136,10 +132,6 @@ def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: f
     if direction == "bullish":
         nearest_resistance = _find_nearest_resistance_above(df, current_price, lookback)
         if nearest_resistance is None:
-            # No swing high above current price in the window - the
-            # stock is already near its own recent highs. Use a modest
-            # buffer above the recent (10d) high instead of a distant
-            # historical level that doesn't apply here.
             level_ref = df["high"].tail(10).max()
         else:
             level_ref = nearest_resistance
@@ -162,9 +154,6 @@ def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: f
         if stop_loss <= entry_trigger:
             return None
 
-    # SANITY CAP: even with nearest-swing-based resistance/support, if
-    # it's still unreasonably far from current price, this isn't a
-    # genuine near-term setup - reject rather than present it.
     distance_pct = abs(entry_trigger - current_price) / current_price
     if distance_pct > max_trigger_distance_pct:
         return None
@@ -192,8 +181,8 @@ def compute_trade_levels(df: pd.DataFrame, lookback: int = 100, atr_stop_mult: f
         f"{direction} nearest swing {'resistance' if direction == 'bullish' else 'support'} "
         f"+0.2% buffer trigger (within {max_trigger_distance_pct:.0%} of current price); "
         f"stop = tighter of {atr_stop_mult}x ATR or {lookback}d swing extreme; "
-        f"targets = Fib extension (27.2/61.8/100/127.2/161.8%) blended with round levels, "
-        f"minimum 1:1 through 7:1 reward:risk floors"
+        f"targets = Fib extension (23.6/61.8/100/127.2/161.8%) blended with round levels, "
+        f"minimum 0.75:1 through 7:1 reward:risk floors"
     )
 
     return TradeLevels(
