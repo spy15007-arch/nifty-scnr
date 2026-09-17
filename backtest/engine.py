@@ -1,26 +1,25 @@
 """
-Backtests the CURRENT scanning logic (pre-breakout gate + 6 signals +
-mode-aware weighting) against historical data, without needing to wait
-weeks for live outcomes to accumulate.
+Backtests the CURRENT scanning logic against historical data, without
+needing to wait weeks for live outcomes to accumulate.
 
 CRITICAL DESIGN PRINCIPLE - no lookahead bias: at each simulated day i,
-every computation uses ONLY df.iloc[:i+1] (bars up to and including day
-i). The actual outcome check afterward uses df.iloc[i+1:i+1+horizon] -
-bars the simulation never had access to when "deciding" to flag the
-symbol.
+every computation uses ONLY df.iloc[:i+1]. The outcome check afterward
+uses df.iloc[i+1:i+1+horizon] - bars the simulation never saw.
 
-HORIZON = 20 days (was 15, was 10 originally): 10->15 days showed a
-real, consistent hit-rate improvement (20.9%->24.7%) across every
-signal-count tier, confirmed stable across 3 separate runs. This tests
-20 days - the upper end of the user's stated 15-20 day window - as the
-FINAL horizon test: if this shows another meaningful jump, horizon
-length was the main constraint. If it doesn't move much, that's the
-signal to stop extending the window and focus on the entry/target
-mechanics themselves instead.
+HORIZON = 20 days: 10->15->20 day tests showed a real but decelerating
+improvement (20.9%->24.7%->26.2%), confirming diminishing returns - 20
+days (the upper end of the user's stated 15-20 day window) is the
+final horizon test; further extension isn't worth chasing.
 
-DIAGNOSTIC ADDITION: every trade (resolved OR unresolved) also records
-how close it got to target_1 (max_gain_pct, pct_of_target_reached) and
-where it ended up (final_gain_pct).
+SIGNAL-COUNT FILTER (2026-09-17): 1-signal (18.5%) and 2-signal (20.1%)
+hit rates were barely better than noise, dragging the overall average
+down. Requiring 3+ signals before a candidate counts at all filters
+out the weakest ~19% of signals - kept in sync with the same filter
+now in main.py's live scan, so backtest tests what's actually live.
+
+DIAGNOSTIC: every trade also records how close it got to target_1
+(max_gain_pct, pct_of_target_reached) and where it ended up
+(final_gain_pct).
 """
 from __future__ import annotations
 import logging
@@ -47,15 +46,14 @@ class BacktestTrade:
     entry_trigger: float
     stop_loss: float
     target_1: float
-    outcome: int  # 1 = hit target first, 0 = hit stop first, -1 = inconclusive (neither hit within horizon)
+    outcome: int
     days_to_resolve: int | None
-    max_gain_pct: float          # best % gain reached at any point in the horizon, regardless of outcome
-    pct_of_target_reached: float  # max_gain_pct as a fraction of the target's intended gain (1.0 = fully reached)
-    final_gain_pct: float         # % gain/loss at the END of the horizon window
+    max_gain_pct: float
+    pct_of_target_reached: float
+    final_gain_pct: float
 
 
 def _resolve_outcome(future_bars: pd.DataFrame, entry_trigger: float, target_1: float, stop_loss: float) -> tuple[int, int | None, float, float, float]:
-    """Given the bars AFTER a signal day, determines what happened first: target or stop, plus diagnostic detail."""
     target_hits = future_bars.index[future_bars["high"] >= target_1]
     stop_hits = future_bars.index[future_bars["low"] <= stop_loss]
 
@@ -131,6 +129,8 @@ def run_backtest(
             n_extra = sum([macd_result.passed, hh_hl_result.passed, vwap_result.passed,
                            obv_result.passed, adx_result.passed])
             n_signals = 1 + n_extra
+            if n_signals < 3:
+                continue
             conviction_boost = 1.0 + (0.08 * n_extra)
             predicted_prob = min(0.99, scan_result.composite_score * conviction_boost)
 
@@ -238,18 +238,10 @@ def write_backtest_report(trades: list[BacktestTrade], summary: dict, scan_mode:
         lines.append(f"- **{diag['count']}** trades hit neither target nor stop within the horizon")
         lines.append(f"- Average max progress toward target: **{diag['avg_pct_of_target_reached']:.0%}** of the way there")
         lines.append(f"- Average gain/loss at horizon end: **{diag['avg_final_gain_pct']:+.1%}**")
-        lines.append(f"- Got 80%+ of the way to target (target may be slightly too aggressive): **{diag['got_close_80pct_or_more_of_target']}**")
-        lines.append(f"- Went essentially nowhere, flat (-10% to +10%, setup wasn't genuinely predictive): **{diag['went_nowhere_flat']}**")
+        lines.append(f"- Got 80%+ of the way to target: **{diag['got_close_80pct_or_more_of_target']}**")
+        lines.append(f"- Went essentially nowhere, flat: **{diag['went_nowhere_flat']}**")
         lines.append(f"- Drifted up meaningfully but still short of target: **{diag['drifted_up_but_not_enough']}**")
-        lines.append(f"- Drifted down meaningfully without quite hitting stop (a warning sign): **{diag['drifted_down_meaningfully']}**")
-
-    lines.append("")
-    lines.append(
-        "*If hit rate clearly rises with signal count, the grading system is working as intended. "
-        "If unresolved trades mostly 'went nowhere flat', the entry signal itself isn't very predictive of an "
-        "imminent move, even when it's not wrong about direction. If most 'got close to target', the target may "
-        "simply be set too far out - a lower target_1 could convert many of these into real wins.*"
-    )
+        lines.append(f"- Drifted down meaningfully without quite hitting stop: **{diag['drifted_down_meaningfully']}**")
 
     Path(path).write_text("\n".join(lines))
     return path
