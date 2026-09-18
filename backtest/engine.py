@@ -27,7 +27,7 @@ import pandas as pd
 from dataclasses import dataclass
 
 from scanner.engine import ScannerEngine
-from scanner.breakout import check_pre_breakout_setup
+from scanner.breakout import check_pre_breakout_setup, near_recent_base
 from scanner.technicals import (
     macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
     obv_accumulation, adx_building,
