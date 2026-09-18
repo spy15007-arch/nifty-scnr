@@ -17,6 +17,13 @@ down. Requiring 3+ signals before a candidate counts at all filters
 out the weakest ~19% of signals - kept in sync with the same filter
 now in main.py's live scan, so backtest tests what's actually live.
 
+SECOND HARD GATE (2026-09-18): near_recent_base requires price to
+still be close to its own recent low before counting at all - closes
+the gap where a stock could run up 10-15%, cool back into the RSI
+zone on a pullback, and pass the RSI gate alone while having already
+made most of its move. Kept in sync with the same gate now in
+main.py's live scan.
+
 DIAGNOSTIC: every trade also records how close it got to target_1
 (max_gain_pct, pct_of_target_reached) and where it ended up
 (final_gain_pct).
@@ -114,6 +121,10 @@ def run_backtest(
 
             rsi_analysis = check_pre_breakout_setup(df_as_of)
             if not rsi_analysis["flagged"]:
+                continue
+
+            base_analysis = near_recent_base(df_as_of)
+            if not base_analysis["flagged"]:
                 continue
 
             levels = compute_trade_levels(df_as_of)
