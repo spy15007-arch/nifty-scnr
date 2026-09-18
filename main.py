@@ -203,13 +203,15 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             if df is None or df.empty or len(df) < 20:
                 continue
 
-            rsi_analysis = check_pre_breakout_setup(df)
+            rsi_analysis = check_pre_breakout_setup(df_as_of)
             if not rsi_analysis["flagged"]:
                 continue
 
-            base_analysis = near_recent_base(df)
+            base_analysis = near_recent_base(df_as_of)
             if not base_analysis["flagged"]:
                 continue
+
+            levels = compute_trade_levels(df_as_of)
 
             if scan_mode == "afternoon":
                 day_high = df['high'].iloc[-1]
