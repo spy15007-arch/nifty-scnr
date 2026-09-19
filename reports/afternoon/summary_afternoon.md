@@ -1,6 +1,6 @@
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-19 06:57 UTC`
+*Evaluation Window:* `2026-09-19 07:32 UTC`
 
 *Global market backdrop:* supportive (composite +1.03%)
 
