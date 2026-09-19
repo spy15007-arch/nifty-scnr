@@ -6,10 +6,17 @@ CRITICAL DESIGN PRINCIPLE - no lookahead bias: at each simulated day i,
 every computation uses ONLY df.iloc[:i+1]. The outcome check afterward
 uses df.iloc[i+1:i+1+horizon] - bars the simulation never saw.
 
-HORIZON = 20 days: 10->15->20 day tests showed a real but decelerating
-improvement (20.9%->24.7%->26.2%), confirming diminishing returns - 20
-days (the upper end of the user's stated 15-20 day window) is the
-final horizon test; further extension isn't worth chasing.
+HORIZON = 30 days (DIAGNOSTIC, 2026-09-18): after the near_recent_base
+gate went live, hit rate DROPPED (30.6%->25.4%) even though signal
+count fell 75% (3307->831), meaning the gate is genuinely filtering.
+Hypothesis: a stock still at its base hasn't started moving yet by
+definition, so testing it against the same 20-day window as an
+already-moving stock isn't a fair comparison - it may simply need
+more time to first begin the move. 30 days tests this directly. This
+is diagnostic, not necessarily the new live holding assumption -
+depending on the result, either the horizon genuinely needs to be
+longer for base-level entries, or the base gate itself needs
+rethinking rather than just more patience.
 
 SIGNAL-COUNT FILTER (2026-09-17): 1-signal (18.5%) and 2-signal (20.1%)
 hit rates were barely better than noise, dragging the overall average
@@ -93,7 +100,7 @@ def run_backtest(
     benchmark_df: pd.DataFrame,
     scan_mode: str = "eod",
     test_days: int = 120,
-    horizon_days: int = 20,
+    horizon_days: int = 30,
     min_history: int = 100,
 ) -> list[BacktestTrade]:
     engine = ScannerEngine(scan_mode=scan_mode)
