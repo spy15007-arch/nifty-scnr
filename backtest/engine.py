@@ -6,30 +6,20 @@ CRITICAL DESIGN PRINCIPLE - no lookahead bias: at each simulated day i,
 every computation uses ONLY df.iloc[:i+1]. The outcome check afterward
 uses df.iloc[i+1:i+1+horizon] - bars the simulation never saw.
 
-HORIZON = 30 days (DIAGNOSTIC, 2026-09-18): after the near_recent_base
-gate went live, hit rate DROPPED (30.6%->25.4%) even though signal
-count fell 75% (3307->831), meaning the gate is genuinely filtering.
-Hypothesis: a stock still at its base hasn't started moving yet by
-definition, so testing it against the same 20-day window as an
-already-moving stock isn't a fair comparison - it may simply need
-more time to first begin the move. 30 days tests this directly. This
-is diagnostic, not necessarily the new live holding assumption -
-depending on the result, either the horizon genuinely needs to be
-longer for base-level entries, or the base gate itself needs
-rethinking rather than just more patience.
+HORIZON = 30 days for SWING (diagnostic-confirmed: base-level entries
+genuinely need ~30 days to develop, recovering the hit rate lost when
+near_recent_base went live). BTST uses a much shorter horizon (3 days)
+matching its actual overnight-to-next-day premise - testing BTST
+against a 30-day window would be meaningless, since it's supposed to
+resolve almost immediately.
 
-SIGNAL-COUNT FILTER (2026-09-17): 1-signal (18.5%) and 2-signal (20.1%)
-hit rates were barely better than noise, dragging the overall average
-down. Requiring 3+ signals before a candidate counts at all filters
-out the weakest ~19% of signals - kept in sync with the same filter
-now in main.py's live scan, so backtest tests what's actually live.
+MODE-SPECIFIC SECOND GATE (2026-09-19): SWING uses near_recent_base
+(patient, still-at-base). BTST uses btst_momentum_setup (same-day
+breakout confirmation) - kept in sync with the same mode-specific
+gates now in main.py's live scan.
 
-SECOND HARD GATE (2026-09-18): near_recent_base requires price to
-still be close to its own recent low before counting at all - closes
-the gap where a stock could run up 10-15%, cool back into the RSI
-zone on a pullback, and pass the RSI gate alone while having already
-made most of its move. Kept in sync with the same gate now in
-main.py's live scan.
+SIGNAL-COUNT FILTER: requires 3+ signals before a candidate counts at
+all - 1-2 signal hit rates were barely better than noise.
 
 DIAGNOSTIC: every trade also records how close it got to target_1
 (max_gain_pct, pct_of_target_reached) and where it ended up
@@ -41,7 +31,7 @@ import pandas as pd
 from dataclasses import dataclass
 
 from scanner.engine import ScannerEngine
-from scanner.breakout import check_pre_breakout_setup, near_recent_base
+from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup
 from scanner.technicals import (
     macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
     obv_accumulation, adx_building,
@@ -98,11 +88,14 @@ def _resolve_outcome(future_bars: pd.DataFrame, entry_trigger: float, target_1: 
 def run_backtest(
     bars_by_symbol: dict[str, pd.DataFrame],
     benchmark_df: pd.DataFrame,
-    scan_mode: str = "eod",
+    scan_mode: str = "swing",
     test_days: int = 120,
-    horizon_days: int = 30,
+    horizon_days: int | None = None,
     min_history: int = 100,
 ) -> list[BacktestTrade]:
+    if horizon_days is None:
+        horizon_days = 3 if scan_mode == "btst" else 30
+
     engine = ScannerEngine(scan_mode=scan_mode)
     trades: list[BacktestTrade] = []
 
@@ -130,8 +123,11 @@ def run_backtest(
             if not rsi_analysis["flagged"]:
                 continue
 
-            base_analysis = near_recent_base(df_as_of)
-            if not base_analysis["flagged"]:
+            if scan_mode == "btst":
+                gate_analysis = btst_momentum_setup(df_as_of)
+            else:
+                gate_analysis = near_recent_base(df_as_of)
+            if not gate_analysis["flagged"]:
                 continue
 
             levels = compute_trade_levels(df_as_of)
