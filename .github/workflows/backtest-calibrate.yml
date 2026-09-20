@@ -16,10 +16,9 @@ on:
         required: true
         type: choice
         options:
-          - eod
-          - morning
-          - afternoon
-        default: 'eod'
+          - swing  
+          - btst
+        default: 'swing'
 
 jobs:
   run:
