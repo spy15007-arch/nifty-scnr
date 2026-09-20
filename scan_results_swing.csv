@@ -1,0 +1,4 @@
+symbol,probability,grade,entry_distance_pct,entry_trigger,stop_loss,target_1,target_2,target_3,target_4
+IDFCFIRSTB,0.4054,C,0.0087,86.67,84.14,92.0,110,120,130
+PNB,0.3645,C,0.01,118.44,114.99,123.4,140,150,160
+ETERNAL,0.2871,C,0.0207,333.62,321.58,357.06,400,440,460

@@ -1,3 +1,39 @@
+# 📈 SWING BREAKOUTS (Top High-Conviction)
+
+*Evaluation Window:* `2026-09-20 15:18 UTC`
+
+*Global market backdrop:* supportive (composite +3.10%)
+
+🏆 Displaying the top **3 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
+
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| **1** | **C** | **IDFCFIRSTB** | +0.9% | 86.67 | 84.14 | 92.0 | 110 | 120 | 130 | 3/7 |
+| **2** | **C** | **PNB** | +1.0% | 118.44 | 114.99 | 123.4 | 140 | 150 | 160 | 3/7 |
+| **3** | **C** | **ETERNAL** | +2.1% | 333.62 | 321.58 | 357.06 | 400 | 440 | 460 | 4/7 |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+
+
+# 🌙 BTST ACCUMULATIONS (Top High-Conviction)
+
+*Evaluation Window:* `2026-09-20 15:18 UTC`
+
+*Global market backdrop:* supportive (composite +3.10%)
+
+🏆 Displaying the top **1 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing genuine same-day breakout momentum (not already extended before today), with 3+ confirming signals, are shown.
+
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| **1** | **C** | **EIHOTEL** | +4.2% | 331.31 | 315.88 | 348.41 | 380 | 410 | 430 | 4/7 |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+
+
 # 🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)
 
 *Evaluation Window:* `2026-09-19 07:32 UTC`
