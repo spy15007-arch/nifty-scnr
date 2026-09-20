@@ -3,9 +3,19 @@ Entry point. Centralized rate-insulated data lake with explicit strategy siloing
 advanced consolidation filtering, and structured two-tier root dashboard tracking.
 
 INTRADAY MODE REMOVED (2026-09-18): morning scans were structurally
-unreliable under live-market-hours throttling, often completing too
-late (observed as late as 14:52) to leave any useful trading window
-before the 15:30 close. Only BTST (afternoon) and EOD (swing) remain.
+unreliable under live-market-hours throttling.
+
+RENAMED afternoon->btst, eod->swing (2026-09-19) for clarity, and given
+BTST/SWING now use GENUINELY DIFFERENT second-gate logic (see below),
+not just different weight profiles.
+
+MODE-SPECIFIC SECOND GATE (2026-09-19): BTST's premise (overnight-to-
+next-day move) doesn't match "still coiled at base, needs ~30 days"
+(near_recent_base's logic, confirmed via backtest). BTST now uses
+btst_momentum_setup instead - requires the PRIOR days were near the
+base (not already extended) but TODAY specifically shows genuine
+breakout confirmation (volume, gain, strong close). SWING keeps
+near_recent_base - patient, no same-day urgency required.
 """
 import argparse
 import logging
@@ -31,7 +41,7 @@ from backtest.engine import run_backtest, summarize_backtest, write_backtest_rep
 from reports.notify import notify_scan_results, notify_option_results
 import config
 
-from scanner.breakout import check_pre_breakout_setup, near_recent_base
+from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup
 from scanner.technicals import (
     macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
     obv_accumulation, adx_building,
@@ -67,7 +77,7 @@ def _get_angelone_mapped_symbol(index_tag: str) -> str:
 
 
 def _ensure_report_directories():
-    for folder in ["reports/afternoon", "reports/eod", "reports/output"]:
+    for folder in ["reports/btst", "reports/swing", "reports/output"]:
         os.makedirs(folder, exist_ok=True)
 
 
@@ -113,8 +123,8 @@ def _update_readme_section(scan_mode: str, recs: list):
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     titles = {
-        "afternoon": "🌙 Latest Afternoon BTST Watchlist",
-        "eod": "📈 Latest EOD Swing Watchlist",
+        "btst": "🌙 Latest BTST Watchlist",
+        "swing": "📈 Latest Swing Watchlist",
     }
     title = titles.get(scan_mode, scan_mode.title())
 
@@ -150,10 +160,12 @@ def _update_readme_section(scan_mode: str, recs: list):
 def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, market_regime_label: str = ""):
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    if scan_mode == "afternoon":
-        title = "🌙 AFTERNOON LIVE BTST ACCUMULATIONS (Top High-Conviction)"
+    if scan_mode == "btst":
+        title = "🌙 BTST ACCUMULATIONS (Top High-Conviction)"
+        gate_note = "genuine same-day breakout momentum (not already extended before today)"
     else:
-        title = "📈 POSITION SWING BREAKOUTS (Top High-Conviction)"
+        title = "📈 SWING BREAKOUTS (Top High-Conviction)"
+        gate_note = "still near their recent base (not already extended) - patient, multi-week setups"
 
     lines = [
         f"# {title}\n",
@@ -163,7 +175,7 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, m
         lines.append(f"*Global market backdrop:* {market_regime_label}\n")
     lines.append(
         f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. "
-        f"Only candidates still near their recent base (not already extended) with 3+ confirming signals are shown.\n"
+        f"Only candidates showing {gate_note}, with 3+ confirming signals, are shown.\n"
     )
     lines.extend(_build_table_lines(recs))
     lines.append("\n---\n")
@@ -180,13 +192,13 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
 
-    if scan_mode == "afternoon":
-        strategy_title = "AFTERNOON BTST"
-        output_subfolder = "reports/afternoon"
+    if scan_mode == "btst":
+        strategy_title = "BTST"
+        output_subfolder = "reports/btst"
         style_label = "BTST"
     else:
-        strategy_title = "EOD SWING"
-        output_subfolder = "reports/eod"
+        strategy_title = "SWING"
+        output_subfolder = "reports/swing"
         style_label = "SWING"
 
     recs = []
@@ -207,17 +219,12 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             if not rsi_analysis["flagged"]:
                 continue
 
-            base_analysis = near_recent_base(df)
-            if not base_analysis["flagged"]:
+            if scan_mode == "btst":
+                gate_analysis = btst_momentum_setup(df)
+            else:
+                gate_analysis = near_recent_base(df)
+            if not gate_analysis["flagged"]:
                 continue
-
-            if scan_mode == "afternoon":
-                day_high = df['high'].iloc[-1]
-                day_low = df['low'].iloc[-1]
-                day_close = df['close'].iloc[-1]
-                range_span = (day_high - day_low) + 1e-10
-                if ((day_high - day_close) / range_span) > 0.40:
-                    continue
 
             feats = build_features(df, benchmark)
             levels = compute_trade_levels(df)
@@ -349,7 +356,7 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
         universe = universe[: int(test_limit)]
 
     store = _get_store()
-    lookback = 450 if scan_mode == "eod" else 250
+    lookback = 450 if scan_mode == "swing" else 250
     try:
         bars = store.get_universe_bars(universe, lookback_days=lookback)
     except Exception:
@@ -387,7 +394,7 @@ def cmd_options(args, shared_store=None):
         notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
 
 
-def cmd_calibrate(scan_mode: str = "eod", horizon_days: int = 10, min_days_old: int = 10):
+def cmd_calibrate(scan_mode: str = "swing", horizon_days: int = 10, min_days_old: int = 10):
     folder = f"reports/{scan_mode}"
     pattern = f"{folder}/scan_results_{scan_mode}_*.csv"
     files = sorted(glob.glob(pattern))
@@ -461,7 +468,7 @@ def cmd_calibrate(scan_mode: str = "eod", horizon_days: int = 10, min_days_old: 
     logger.info(f"Calibration report written to {path} based on {len(predictions)} resolved predictions")
 
 
-def cmd_backtest(scan_mode: str = "eod", test_days: int = 120):
+def cmd_backtest(scan_mode: str = "swing", test_days: int = 120):
     universe = load_universe()
     store = _get_store()
     bars = store.get_universe_bars(universe, lookback_days=280)
@@ -477,18 +484,18 @@ def cmd_backtest(scan_mode: str = "eod", test_days: int = 120):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["scan_afternoon", "scan_eod", "options", "run_all", "calibrate", "backtest"])
+    parser.add_argument("command", choices=["scan_btst", "scan_swing", "options", "run_all", "calibrate", "backtest"])
     parser.add_argument("--test-limit", dest="test_limit", default=os.getenv("TRADING_TEST_LIMIT") or None,
                          help="Limit scan to N symbols for testing")
-    parser.add_argument("--calibrate-mode", dest="calibrate_mode", default="eod", choices=["afternoon", "eod"],
+    parser.add_argument("--calibrate-mode", dest="calibrate_mode", default="swing", choices=["btst", "swing"],
                          help="Which scan mode's history to calibrate/backtest")
     args = parser.parse_args()
 
-    if args.command == "scan_afternoon":
-        execute_isolated_scan("afternoon", test_limit=args.test_limit)
+    if args.command == "scan_btst":
+        execute_isolated_scan("btst", test_limit=args.test_limit)
 
-    elif args.command == "scan_eod":
-        execute_isolated_scan("eod", test_limit=args.test_limit)
+    elif args.command == "scan_swing":
+        execute_isolated_scan("swing", test_limit=args.test_limit)
 
     elif args.command == "options":
         cmd_options(args)
@@ -520,7 +527,7 @@ if __name__ == "__main__":
         label, multiplier = _get_market_multiplier()
         sector_map = _get_sector_map()
 
-        for mode in ["afternoon", "eod"]:
+        for mode in ["btst", "swing"]:
             process_scans_with_shared_data(mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map)
 
         cmd_options(args, shared_store=store)
