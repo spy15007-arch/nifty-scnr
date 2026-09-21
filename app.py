@@ -2,6 +2,9 @@
 Streamlit dashboard for the NIFTY scanner's latest results. Reads the
 CSV files GitHub Actions already commits automatically - no separate
 data pipeline, this just displays what's already there.
+
+RENAMED (2026-09-19): morning/intraday removed entirely. afternoon->
+btst, eod->swing, matching main.py's rename.
 """
 import streamlit as st
 import pandas as pd
@@ -45,6 +48,7 @@ def render_scan_tab(mode: str, label: str):
 
     styled = df.style.map(grade_style, subset=["grade"]).format({
         "probability": "{:.1%}",
+        "entry_distance_pct": "{:+.1%}",
         "entry_trigger": "{:.2f}",
         "stop_loss": "{:.2f}",
         "target_1": "{:.2f}",
@@ -57,13 +61,11 @@ def render_scan_tab(mode: str, label: str):
     st.download_button(f"Download {label} CSV", df.to_csv(index=False), file_name=f"scan_results_{mode}.csv")
 
 
-tab1, tab2, tab3 = st.tabs(["⚡ Morning Intraday", "🌙 Afternoon BTST", "📈 EOD Swing"])
+tab1, tab2 = st.tabs(["🌙 BTST", "📈 Swing"])
 with tab1:
-    render_scan_tab("morning", "Morning Intraday")
+    render_scan_tab("btst", "BTST")
 with tab2:
-    render_scan_tab("afternoon", "Afternoon BTST")
-with tab3:
-    render_scan_tab("eod", "EOD Swing")
+    render_scan_tab("swing", "Swing")
 
 st.markdown("---")
 st.caption("Refreshes automatically whenever the GitHub Actions scan workflows commit new results - reload this page to see the latest.")
