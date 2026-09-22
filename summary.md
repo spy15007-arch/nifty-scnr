@@ -1,5 +1,49 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
+*Evaluation Window:* `2026-09-22 16:30 UTC`
+
+*Global market backdrop:* supportive (composite +2.28%)
+
+🏆 Displaying the top **11 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
+
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| **1** | **C** | **PNB** | +1.2% | 118.44 | 115.06 | 123.4 | 140 | 150 | 160 | 5/7 |
+| **2** | **C** | **BPCL** | +0.9% | 316.48 | 305.68 | 329.07 | 350 | 370 | 390 | 5/7 |
+| **3** | **C** | **BANSALWIRE** | +2.6% | 323.55 | 308.53 | 344.68 | 380 | 420 | 440 | 3/7 |
+| **4** | **C** | **FIRSTCRY** | +4.7% | 183.37 | 171.64 | 202.97 | 240 | 270 | 290 | 3/7 |
+| **5** | **C** | **RHIM** | +0.9% | 382.71 | 368.22 | 408.67 | 460 | 500 | 525 | 3/7 |
+| **6** | **C** | **APTECHT** | +2.0% | 93.42 | 88.37 | 103.56 | 120 | 140 | 150 | 4/7 |
+| **7** | **C** | **JPPOWER** | +6.2% | 17.17 | 16.29 | 19.37 | 25 | 30 | 35 | 4/7 |
+| **8** | **C** | **YESBANK** | +1.7% | 23.6 | 22.78 | 25.02 | 30 | 35 | 40 | 6/7 |
+| **9** | **C** | **IOC** | +2.6% | 141.43 | 137.88 | 145.86 | 160 | 170 | 180 | 4/7 |
+| **10** | **C** | **BAJAJHCARE** | +1.1% | 339.88 | 323.65 | 368.59 | 420 | 470 | 500 | 4/7 |
+| **11** | **C** | **BALAJITELE** | +2.1% | 95.15 | 88.89 | 106.96 | 130 | 150 | 160 | 3/7 |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+
+
+# 🌙 BTST ACCUMULATIONS (Top High-Conviction)
+
+*Evaluation Window:* `2026-09-22 16:30 UTC`
+
+*Global market backdrop:* supportive (composite +2.28%)
+
+🏆 Displaying the top **1 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing genuine same-day breakout momentum (not already extended before today), with 3+ confirming signals, are shown.
+
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| **1** | **C** | **SUNTV** | +3.5% | 507.01 | 482.54 | 546.37 | 625 | 675 | 725 | 5/7 |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+
+
+# 📈 SWING BREAKOUTS (Top High-Conviction)
+
 *Evaluation Window:* `2026-09-20 15:18 UTC`
 
 *Global market backdrop:* supportive (composite +3.10%)
