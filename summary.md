@@ -1,5 +1,43 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
+*Evaluation Window:* `2026-09-23 07:06 UTC`
+
+*Global market backdrop:* neutral (composite +nan%)
+
+🏆 Displaying the top **5 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
+
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| **1** | **C** | **BANSALWIRE** | +1.8% | 320.64 | 305.63 | 341.77 | 380 | 420 | 440 | 3/7 |
+| **2** | **C** | **INDUSTOWER** | +1.1% | 389.33 | 376.89 | 409.6 | 450 | 480 | 500 | 4/7 |
+| **3** | **C** | **NIVABUPA** | +4.3% | 84.02 | 81.38 | 87.26 | 95 | 100 | 110 | 4/7 |
+| **4** | **C** | **NHPC** | +0.8% | 77.36 | 75.4 | 80.33 | 90 | 95 | 100 | 4/7 |
+| **5** | **C** | **IOC** | +2.4% | 141.43 | 138.05 | 145.86 | 160 | 170 | 180 | 3/7 |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+
+
+# 🌙 BTST ACCUMULATIONS (Top High-Conviction)
+
+*Evaluation Window:* `2026-09-23 07:06 UTC`
+
+*Global market backdrop:* neutral (composite +nan%)
+
+🏆 Displaying the top **0 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing genuine same-day breakout momentum (not already extended before today), with 3+ confirming signals, are shown.
+
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| - | - | No candidates this session | - | - | - | - | - |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+
+
+# 📈 SWING BREAKOUTS (Top High-Conviction)
+
 *Evaluation Window:* `2026-09-22 16:30 UTC`
 
 *Global market backdrop:* supportive (composite +2.28%)
