@@ -1,5 +1,46 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
+*Evaluation Window:* `2026-09-23 19:23 UTC`
+
+*Global market backdrop:* supportive (composite +0.96%)
+
+🏆 Displaying the top **8 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
+
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| **1** | **B** | **IDFCFIRSTB** | +0.4% | 88.28 | 85.76 | 93.81 | 110 | 120 | 130 | 3/7 |
+| **2** | **B** | **AARTIDRUGS** | +1.9% | 444.64 | 420.79 | 467.66 | 525 | 550 | 575.81 | 4/7 |
+| **3** | **B** | **BANSALWIRE** | +2.4% | 323.55 | 307.89 | 344.68 | 380 | 420 | 440 | 3/7 |
+| **4** | **B** | **PNB** | +0.9% | 119.34 | 116.07 | 124.3 | 140 | 150 | 160 | 6/7 |
+| **5** | **C** | **HONASA** | +1.5% | 492.33 | 469.7 | 534.53 | 625 | 675 | 725 | 3/7 |
+| **6** | **C** | **SWIGGY** | +2.0% | 284.07 | 269.97 | 300.41 | 330 | 360 | 380 | 5/7 |
+| **7** | **C** | **CASTROLIND** | +1.1% | 195.39 | 190.49 | 199.48 | 210 | 220 | 230 | 4/7 |
+| **8** | **C** | **INDUSTOWER** | +1.2% | 389.33 | 376.64 | 409.6 | 450 | 480 | 500 | 4/7 |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+
+
+# 🌙 BTST ACCUMULATIONS (Top High-Conviction)
+
+*Evaluation Window:* `2026-09-23 19:23 UTC`
+
+*Global market backdrop:* supportive (composite +0.96%)
+
+🏆 Displaying the top **0 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing genuine same-day breakout momentum (not already extended before today), with 3+ confirming signals, are shown.
+
+| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| - | - | No candidates this session | - | - | - | - | - |
+
+---
+
+*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+
+
+# 📈 SWING BREAKOUTS (Top High-Conviction)
+
 *Evaluation Window:* `2026-09-23 07:06 UTC`
 
 *Global market backdrop:* neutral (composite +nan%)
