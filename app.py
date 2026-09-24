@@ -1,11 +1,8 @@
 """
 Streamlit dashboard for the NIFTY scanner's latest results. Reads the
-CSV files GitHub Actions already commits automatically - no separate
-data pipeline, this just displays what's already there.
-
-RENAMED (2026-09-19): morning/intraday removed entirely. afternoon ->
-btst, eod -> swing, matching main.py's rename.
+latest dated CSV committed under reports/btst or reports/swing.
 """
+import glob
 import os
 from datetime import datetime
 
@@ -25,28 +22,37 @@ GRADE_COLORS = {
 
 
 def load_scan(mode: str):
-    path = f"scan_results_{mode}.csv"
-    if not os.path.exists(path) or os.path.getsize(path) == 0:
-        return None
+    report_dir = f"reports/{mode}"
+    paths = glob.glob(f"{report_dir}/scan_results_{mode}_*.csv")
+    if not paths:
+        return None, None
+
+    # Select the newest dated report, rather than relying on a root CSV.
+    path = max(paths, key=os.path.getmtime)
+    if os.path.getsize(path) == 0:
+        return None, path
 
     try:
         df = pd.read_csv(path)
     except pd.errors.EmptyDataError:
-        # A scan with no rows may produce an empty CSV. Treat it as no results.
-        return None
+        return None, path
 
     if df.empty:
-        return None
+        return None, path
 
-    # Show the strongest candidates first within the selected scan category.
     if "probability" in df.columns:
         df["probability"] = pd.to_numeric(df["probability"], errors="coerce")
-        df = df.sort_values("probability", ascending=False, na_position="last")
-    return df.reset_index(drop=True)
+        # Score is the scanner probability, shown explicitly for clarity.
+        df["score"] = df["probability"]
+        df = df.sort_values("score", ascending=False, na_position="last")
+        df = df.reset_index(drop=True)
+        df.insert(0, "rank", range(1, len(df) + 1))
+
+    return df, path
 
 
 def render_scan_tab(mode: str, label: str):
-    df = load_scan(mode)
+    df, path = load_scan(mode)
     if df is None or df.empty:
         st.info(
             f"No {label} results yet - the workflow may not have run recently, "
@@ -54,8 +60,8 @@ def render_scan_tab(mode: str, label: str):
         )
         return
 
-    mtime = datetime.fromtimestamp(os.path.getmtime(f"scan_results_{mode}.csv"))
-    st.caption(f"Latest {label} scan updated: {mtime.strftime('%Y-%m-%d %H:%M')}")
+    mtime = datetime.fromtimestamp(os.path.getmtime(path))
+    st.caption(f"Latest {label} scan: {mtime.strftime('%Y-%m-%d %H:%M')}")
 
     def grade_style(val):
         color = GRADE_COLORS.get(val, "#333333")
@@ -70,6 +76,7 @@ def render_scan_tab(mode: str, label: str):
 
     styled = styled.format({
         "probability": "{:.1%}",
+        "score": "{:.1%}",
         "entry_distance_pct": "{:+.1%}",
         "entry_trigger": "{:.2f}",
         "stop_loss": "{:.2f}",
@@ -83,11 +90,10 @@ def render_scan_tab(mode: str, label: str):
     st.download_button(
         f"Download latest {label} CSV",
         df.to_csv(index=False),
-        file_name=f"scan_results_{mode}.csv",
+        file_name=os.path.basename(path),
     )
 
 
-# Each tab displays only the CSV belonging to its strategy category.
 tab1, tab2 = st.tabs(["🌙 BTST", "📈 Swing"])
 with tab1:
     render_scan_tab("btst", "BTST")
@@ -96,6 +102,6 @@ with tab2:
 
 st.markdown("---")
 st.caption(
-    "Select BTST or Swing to view its latest stock list. Reload this page "
-    "after GitHub Actions commits new results."
+    "Select BTST or Swing to view its latest stock list. Results are ordered "
+    "from highest score to lowest score."
 )
