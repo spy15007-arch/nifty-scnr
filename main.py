@@ -298,6 +298,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         except Exception:
             pass
 
+    csv_columns = ["symbol", "probability", "grade", "entry_distance_pct", "entry_trigger",
+                   "stop_loss", "target_1", "target_2", "target_3", "target_4"]
     csv_rows = []
     for r in recs:
         dist = getattr(r, "entry_distance_pct", None)
@@ -313,8 +315,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             "target_3": r.levels.targets[2] if r.levels else None,
             "target_4": r.levels.targets[3] if r.levels else None,
         })
-    pd.DataFrame(csv_rows).to_csv(target_csv_path, index=False)
-    pd.DataFrame(csv_rows).to_csv(f"scan_results_{scan_mode}.csv", index=False)
+    pd.DataFrame(csv_rows, columns=csv_columns).to_csv(target_csv_path, index=False)
+    pd.DataFrame(csv_rows, columns=csv_columns).to_csv(f"scan_results_{scan_mode}.csv", index=False)
 
     new_section = ""
     if os.path.exists(f"summary_{scan_mode}.md"):
