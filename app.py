@@ -1,13 +1,21 @@
 """
 Streamlit dashboard for the NIFTY scanner's latest results. Reads the
-latest dated CSV committed under reports/btst or reports/swing.
+CSV files GitHub Actions already commits automatically - no separate
+data pipeline, this just displays what's already there.
+
+RENAMED (2026-09-19): morning/intraday removed entirely. afternoon->
+btst, eod->swing, matching main.py's rename.
+
+SAFE EMPTY-CSV HANDLING (2026-09-23): if a scan found zero qualifying
+candidates, the CSV may exist but be empty/header-only - handled
+gracefully here as a safety net (main.py now also always writes valid
+headers even when empty, but this protects against any already-broken
+file from before that fix).
 """
-import glob
+import streamlit as st
+import pandas as pd
 import os
 from datetime import datetime
-
-import pandas as pd
-import streamlit as st
 
 st.set_page_config(page_title="NIFTY Scanner Dashboard", layout="wide")
 st.title("📊 NIFTY Scanner Dashboard")
@@ -22,61 +30,33 @@ GRADE_COLORS = {
 
 
 def load_scan(mode: str):
-    report_dir = f"reports/{mode}"
-    paths = glob.glob(f"{report_dir}/scan_results_{mode}_*.csv")
-    if not paths:
-        return None, None
-
-    # Select the newest dated report, rather than relying on a root CSV.
-    path = max(paths, key=os.path.getmtime)
-    if os.path.getsize(path) == 0:
-        return None, path
-
+    path = f"scan_results_{mode}.csv"
+    if not os.path.exists(path):
+        return None
     try:
         df = pd.read_csv(path)
     except pd.errors.EmptyDataError:
-        return None, path
-
+        return None
     if df.empty:
-        return None, path
-
-    if "probability" in df.columns:
-        df["probability"] = pd.to_numeric(df["probability"], errors="coerce")
-        # Score is the scanner probability, shown explicitly for clarity.
-        df["score"] = df["probability"]
-        df = df.sort_values("score", ascending=False, na_position="last")
-        df = df.reset_index(drop=True)
-        df.insert(0, "rank", range(1, len(df) + 1))
-
-    return df, path
+        return None
+    return df.sort_values("probability", ascending=False)
 
 
 def render_scan_tab(mode: str, label: str):
-    df, path = load_scan(mode)
+    df = load_scan(mode)
     if df is None or df.empty:
-        st.info(
-            f"No {label} results yet - the workflow may not have run recently, "
-            "or nothing was flagged this session."
-        )
+        st.info(f"No {label} results yet - either the workflow hasn't run recently, or nothing qualified this session.")
         return
 
-    mtime = datetime.fromtimestamp(os.path.getmtime(path))
-    st.caption(f"Latest {label} scan: {mtime.strftime('%Y-%m-%d %H:%M')}")
+    mtime = datetime.fromtimestamp(os.path.getmtime(f"scan_results_{mode}.csv"))
+    st.caption(f"Last updated: {mtime.strftime('%Y-%m-%d %H:%M')}")
 
     def grade_style(val):
         color = GRADE_COLORS.get(val, "#333333")
-        return (
-            f"background-color: {color}; color: white; "
-            "font-weight: bold; text-align: center;"
-        )
+        return f"background-color: {color}; color: white; font-weight: bold; text-align: center;"
 
-    styled = df.style
-    if "grade" in df.columns:
-        styled = styled.map(grade_style, subset=["grade"])
-
-    styled = styled.format({
+    styled = df.style.map(grade_style, subset=["grade"]).format({
         "probability": "{:.1%}",
-        "score": "{:.1%}",
         "entry_distance_pct": "{:+.1%}",
         "entry_trigger": "{:.2f}",
         "stop_loss": "{:.2f}",
@@ -87,11 +67,7 @@ def render_scan_tab(mode: str, label: str):
     })
 
     st.dataframe(styled, use_container_width=True, height=600)
-    st.download_button(
-        f"Download latest {label} CSV",
-        df.to_csv(index=False),
-        file_name=os.path.basename(path),
-    )
+    st.download_button(f"Download {label} CSV", df.to_csv(index=False), file_name=f"scan_results_{mode}.csv")
 
 
 tab1, tab2 = st.tabs(["🌙 BTST", "📈 Swing"])
@@ -101,7 +77,4 @@ with tab2:
     render_scan_tab("swing", "Swing")
 
 st.markdown("---")
-st.caption(
-    "Select BTST or Swing to view its latest stock list. Results are ordered "
-    "from highest score to lowest score."
-)
+st.caption("Refreshes automatically whenever the GitHub Actions scan workflows commit new results - reload this page to see the latest.")
