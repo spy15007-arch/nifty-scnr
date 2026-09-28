@@ -1,18 +1,18 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-27 07:41 UTC`
+*Evaluation Window:* `2026-09-28 12:02 UTC`
 
-*Global market backdrop:* supportive (composite +1.57%)
+*Global market backdrop:* hostile (composite -1.58%)
 
 🏆 Displaying the top **5 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
 
 | Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **C** | **OLAELEC** | +5.5% | 40.59 | 37.5 | 44.18 | 50 | 60 | 65 | 3/7 |
-| **2** | **C** | **RHIM** | +0.5% | 388.33 | 371.79 | 414.29 | 460 | 500 | 550 | 4/7 |
-| **3** | **C** | **MOTHERSON** | +3.2% | 171.02 | 165.2 | 183.24 | 210 | 230 | 240 | 3/7 |
-| **4** | **C** | **ETERNAL** | +3.0% | 345.09 | 333.66 | 371.24 | 420 | 460 | 490 | 4/7 |
-| **5** | **C** | **MANAPPURAM** | +0.5% | 335.77 | 320.63 | 359.13 | 400 | 440 | 470 | 3/7 |
+| **1** | **C** | **PETRONET** | +1.2% | 293.19 | 284.16 | 302.72 | 320 | 340 | 350 | 3/7 |
+| **2** | **C** | **AGIIL** | +3.0% | 279.76 | 259.49 | 319.46 | 390 | 450 | 500 | 3/7 |
+| **3** | **C** | **RHIM** | +0.4% | 388.33 | 371.21 | 414.29 | 460 | 500 | 550 | 4/7 |
+| **4** | **C** | **ATL** | +0.8% | 25.05 | 23.29 | 26.49 | 30 | 35 | 40 | 3/7 |
+| **5** | **C** | **ETERNAL** | +0.8% | 333.62 | 322.13 | 359.77 | 410 | 450 | 480 | 4/7 |
 
 ---
 
