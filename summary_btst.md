@@ -1,8 +1,8 @@
 # 🌙 BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-10-01 12:19 UTC`
+*Evaluation Window:* `2026-10-01 15:54 UTC`
 
-*Global market backdrop:* hostile (composite -0.51%)
+*Global market backdrop:* hostile (composite -1.32%)
 
 🏆 Displaying the top **0 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing genuine same-day breakout momentum (not already extended before today), with 3+ confirming signals, are shown.
 
