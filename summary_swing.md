@@ -1,14 +1,15 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-09-30 16:47 UTC`
+*Evaluation Window:* `2026-10-01 12:19 UTC`
 
-*Global market backdrop:* hostile (composite -1.12%)
+*Global market backdrop:* hostile (composite -0.51%)
 
-🏆 Displaying the top **1 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
+🏆 Displaying the top **2 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
 
 | Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **C** | **RAILTEL** | +1.8% | 270.54 | 256.59 | 292.63 | 330 | 370 | 390 | 4/7 |
+| **1** | **B** | **KOTAKBANK** | +0.7% | 421.44 | 407.15 | 437.3 | 470 | 490 | 525 | 3/7 |
+| **2** | **C** | **BELRISE** | +0.3% | 238.18 | 226.84 | 253.68 | 280 | 310 | 330 | 3/7 |
 
 ---
 
