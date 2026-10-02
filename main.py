@@ -202,13 +202,16 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         style_label = "SWING"
 
     recs = []
+    funnel = {"symbols_with_data": 0, "engine_candidates": 0, "passed_rsi": 0, "passed_gate": 0, "passed_signal_min": 0}
 
     if bars and len(bars) > 0:
+        funnel["symbols_with_data"] = len(bars)
         engine = ScannerEngine(scan_mode=scan_mode)
         try:
             candidates = engine.scan_universe(bars, benchmark, top_n=100)
         except Exception:
             candidates = []
+        funnel["engine_candidates"] = len(candidates)
 
         for cand in candidates:
             df = bars.get(cand.symbol)
@@ -218,6 +221,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             rsi_analysis = check_pre_breakout_setup(df)
             if not rsi_analysis["flagged"]:
                 continue
+            funnel["passed_rsi"] += 1
 
             if scan_mode == "btst":
                 gate_analysis = btst_momentum_setup(df)
@@ -225,6 +229,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
                 gate_analysis = near_recent_base(df)
             if not gate_analysis["flagged"]:
                 continue
+            funnel["passed_gate"] += 1
 
             feats = build_features(df, benchmark)
             levels = compute_trade_levels(df)
@@ -258,6 +263,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
 
             if len(confirming_signals) < 3:
                 continue
+            funnel["passed_signal_min"] += 1
 
             n_extra_confirming = len(confirming_signals) - 1
             conviction_boost = 1.0 + (0.08 * n_extra_confirming)
@@ -329,8 +335,23 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     with open("summary.md", "w") as master_f:
         master_f.write(new_section + existing_summary)
 
-    if high_conviction_recs:
-        notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
+    logger.info(
+        f"🔎 [{strategy_title}] funnel: {funnel['symbols_with_data']} symbols loaded -> "
+        f"{funnel['engine_candidates']} passed engine filters -> {funnel['passed_rsi']} in RSI pre-breakout zone -> "
+        f"{funnel['passed_gate']} passed {strategy_title} timing gate -> {funnel['passed_signal_min']} had 3+ signals "
+        f"-> {len(high_conviction_recs)} final picks"
+    )
+
+    diagnostic = ""
+    if not high_conviction_recs:
+        diagnostic = (
+            f"Funnel: {funnel['symbols_with_data']} symbols loaded, {funnel['engine_candidates']} passed engine "
+            f"filters, {funnel['passed_rsi']} in RSI zone, {funnel['passed_gate']} passed the {strategy_title} "
+            f"timing gate, {funnel['passed_signal_min']} had 3+ confirming signals. "
+            + ("No data was loaded this run - check the broker connection/logs." if funnel['symbols_with_data'] == 0
+               else "This run completed normally; the market simply didn't offer a qualifying setup today.")
+        )
+    notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, diagnostic=diagnostic)
 
 
 def _get_market_multiplier() -> tuple[str, float]:
@@ -378,12 +399,16 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
 def cmd_options(args, shared_store=None):
     store = shared_store if shared_store else _get_store()
     plans = []
+    checked = 0
+    fetch_failures = 0
     for index_symbol in config.INDEX_UNIVERSE:
+        checked += 1
         raw_symbol = index_symbol.strip().upper()
         mapped_spot_symbol = _get_angelone_mapped_symbol(raw_symbol)
         try:
             df = store.get_bars(mapped_spot_symbol, lookback_days=250)
         except Exception:
+            fetch_failures += 1
             continue
         if df is None or df.empty or len(df) < 100:
             continue
@@ -392,8 +417,16 @@ def cmd_options(args, shared_store=None):
         plans.extend(index_plans)
 
     path = daily_options_report(plans)
-    if plans:
-        notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID)
+    logger.info(f"🔎 [OPTIONS] funnel: {checked} indices checked ({fetch_failures} fetch failures) -> {len(plans)} setup(s) found")
+
+    diagnostic = ""
+    if not plans:
+        diagnostic = (
+            f"Checked {checked} index(es) ({', '.join(config.INDEX_UNIVERSE)}); {fetch_failures} failed to fetch. "
+            + ("All fetches failed - check the broker connection/logs." if fetch_failures == checked and checked > 0
+               else "Data came through fine; no valid option setup met the criteria today.")
+        )
+    notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, diagnostic=diagnostic)
 
 
 def cmd_calibrate(scan_mode: str = "swing", horizon_days: int = 10, min_days_old: int = 10):
