@@ -8,7 +8,7 @@ on:
         required: false
         default: ''
   schedule:
-    - cron: '30,45 8 * * 1-5'
+    - cron: '45 8 * * 1-5'
 
 jobs:
   scan:
