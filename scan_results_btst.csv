@@ -1,4 +1,4 @@
 symbol,probability,grade,entry_distance_pct,entry_trigger,stop_loss,target_1,target_2,target_3,target_4
-PETRONET,0.9074,A,0.0124,301.2,291.77,310.73,330,350,360
+PETRONET,0.9177,A,0.0124,301.2,291.77,310.73,330,350,360
 HONASA,0.446,C,0.0137,484.87,454.58,524.81,600,675,725
 URBANCO,0.3946,C,0.0264,178.13,166.37,193.75,220,250,270

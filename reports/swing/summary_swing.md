@@ -1,18 +1,19 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-10-05 19:46 UTC`
+*Evaluation Window:* `2026-10-06 16:32 UTC`
 
-*Global market backdrop:* supportive (composite +1.03%)
+*Global market backdrop:* supportive (composite +0.69%)
 
-🏆 Displaying the top **5 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
+🏆 Displaying the top **6 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
 
 | Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **B** | **KOTAKBANK** | +1.3% | 421.44 | 407.16 | 437.3 | 470 | 490 | 525 | 3/7 |
-| **2** | **C** | **PETRONET** | +1.1% | 293.19 | 283.76 | 302.72 | 320 | 340 | 350 | 4/7 |
-| **3** | **C** | **ITC** | +0.2% | 269.54 | 261.14 | 283.61 | 310 | 330 | 350 | 4/7 |
-| **4** | **C** | **BHEL** | +1.8% | 436.82 | 417.39 | 455.44 | 490 | 525 | 550 | 3/7 |
-| **5** | **C** | **BERGEPAINT** | +1.2% | 463.93 | 447.09 | 493.38 | 550 | 600 | 625 | 3/7 |
+| **1** | **A** | **PETRONET** | +1.2% | 301.2 | 291.77 | 310.73 | 330 | 350 | 360 | 5/7 |
+| **2** | **C** | **BERGEPAINT** | N/A | Market | Dynamic | ATR Based | 4/7 |
+| **3** | **C** | **AVTNPL** | +2.1% | 92.63 | 84.86 | 101.29 | 120 | 130 | 140 | 3/7 |
+| **4** | **C** | **BFINVEST** | +5.7% | 466.33 | 451.19 | 512.87 | 600 | 675 | 725 | 3/7 |
+| **5** | **C** | **ITC** | +0.9% | 269.04 | 260.72 | 283.11 | 310 | 330 | 350 | 4/7 |
+| **6** | **C** | **EIHOTEL** | +2.5% | 308.12 | 294.88 | 325.22 | 360 | 390 | 410 | 3/7 |
 
 ---
 
