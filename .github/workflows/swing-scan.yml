@@ -67,7 +67,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A reports/swing/ scan_results_swing.csv summary.md summary_swing.md
+          git add -A reports/swing/ tracking/ scan_results_swing.csv summary.md summary_swing.md
           if ! git diff --cached --quiet; then
             git commit -m "Automated Swing scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
             git fetch origin main

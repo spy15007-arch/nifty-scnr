@@ -65,7 +65,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A reports/btst/ reports/swing/ reports/output/ summary.md summary_btst.md summary_swing.md scan_results_btst.csv scan_results_swing.csv
+          git add -A reports/btst/ reports/swing/ reports/output/ tracking/ summary.md summary_btst.md summary_swing.md scan_results_btst.csv scan_results_swing.csv
           if ! git diff --cached --quiet; then
             git commit -m "Automated scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
             git fetch origin main

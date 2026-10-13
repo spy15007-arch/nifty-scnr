@@ -23,7 +23,15 @@ all - 1-2 signal hit rates were barely better than noise.
 
 DIAGNOSTIC: every trade also records how close it got to target_1
 (max_gain_pct, pct_of_target_reached) and where it ended up
-(final_gain_pct).
+(final_gain_pct). Also tags each trade with its setup_stage
+(fresh_breakout / pre_breakout / neither, see scanner.breakout) purely
+as a DIAGNOSTIC breakdown - evidence on whether that tag actually
+correlates with hit rate, not a filter on what gets backtested.
+
+HORIZON_DAYS_BY_MODE is the one shared source of truth for how long a
+signal gets to resolve - tracking/outcomes.py (live) imports this same
+constant so a trade's live "still open" window always matches what the
+backtest itself used to validate these setups.
 """
 from __future__ import annotations
 import logging
@@ -31,7 +39,7 @@ import pandas as pd
 from dataclasses import dataclass
 
 from scanner.engine import ScannerEngine
-from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup
+from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup, classify_setup_stage
 from scanner.technicals import (
     macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
     obv_accumulation, adx_building,
@@ -39,6 +47,8 @@ from scanner.technicals import (
 from scanner.levels import compute_trade_levels
 
 logger = logging.getLogger(__name__)
+
+HORIZON_DAYS_BY_MODE = {"btst": 3, "swing": 30}
 
 
 @dataclass
@@ -55,6 +65,7 @@ class BacktestTrade:
     max_gain_pct: float
     pct_of_target_reached: float
     final_gain_pct: float
+    setup_stage: str = "neither"
 
 
 def _resolve_outcome(future_bars: pd.DataFrame, entry_trigger: float, target_1: float, stop_loss: float) -> tuple[int, int | None, float, float, float]:
@@ -94,7 +105,7 @@ def run_backtest(
     min_history: int = 100,
 ) -> list[BacktestTrade]:
     if horizon_days is None:
-        horizon_days = 3 if scan_mode == "btst" else 30
+        horizon_days = HORIZON_DAYS_BY_MODE.get(scan_mode, 30)
 
     engine = ScannerEngine(scan_mode=scan_mode)
     trades: list[BacktestTrade] = []
@@ -123,10 +134,23 @@ def run_backtest(
             if not rsi_analysis["flagged"]:
                 continue
 
+            # Computed once, here, and reused for both the SWING gate and
+            # the final per-trade tag - mirrors main.py exactly, so the
+            # backtest's definition of "passed the gate" never drifts
+            # from what the live scan actually admits.
+            stage_analysis = classify_setup_stage(df_as_of)
+
             if scan_mode == "btst":
                 gate_analysis = btst_momentum_setup(df_as_of)
             else:
+                # Additive OR, same widening as main.py: near_recent_base
+                # alone can never pass an already-broken-out stock, so
+                # SWING also admits a confirmed fresh_breakout tag.
                 gate_analysis = near_recent_base(df_as_of)
+                gate_analysis = {
+                    **gate_analysis,
+                    "flagged": gate_analysis["flagged"] or stage_analysis["setup_stage"] == "fresh_breakout",
+                }
             if not gate_analysis["flagged"]:
                 continue
 
@@ -169,6 +193,7 @@ def run_backtest(
                 max_gain_pct=round(max_gain_pct, 4),
                 pct_of_target_reached=round(pct_of_target, 4),
                 final_gain_pct=round(final_gain_pct, 4),
+                setup_stage=stage_analysis["setup_stage"],
             ))
 
     return trades
@@ -189,6 +214,14 @@ def summarize_backtest(trades: list[BacktestTrade]) -> dict:
     signal_breakdown = {
         n: {"count": len(ts), "hit_rate": round(sum(t.outcome for t in ts) / len(ts), 3)}
         for n, ts in sorted(by_signals.items())
+    }
+
+    by_stage: dict[str, list[BacktestTrade]] = {}
+    for t in resolved:
+        by_stage.setdefault(t.setup_stage, []).append(t)
+    stage_breakdown = {
+        stage: {"count": len(ts), "hit_rate": round(sum(t.outcome for t in ts) / len(ts), 3)}
+        for stage, ts in sorted(by_stage.items())
     }
 
     unresolved_diagnostic = {}
@@ -217,6 +250,7 @@ def summarize_backtest(trades: list[BacktestTrade]) -> dict:
         "still_open_at_horizon_end": len(unresolved),
         "overall_hit_rate": round(overall_hit_rate, 3),
         "by_signal_count": signal_breakdown,
+        "by_setup_stage": stage_breakdown,
         "unresolved_diagnostic": unresolved_diagnostic,
     }
 
@@ -245,6 +279,15 @@ def write_backtest_report(trades: list[BacktestTrade], summary: dict, scan_mode:
     for n, stats in summary["by_signal_count"].items():
         lines.append(f"| {n}/6 | {stats['count']} | {stats['hit_rate']:.1%} |")
     lines.append("")
+
+    stage_breakdown = summary.get("by_setup_stage")
+    if stage_breakdown:
+        lines.append("## Hit rate by setup stage (fresh breakout / pre-breakout tag)")
+        lines.append("| Setup stage | Count | Hit rate |")
+        lines.append("| :--- | :--- | :--- |")
+        for stage, stats in stage_breakdown.items():
+            lines.append(f"| {stage} | {stats['count']} | {stats['hit_rate']:.1%} |")
+        lines.append("")
 
     diag = summary.get("unresolved_diagnostic")
     if diag:

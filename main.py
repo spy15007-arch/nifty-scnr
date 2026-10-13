@@ -41,7 +41,8 @@ from backtest.engine import run_backtest, summarize_backtest, write_backtest_rep
 from reports.notify import notify_scan_results, notify_option_results
 import config
 
-from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup
+from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup, classify_setup_stage
+from tracking.outcomes import log_new_picks, update_open_trades, format_track_record_line
 from scanner.technicals import (
     macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
     obv_accumulation, adx_building,
@@ -96,23 +97,31 @@ def _grade_for_recommendation(r) -> str:
     return "C"
 
 
+STAGE_LABELS = {
+    "fresh_breakout": "🔥 Fresh BO",
+    "pre_breakout": "👀 Pre-BO",
+    "neither": "-",
+}
+
+
 def _build_table_lines(recs: list) -> list[str]:
     lines = [
-        "| Rank | Grade | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |",
-        "| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |"
+        "| Rank | Grade | Stage | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |",
+        "| :--- | :---: | :---: | :--- | :---: | :--- | :--- | :--- | :--- |"
     ]
     if not recs:
-        lines.append("| - | - | No candidates this session | - | - | - | - | - |")
+        lines.append("| - | - | - | No candidates this session | - | - | - | - | - |")
     else:
         for idx, r in enumerate(recs, 1):
             grade = _grade_for_recommendation(r)
+            stage = STAGE_LABELS.get(getattr(r, "setup_stage", None), "-")
             entry = r.levels.entry_trigger if r.levels else "Market"
             sl = r.levels.stop_loss if r.levels else "Dynamic"
             tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
             n_signals = max(0, len(r.top_reasons) - 1)
             dist = getattr(r, "entry_distance_pct", None)
             dist_str = f"{dist:+.1%}" if dist is not None else "N/A"
-            lines.append(f"| **{idx}** | **{grade}** | **{r.symbol}** | {dist_str} | {entry} | {sl} | {tg} | {n_signals}/7 |")
+            lines.append(f"| **{idx}** | **{grade}** | {stage} | **{r.symbol}** | {dist_str} | {entry} | {sl} | {tg} | {n_signals}/7 |")
     return lines
 
 
@@ -192,6 +201,15 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
 
+    # Check existing OPEN trades against today's already-fetched bars
+    # BEFORE logging today's new picks - and do it even on a day that
+    # finds zero new candidates, so the tracker never silently stalls.
+    try:
+        if bars:
+            update_open_trades(scan_mode, bars)
+    except Exception:
+        logger.exception(f"Trade tracker: failed to update open {scan_mode} trades - leaving ledger untouched")
+
     if scan_mode == "btst":
         strategy_title = "BTST"
         output_subfolder = "reports/btst"
@@ -223,10 +241,28 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
                 continue
             funnel["passed_rsi"] += 1
 
+            # Computed once, here, and reused below both to decide the
+            # SWING gate AND to tag the final pick - one source of truth,
+            # so a candidate can never be gated in as "fresh breakout" by
+            # one code path and tagged differently by another.
+            stage_analysis = classify_setup_stage(df)
+
             if scan_mode == "btst":
                 gate_analysis = btst_momentum_setup(df)
             else:
+                # near_recent_base alone only ever catches "still coiled,
+                # hasn't moved yet" (pre-breakout) - by definition it can
+                # never pass a stock that's already broken out, since
+                # breaking out moves price away from the low it measures
+                # against. That left SWING structurally blind to "just
+                # broke out a few days ago, still early" setups. Widened
+                # (additively - OR, not instead of) to also admit those,
+                # using the same resistance-crossing tag applied below.
                 gate_analysis = near_recent_base(df)
+                gate_analysis = {
+                    **gate_analysis,
+                    "flagged": gate_analysis["flagged"] or stage_analysis["setup_stage"] == "fresh_breakout",
+                }
             if not gate_analysis["flagged"]:
                 continue
             funnel["passed_gate"] += 1
@@ -276,6 +312,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             rec_package = explain(cand.symbol, adjusted_probability, feats, levels, execution)
             rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:7]
             rec_package.__dict__["entry_distance_pct"] = entry_distance_pct
+            rec_package.__dict__["setup_stage"] = stage_analysis["setup_stage"]
+            rec_package.__dict__["setup_stage_reason"] = stage_analysis["reason"]
             recs.append(rec_package)
 
     if sector_map:
@@ -304,8 +342,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         except Exception:
             pass
 
-    csv_columns = ["symbol", "probability", "grade", "entry_distance_pct", "entry_trigger",
-                   "stop_loss", "target_1", "target_2", "target_3", "target_4"]
+    csv_columns = ["symbol", "probability", "grade", "setup_stage", "n_signals", "entry_distance_pct",
+                   "entry_trigger", "stop_loss", "target_1", "target_2", "target_3", "target_4"]
     csv_rows = []
     for r in recs:
         dist = getattr(r, "entry_distance_pct", None)
@@ -313,6 +351,8 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             "symbol": r.symbol,
             "probability": round(r.probability, 4),
             "grade": _grade_for_recommendation(r),
+            "setup_stage": getattr(r, "setup_stage", None),
+            "n_signals": max(0, len(r.top_reasons) - 1),
             "entry_distance_pct": round(dist, 4) if dist is not None else None,
             "entry_trigger": r.levels.entry_trigger if r.levels else None,
             "stop_loss": r.levels.stop_loss if r.levels else None,
@@ -323,6 +363,19 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         })
     pd.DataFrame(csv_rows, columns=csv_columns).to_csv(target_csv_path, index=False)
     pd.DataFrame(csv_rows, columns=csv_columns).to_csv(f"scan_results_{scan_mode}.csv", index=False)
+
+    try:
+        tracker_picks = [
+            {
+                "symbol": row["symbol"], "grade": row["grade"], "probability": row["probability"],
+                "n_signals": row["n_signals"], "setup_stage": row["setup_stage"],
+                "entry_trigger": row["entry_trigger"], "stop_loss": row["stop_loss"], "target_1": row["target_1"],
+            }
+            for row in csv_rows if row["symbol"] in {hr.symbol for hr in high_conviction_recs}
+        ]
+        log_new_picks(scan_mode, tracker_picks, date_str)
+    except Exception:
+        logger.exception(f"Trade tracker: failed to log new {scan_mode} picks")
 
     new_section = ""
     if os.path.exists(f"summary_{scan_mode}.md"):
@@ -351,7 +404,17 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             + ("No data was loaded this run - check the broker connection/logs." if funnel['symbols_with_data'] == 0
                else "This run completed normally; the market simply didn't offer a qualifying setup today.")
         )
-    notify_scan_results(high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, diagnostic=diagnostic)
+
+    try:
+        track_record_line = format_track_record_line(scan_mode)
+    except Exception:
+        logger.exception(f"Trade tracker: failed to summarize {scan_mode} track record")
+        track_record_line = ""
+
+    notify_scan_results(
+        high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID,
+        diagnostic=diagnostic, track_record_line=track_record_line,
+    )
 
 
 def _get_market_multiplier() -> tuple[str, float]:

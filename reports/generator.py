@@ -41,6 +41,11 @@ def daily_scan_report(recommendations: list[Recommendation], out_dir: str = "./r
         lines.append(f"## {style_name}")
         for rec in group:
             lines.append(f"### {rec.symbol} — {rec.probability:.0%} breakout probability")
+            stage = getattr(rec, "setup_stage", None)
+            stage_reason = getattr(rec, "setup_stage_reason", None)
+            if stage and stage != "neither":
+                stage_label = "🔥 Fresh Breakout" if stage == "fresh_breakout" else "👀 Pre-Breakout"
+                lines.append(f"**Setup stage:** {stage_label}" + (f" — {stage_reason}" if stage_reason else ""))
             if rec.levels:
                 lv = rec.levels
                 lines.append(f"**Trade plan:** buy trigger **{lv.entry_trigger}** | stop **{lv.stop_loss}**")

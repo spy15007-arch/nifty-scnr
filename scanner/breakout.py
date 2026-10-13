@@ -1,9 +1,19 @@
 """
 Hard entry-timing gates - REQUIRED before a candidate is considered at
 all (not optional scoring signals).
+
+ADDED 2026-10-12: classify_setup_stage() - a structural TAG (not a new
+hard gate) that answers the user's actual question - "has this just
+broken out, or is it still coiled about to?" - using genuine
+resistance-level structure rather than the proxies the existing gates
+use (today's candle shape for BTST, distance-from-low for SWING).
+Both existing gates stay exactly as backtested; this just labels
+what's already passed them, so nothing's filtering behavior changes.
 """
 from __future__ import annotations
 import pandas as pd
+
+from scanner.levels import _find_nearest_resistance_above
 
 
 def check_pre_breakout_setup(df: pd.DataFrame, rsi_period: int = 14) -> dict:
@@ -112,4 +122,102 @@ def btst_momentum_setup(
             f"closed at {close_position_in_range:.0%} of day's range"
             + (" - genuine breakout day from a real base" if flagged else " - doesn't meet BTST momentum criteria")
         ),
+    }
+
+
+def classify_setup_stage(
+    df: pd.DataFrame,
+    lookback: int = 100,
+    swing_window: int = 3,
+    fresh_lookback_days: int = 3,
+    fresh_max_extension_pct: float = 0.05,
+    pre_breakout_max_distance_pct: float = 0.05,
+    min_breakout_volume_ratio: float = 1.5,
+) -> dict:
+    """
+    Tags a candidate's structural stage against a genuine swing-high
+    resistance level - independent of scan mode, applied to whatever
+    already passed the real gates above. NOT a filter: every candidate
+    gets a label, "neither" included.
+
+      - "fresh_breakout": a resistance level that was still above price
+        as of `fresh_lookback_days` ago has since been closed above,
+        confirmed by volume, and price hasn't extended more than
+        `fresh_max_extension_pct` past it yet - still chaseable, not a
+        stale move you'd be late to.
+      - "pre_breakout": price is still BELOW the nearest swing
+        resistance, but within `pre_breakout_max_distance_pct` of it -
+        coiled right under the ceiling, not triggered yet.
+      - "neither": no resistance level close enough in either
+        direction right now.
+
+    Uses the SAME nearest-swing-resistance logic as scanner.levels
+    (not a stale single highest-high-in-window), so "fresh breakout"/
+    "pre-breakout" here means the same thing as the entry triggers
+    already being computed for these candidates - not a second,
+    inconsistent notion of "breakout."
+    """
+    if len(df) < 30:
+        return {"setup_stage": "neither", "resistance_level": None, "distance_pct": None,
+                "volume_ratio": None, "reason": "insufficient history"}
+
+    effective_lookback = min(lookback, len(df))
+    current_price = df["close"].iloc[-1]
+
+    # --- fresh_breakout: a level that WAS resistance as of
+    # fresh_lookback_days ago, now cleared ---
+    crossed_level = None
+    prior_cutoff = len(df) - fresh_lookback_days
+    min_prior_bars = swing_window * 2 + 20  # enough for swing detection + a volume baseline
+    if prior_cutoff >= min_prior_bars:
+        prior_df = df.iloc[:prior_cutoff]
+        price_before_fresh_window = prior_df["close"].iloc[-1]
+        window = prior_df.tail(effective_lookback).reset_index(drop=True)
+        highs = window["high"]
+        candidates = []
+        for i in range(swing_window, len(highs) - swing_window):
+            seg = highs.iloc[i - swing_window: i + swing_window + 1]
+            level = highs.iloc[i]
+            if level == seg.max() and level <= current_price and level >= price_before_fresh_window:
+                candidates.append(level)
+        crossed_level = max(candidates) if candidates else None
+
+    if crossed_level is not None:
+        extension_pct = (current_price - crossed_level) / crossed_level
+        if 0 <= extension_pct <= fresh_max_extension_pct:
+            fresh_window_df = df.tail(fresh_lookback_days)
+            baseline_vol = df["volume"].iloc[:-fresh_lookback_days].tail(20).mean()
+            peak_vol_in_window = fresh_window_df["volume"].max()
+            volume_ratio = (peak_vol_in_window / baseline_vol) if baseline_vol > 0 else 0
+            if volume_ratio >= min_breakout_volume_ratio:
+                return {
+                    "setup_stage": "fresh_breakout",
+                    "resistance_level": round(float(crossed_level), 2),
+                    "distance_pct": round(float(extension_pct), 4),
+                    "volume_ratio": round(float(volume_ratio), 2),
+                    "reason": (
+                        f"Closed {extension_pct:.1%} above a resistance level ({round(float(crossed_level), 2)}) "
+                        f"broken within the last {fresh_lookback_days} sessions, on {volume_ratio:.1f}x volume"
+                    ),
+                }
+
+    # --- pre_breakout: still below the nearest resistance, but close ---
+    resistance_above = _find_nearest_resistance_above(df, current_price, effective_lookback, swing_window)
+    if resistance_above is not None:
+        distance_pct = (resistance_above - current_price) / resistance_above
+        if 0 <= distance_pct <= pre_breakout_max_distance_pct:
+            return {
+                "setup_stage": "pre_breakout",
+                "resistance_level": round(float(resistance_above), 2),
+                "distance_pct": round(float(distance_pct), 4),
+                "volume_ratio": None,
+                "reason": f"{distance_pct:.1%} below resistance at {round(float(resistance_above), 2)} - coiled, not yet triggered",
+            }
+
+    return {
+        "setup_stage": "neither",
+        "resistance_level": None,
+        "distance_pct": None,
+        "volume_ratio": None,
+        "reason": "no resistance level close enough (recently broken or still overhead) to call either stage",
     }

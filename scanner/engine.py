@@ -2,13 +2,22 @@
 Scanner engine: runs all filters across a universe of symbols and
 produces a ranked watchlist of "pre-breakout" candidates.
 
-Weights are MODE-AWARE: a good intraday/BTST setup and a good 7-day
-swing setup don't emphasize the same things. Intraday cares most about
-immediate volume/trigger proximity; swing cares most about durable
-relative strength and trend structure. Each profile is its own
-probability distribution (sums to 1.0), hand-tuned for now - once
-enough calibration data exists (see main.py's `calibrate` command),
-these should be tuned against actual hit rates instead of intuition.
+Weights are MODE-AWARE: a good BTST (same-day momentum) setup and a
+good SWING (patient, multi-week) setup don't emphasize the same
+things. BTST cares most about immediate volume/trigger proximity;
+swing cares most about durable relative strength and trend structure.
+Each profile is its own probability distribution (sums to 1.0),
+hand-tuned for now - once enough calibration data exists (see
+main.py's `calibrate` command), these should be tuned against actual
+hit rates instead of intuition.
+
+FIXED (2026-10-12): WEIGHTS_BY_MODE keys used to be "morning"/
+"afternoon"/"eod" - leftover from before the intraday->btst/swing
+rename - while every caller passes scan_mode="btst" or "swing". The
+.get() silently fell back to DEFAULT_WEIGHTS for BOTH modes every
+single time, so BTST_WEIGHTS and SWING_WEIGHTS were dead code and
+both modes were scored identically. This is part of why BTST and
+SWING picks looked so similar. Now fixed to match the real keys.
 """
 from __future__ import annotations
 import pandas as pd
@@ -27,16 +36,6 @@ DEFAULT_WEIGHTS = {
     "relative_strength": 0.12,
     "ema_alignment": 0.15,
     "fibonacci_reclaim": 0.10,
-}
-
-INTRADAY_WEIGHTS = {
-    "volatility_squeeze": 0.12,
-    "relative_volume": 0.25,
-    "quiet_accumulation": 0.10,
-    "coiled_at_resistance": 0.20,
-    "relative_strength": 0.08,
-    "ema_alignment": 0.10,
-    "fibonacci_reclaim": 0.15,
 }
 
 BTST_WEIGHTS = {
@@ -60,9 +59,8 @@ SWING_WEIGHTS = {
 }
 
 WEIGHTS_BY_MODE = {
-    "morning": INTRADAY_WEIGHTS,
-    "afternoon": BTST_WEIGHTS,
-    "eod": SWING_WEIGHTS,
+    "btst": BTST_WEIGHTS,
+    "swing": SWING_WEIGHTS,
 }
 
 

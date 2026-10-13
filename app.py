@@ -11,6 +11,14 @@ candidates, the CSV may exist but be empty/header-only - handled
 gracefully here as a safety net (main.py now also always writes valid
 headers even when empty, but this protects against any already-broken
 file from before that fix).
+
+SETUP STAGE + TRACK RECORD (2026-10-13): scan_results_*.csv now carries
+a setup_stage column (fresh_breakout / pre_breakout / neither, see
+scanner/breakout.py's classify_setup_stage). A third tab reads the
+tracking/trade_log_*.csv ledgers (tracking/outcomes.py) and shows how
+past picks actually resolved - kept as a plain CSV read here too, same
+"no separate data pipeline" principle as the scan tabs, rather than
+importing the scanner/tracking package into the dashboard process.
 """
 import streamlit as st
 import pandas as pd
@@ -26,6 +34,19 @@ GRADE_COLORS = {
     "B+": "#e8a33d",
     "B": "#e8a33d",
     "C": "#999999",
+}
+
+STAGE_LABELS = {
+    "fresh_breakout": "🔥 Fresh Breakout",
+    "pre_breakout": "👀 Pre-Breakout",
+    "neither": "–",
+}
+
+STATUS_COLORS = {
+    "WON": "#0d7d3e",
+    "LOST": "#b03a2e",
+    "OPEN": "#2e6da4",
+    "EXPIRED": "#999999",
 }
 
 
@@ -51,11 +72,19 @@ def render_scan_tab(mode: str, label: str):
     mtime = datetime.fromtimestamp(os.path.getmtime(f"scan_results_{mode}.csv"))
     st.caption(f"Last updated: {mtime.strftime('%Y-%m-%d %H:%M')}")
 
+    if "setup_stage" in df.columns:
+        stage_counts = df["setup_stage"].map(lambda s: STAGE_LABELS.get(s, s)).value_counts()
+        cols = st.columns(len(stage_counts) if len(stage_counts) else 1)
+        for col, (stage, count) in zip(cols, stage_counts.items()):
+            col.metric(stage, int(count))
+        df = df.copy()
+        df["setup_stage"] = df["setup_stage"].map(lambda s: STAGE_LABELS.get(s, s))
+
     def grade_style(val):
         color = GRADE_COLORS.get(val, "#333333")
         return f"background-color: {color}; color: white; font-weight: bold; text-align: center;"
 
-    styled = df.style.map(grade_style, subset=["grade"]).format({
+    fmt = {
         "probability": "{:.1%}",
         "entry_distance_pct": "{:+.1%}",
         "entry_trigger": "{:.2f}",
@@ -64,17 +93,95 @@ def render_scan_tab(mode: str, label: str):
         "target_2": "{:.2f}",
         "target_3": "{:.2f}",
         "target_4": "{:.2f}",
-    })
+    }
+    styled = df.style.map(grade_style, subset=["grade"]).format(fmt)
 
     st.dataframe(styled, use_container_width=True, height=600)
     st.download_button(f"Download {label} CSV", df.to_csv(index=False), file_name=f"scan_results_{mode}.csv")
 
 
-tab1, tab2 = st.tabs(["🌙 BTST", "📈 Swing"])
+def load_ledger(mode: str):
+    path = f"tracking/trade_log_{mode}.csv"
+    if not os.path.exists(path):
+        return None
+    try:
+        df = pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        return None
+    if df.empty:
+        return None
+    return df.sort_values("signal_date", ascending=False)
+
+
+def render_track_record_tab():
+    st.caption("Every pick ever recommended, and what actually happened to it - checked automatically each "
+               "scan run against target/stop, same resolution rule the backtest reports use.")
+
+    any_data = False
+    for mode, label in [("btst", "BTST"), ("swing", "Swing")]:
+        df = load_ledger(mode)
+        st.subheader(f"{'🌙' if mode == 'btst' else '📈'} {label}")
+        if df is None or df.empty:
+            st.info(f"No {label} trades tracked yet - this fills in once a scan with qualifying picks has run.")
+            continue
+        any_data = True
+
+        resolved = df[df["status"].isin(["WON", "LOST"])]
+        wins = int((resolved["status"] == "WON").sum())
+        n_resolved = len(resolved)
+        win_rate = (wins / n_resolved) if n_resolved else None
+        avg_pnl = resolved["pnl_pct"].astype(float).mean() if n_resolved else None
+
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Open", int((df["status"] == "OPEN").sum()))
+        c2.metric("Won", wins)
+        c3.metric("Lost", n_resolved - wins)
+        c4.metric("Win rate", f"{win_rate:.0%}" if win_rate is not None else "–")
+        c5.metric("Avg P&L / resolved trade", f"{avg_pnl:+.1%}" if avg_pnl is not None else "–")
+
+        if n_resolved > 0 and "setup_stage" in resolved.columns:
+            st.caption("Win rate by setup stage (this is the evidence on whether fresh-breakout or "
+                       "pre-breakout picks actually perform better for this mode):")
+            by_stage = resolved.groupby("setup_stage").apply(
+                lambda g: pd.Series({"count": len(g), "win_rate": (g["status"] == "WON").mean()}),
+                include_groups=False,
+            )
+            by_stage.index = by_stage.index.map(lambda s: STAGE_LABELS.get(s, s))
+            st.dataframe(
+                by_stage.style.format({"win_rate": "{:.0%}"}),
+                use_container_width=True,
+            )
+
+        def status_style(val):
+            color = STATUS_COLORS.get(val, "#333333")
+            return f"background-color: {color}; color: white; font-weight: bold; text-align: center;"
+
+        display_df = df.copy()
+        if "setup_stage" in display_df.columns:
+            display_df["setup_stage"] = display_df["setup_stage"].map(lambda s: STAGE_LABELS.get(s, s))
+        fmt = {
+            "probability": "{:.1%}",
+            "entry_trigger": "{:.2f}",
+            "stop_loss": "{:.2f}",
+            "target_1": "{:.2f}",
+            "exit_price": "{:.2f}",
+            "pnl_pct": "{:+.1%}",
+        }
+        styled = display_df.style.map(status_style, subset=["status"]).format(fmt, na_rep="–")
+        st.dataframe(styled, use_container_width=True, height=400)
+        st.download_button(f"Download {label} trade log", df.to_csv(index=False), file_name=f"trade_log_{mode}.csv")
+
+    if not any_data:
+        st.info("No tracked trades yet for either mode.")
+
+
+tab1, tab2, tab3 = st.tabs(["🌙 BTST", "📈 Swing", "📒 Track Record"])
 with tab1:
     render_scan_tab("btst", "BTST")
 with tab2:
     render_scan_tab("swing", "Swing")
+with tab3:
+    render_track_record_tab()
 
 st.markdown("---")
 st.caption("Refreshes automatically whenever the GitHub Actions scan workflows commit new results - reload this page to see the latest.")

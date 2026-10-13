@@ -123,8 +123,11 @@ def notify_option_results(plans: list, bot_token: str, chat_id: str, diagnostic:
     send_telegram_message(bot_token, chat_id, message)
 
 
-def notify_scan_results(recommendations: list[Recommendation], bot_token: str, chat_id: str, diagnostic: str = ""):
+def notify_scan_results(recommendations: list[Recommendation], bot_token: str, chat_id: str,
+                         diagnostic: str = "", track_record_line: str = ""):
     message = format_message(recommendations)
     if diagnostic:
         message += f"\n\n🔎 <i>{html.escape(diagnostic)}</i>"
+    if track_record_line:
+        message += f"\n\n📒 <i>{html.escape(track_record_line)}</i>"
     send_telegram_message(bot_token, chat_id, message)
