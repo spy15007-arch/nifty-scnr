@@ -1,1 +1,2 @@
-symbol,probability,grade,entry_distance_pct,entry_trigger,stop_loss,target_1,target_2,target_3,target_4
+symbol,probability,grade,setup_stage,n_signals,entry_distance_pct,entry_trigger,stop_loss,target_1,target_2,target_3,target_4
+BSOFT,0.541,B,pre_breakout,4,0.0226,303.46,287.44,324.64,360,400,420
