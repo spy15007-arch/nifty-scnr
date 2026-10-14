@@ -1,0 +1,9 @@
+trade_id,symbol,scan_mode,signal_date,grade,probability,n_signals,setup_stage,entry_trigger,stop_loss,target_1,status,triggered,days_held,resolved_date,exit_price,pnl_pct,last_checked_date
+BAJAJHIND_2026-10-14,BAJAJHIND,swing,2026-10-14,B+,0.68,4,fresh_breakout,23.22,21.74,25.44,OPEN,False,0,,,,2026-10-14
+PNB_2026-10-14,PNB,swing,2026-10-14,B+,0.6243,5,fresh_breakout,119.14,114.38,123.67,OPEN,False,0,,,,2026-10-14
+FSL_2026-10-14,FSL,swing,2026-10-14,B,0.4566,4,fresh_breakout,292.58,275.47,319.65,OPEN,False,0,,,,2026-10-14
+JINDALSAW_2026-10-14,JINDALSAW,swing,2026-10-14,C,0.3869,4,fresh_breakout,320.14,304.19,345.15,OPEN,False,0,,,,2026-10-14
+CANBK_2026-10-14,CANBK,swing,2026-10-14,C,0.3561,4,pre_breakout,125.39,120.86,130.52,OPEN,False,0,,,,2026-10-14
+NIACL_2026-10-14,NIACL,swing,2026-10-14,C,0.1994,4,fresh_breakout,187.47,172.91,210.39,OPEN,False,0,,,,2026-10-14
+IRCTC_2026-10-14,IRCTC,swing,2026-10-14,C,0.1802,3,pre_breakout,480.96,464.8,504.83,OPEN,False,0,,,,2026-10-14
+FEDERALBNK_2026-10-14,FEDERALBNK,swing,2026-10-14,C,0.1684,4,pre_breakout,334.97,322.84,355.86,OPEN,False,0,,,,2026-10-14
