@@ -655,4 +655,10 @@ if __name__ == "__main__":
         for mode in ["btst", "swing"]:
             process_scans_with_shared_data(mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map)
 
-        cmd_options(args, shared_store=store)
+        # Index options scan REMOVED from the automated run (2026-10-14):
+        # Angel One's index-instrument fetch has never worked reliably
+        # (NIFTY/BANKNIFTY/FINNIFTY all fail most runs) and even a
+        # working fetch would arrive too late to matter for an options
+        # trade's intraday urgency. `cmd_options` is left in place below
+        # and the "options" CLI command (python main.py options) still
+        # works for manual/on-demand use - just not auto-run anymore.
