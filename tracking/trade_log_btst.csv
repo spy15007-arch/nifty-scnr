@@ -1,2 +1,4 @@
-trade_id,symbol,scan_mode,signal_date,grade,probability,n_signals,setup_stage,entry_trigger,stop_loss,target_1,status,triggered,days_held,resolved_date,exit_price,pnl_pct,last_checked_date
-BSOFT_2026-10-13,BSOFT,btst,2026-10-13,B,0.541,4,pre_breakout,303.46,287.44,324.64,OPEN,False,0,,,,2026-10-13
+trade_id,symbol,scan_mode,signal_date,grade,probability,n_signals,setup_stage,days_since_break,entry_trigger,stop_loss,target_1,status,triggered,days_held,resolved_date,exit_price,pnl_pct,last_checked_date
+BSOFT_2026-10-13,BSOFT,btst,2026-10-13,B,0.541,4,pre_breakout,,303.46,287.44,324.64,OPEN,False,1,,,,2026-10-14
+CANBK_2026-10-14,CANBK,btst,2026-10-14,C,0.3258,3,pre_breakout,,125.39,120.86,130.52,OPEN,False,0,,,,2026-10-14
+SAGILITY_2026-10-14,SAGILITY,btst,2026-10-14,C,0.2441,4,pre_breakout,,46.33,44.29,48.45,OPEN,False,0,,,,2026-10-14
