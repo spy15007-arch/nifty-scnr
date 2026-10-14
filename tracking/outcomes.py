@@ -51,7 +51,7 @@ TRACKING_DIR = "tracking"
 
 LEDGER_COLUMNS = [
     "trade_id", "symbol", "scan_mode", "signal_date", "grade", "probability",
-    "n_signals", "setup_stage", "entry_trigger", "stop_loss", "target_1",
+    "n_signals", "setup_stage", "days_since_break", "entry_trigger", "stop_loss", "target_1",
     "status", "triggered", "days_held", "resolved_date", "exit_price",
     "pnl_pct", "last_checked_date",
 ]
@@ -97,7 +97,7 @@ def log_new_picks(scan_mode: str, picks: list[dict], signal_date: str) -> int:
     """
     Appends today's high-conviction picks as new OPEN trades. `picks`
     is a list of plain dicts (symbol, grade, probability, n_signals,
-    setup_stage, entry_trigger, stop_loss, target_1) - the same shape
+    setup_stage, days_since_break, entry_trigger, stop_loss, target_1) - the same shape
     main.py already builds for the scan CSV, kept decoupled here from
     ai.explain's Recommendation class on purpose. Skips a symbol that
     already has an OPEN trade in this mode's ledger - same setup,
@@ -122,6 +122,7 @@ def log_new_picks(scan_mode: str, picks: list[dict], signal_date: str) -> int:
             "probability": p.get("probability"),
             "n_signals": p.get("n_signals"),
             "setup_stage": p.get("setup_stage"),
+            "days_since_break": p.get("days_since_break"),
             "entry_trigger": p.get("entry_trigger"),
             "stop_loss": p.get("stop_loss"),
             "target_1": p.get("target_1"),
@@ -257,6 +258,21 @@ def summarize_track_record(scan_mode: str) -> dict:
         w = int((g["status"] == "WON").sum())
         by_stage[stage] = {"count": len(g), "win_rate": round(w / len(g), 3)}
     result["by_setup_stage"] = by_stage
+
+    # Fresh-breakout picks only (days_since_break is None/NaN for
+    # pre_breakout/neither picks, and for any trade logged before this
+    # column existed) - the live evidence on whether a day-1 pick
+    # ("just printed its breakout candle, entered next session") really
+    # does perform differently from a day-2/3 one, mirroring the same
+    # breakdown the backtest reports.
+    by_days_since_break = {}
+    fresh_only = resolved[resolved["days_since_break"].notna()].copy()
+    if len(fresh_only) > 0:
+        fresh_only["days_since_break"] = fresh_only["days_since_break"].astype(float).astype(int)
+        for days, g in fresh_only.groupby("days_since_break"):
+            w = int((g["status"] == "WON").sum())
+            by_days_since_break[int(days)] = {"count": len(g), "win_rate": round(w / len(g), 3)}
+    result["by_days_since_break"] = by_days_since_break
 
     return result
 

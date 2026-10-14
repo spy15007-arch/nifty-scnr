@@ -9,6 +9,8 @@ resistance-level structure rather than the proxies the existing gates
 use (today's candle shape for BTST, distance-from-low for SWING).
 Both existing gates stay exactly as backtested; this just labels
 what's already passed them, so nothing's filtering behavior changes.
+See classify_setup_stage()'s own docstring below for the 2026-10-13
+days_since_break/crossing_day_volume_ratio addition.
 """
 from __future__ import annotations
 import pandas as pd
@@ -156,10 +158,26 @@ def classify_setup_stage(
     "pre-breakout" here means the same thing as the entry triggers
     already being computed for these candidates - not a second,
     inconsistent notion of "breakout."
+
+    ADDED 2026-10-13: fresh_breakout now also reports `days_since_break`
+    (pinpointed by walking the fresh_lookback_days window day-by-day to
+    find exactly which close first cleared crossed_level) and
+    `crossing_day_volume_ratio` (volume on that SPECIFIC day vs the
+    gate's existing window-max `volume_ratio`). Both are diagnostic
+    additions only - the pass/fail boundary for "fresh_breakout" is
+    completely unchanged, so every candidate that qualified before still
+    qualifies now. The point is to let "just printed its breakout candle
+    today, enter next session" (days_since_break == 1) be told apart
+    from "broke out 2-3 sessions ago, still within range" - the report
+    layer now surfaces this instead of collapsing both into one tag.
+    Once enough live/backtest evidence exists on whether day-1-only
+    entries actually perform better, that can harden into a real gate;
+    today it's visibility, not a new filter.
     """
     if len(df) < 30:
         return {"setup_stage": "neither", "resistance_level": None, "distance_pct": None,
-                "volume_ratio": None, "reason": "insufficient history"}
+                "volume_ratio": None, "days_since_break": None, "crossing_day_volume_ratio": None,
+                "reason": "insufficient history"}
 
     effective_lookback = min(lookback, len(df))
     current_price = df["close"].iloc[-1]
@@ -190,14 +208,34 @@ def classify_setup_stage(
             peak_vol_in_window = fresh_window_df["volume"].max()
             volume_ratio = (peak_vol_in_window / baseline_vol) if baseline_vol > 0 else 0
             if volume_ratio >= min_breakout_volume_ratio:
+                # Pinpoint the actual crossing day within the window, oldest
+                # to newest - by construction (price_before_fresh_window was
+                # below crossed_level) the cross DID happen somewhere inside
+                # this window, so this always finds a day; the fallback to
+                # the last index is defensive only, never actually needed.
+                closes_in_window = fresh_window_df["close"].reset_index(drop=True)
+                vols_in_window = fresh_window_df["volume"].reset_index(drop=True)
+                break_offset = next(
+                    (i for i, c in enumerate(closes_in_window) if c >= crossed_level),
+                    len(closes_in_window) - 1,
+                )
+                days_since_break = len(closes_in_window) - break_offset
+                crossing_day_volume_ratio = (
+                    round(float(vols_in_window.iloc[break_offset] / baseline_vol), 2) if baseline_vol > 0 else 0
+                )
+
                 return {
                     "setup_stage": "fresh_breakout",
                     "resistance_level": round(float(crossed_level), 2),
                     "distance_pct": round(float(extension_pct), 4),
                     "volume_ratio": round(float(volume_ratio), 2),
+                    "days_since_break": days_since_break,
+                    "crossing_day_volume_ratio": crossing_day_volume_ratio,
                     "reason": (
                         f"Closed {extension_pct:.1%} above a resistance level ({round(float(crossed_level), 2)}) "
-                        f"broken within the last {fresh_lookback_days} sessions, on {volume_ratio:.1f}x volume"
+                        f"broken {days_since_break} session{'s' if days_since_break != 1 else ''} ago"
+                        + (" (today IS the breakout candle - next session is the fresh entry)" if days_since_break == 1 else "")
+                        + f", on {volume_ratio:.1f}x volume"
                     ),
                 }
 
@@ -211,6 +249,8 @@ def classify_setup_stage(
                 "resistance_level": round(float(resistance_above), 2),
                 "distance_pct": round(float(distance_pct), 4),
                 "volume_ratio": None,
+                "days_since_break": None,
+                "crossing_day_volume_ratio": None,
                 "reason": f"{distance_pct:.1%} below resistance at {round(float(resistance_above), 2)} - coiled, not yet triggered",
             }
 
@@ -219,5 +259,7 @@ def classify_setup_stage(
         "resistance_level": None,
         "distance_pct": None,
         "volume_ratio": None,
+        "days_since_break": None,
+        "crossing_day_volume_ratio": None,
         "reason": "no resistance level close enough (recently broken or still overhead) to call either stage",
     }

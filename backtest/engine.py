@@ -32,6 +32,22 @@ HORIZON_DAYS_BY_MODE is the one shared source of truth for how long a
 signal gets to resolve - tracking/outcomes.py (live) imports this same
 constant so a trade's live "still open" window always matches what the
 backtest itself used to validate these setups.
+
+ADDED 2026-10-14 - two more DIAGNOSTIC-only breakdowns, same spirit as
+setup_stage above (computed and recorded, never used to decide what
+gets backtested or how a trade resolves):
+  - days_since_break (from classify_setup_stage, already computed for
+    the setup_stage tag): for fresh_breakout trades specifically, was
+    the signal day itself the breakout candle (1) or a couple of
+    sessions later (2-3)? This is the direct evidence for whether a
+    single-candle "enter on next candle" breakout actually performs
+    differently from a slightly older one.
+  - market_trend: whether the NSE benchmark (via the same bench_as_of
+    already computed below for relative_strength/relative_strength)
+    was above/below its own trend on the signal day, per
+    scanner.global_cues.compute_index_trend_bias - the evidence on
+    whether that multiplier deserves to eventually become a harder
+    filter rather than just a ranking nudge.
 """
 from __future__ import annotations
 import logging
@@ -45,6 +61,7 @@ from scanner.technicals import (
     obv_accumulation, adx_building,
 )
 from scanner.levels import compute_trade_levels
+from scanner.global_cues import compute_index_trend_bias
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +83,8 @@ class BacktestTrade:
     pct_of_target_reached: float
     final_gain_pct: float
     setup_stage: str = "neither"
+    days_since_break: int | None = None
+    market_trend: str = "unknown"
 
 
 def _resolve_outcome(future_bars: pd.DataFrame, entry_trigger: float, target_1: float, stop_loss: float) -> tuple[int, int | None, float, float, float]:
@@ -180,6 +199,21 @@ def run_backtest(
                 future_bars, levels.entry_trigger, levels.target_1, levels.stop_loss
             )
 
+            # DIAGNOSTIC only (see module docstring) - derived from the
+            # multiplier value rather than its descriptive label string,
+            # since the label's embedded percentage varies trade to
+            # trade and isn't a stable grouping key.
+            try:
+                _, trend_mult = compute_index_trend_bias(bench_as_of)
+                if trend_mult > 1.0:
+                    market_trend = "above_trend"
+                elif trend_mult < 1.0:
+                    market_trend = "below_trend"
+                else:
+                    market_trend = "flat_or_unknown"
+            except Exception:
+                market_trend = "flat_or_unknown"
+
             trades.append(BacktestTrade(
                 symbol=symbol,
                 signal_date=str(df_as_of.index[-1].date()),
@@ -194,6 +228,8 @@ def run_backtest(
                 pct_of_target_reached=round(pct_of_target, 4),
                 final_gain_pct=round(final_gain_pct, 4),
                 setup_stage=stage_analysis["setup_stage"],
+                days_since_break=stage_analysis.get("days_since_break"),
+                market_trend=market_trend,
             ))
 
     return trades
@@ -224,6 +260,26 @@ def summarize_backtest(trades: list[BacktestTrade]) -> dict:
         for stage, ts in sorted(by_stage.items())
     }
 
+    # Fresh-breakout trades only - the direct evidence on whether a
+    # day-1 ("just printed its breakout candle") entry really performs
+    # differently from a day-2/3 one.
+    by_days: dict[int, list[BacktestTrade]] = {}
+    for t in resolved:
+        if t.setup_stage == "fresh_breakout" and t.days_since_break is not None:
+            by_days.setdefault(t.days_since_break, []).append(t)
+    days_since_break_breakdown = {
+        days: {"count": len(ts), "hit_rate": round(sum(t.outcome for t in ts) / len(ts), 3)}
+        for days, ts in sorted(by_days.items())
+    }
+
+    by_trend: dict[str, list[BacktestTrade]] = {}
+    for t in resolved:
+        by_trend.setdefault(t.market_trend, []).append(t)
+    market_trend_breakdown = {
+        trend: {"count": len(ts), "hit_rate": round(sum(t.outcome for t in ts) / len(ts), 3)}
+        for trend, ts in sorted(by_trend.items())
+    }
+
     unresolved_diagnostic = {}
     if unresolved:
         close_to_target = [t for t in unresolved if t.pct_of_target_reached >= 0.80]
@@ -251,6 +307,8 @@ def summarize_backtest(trades: list[BacktestTrade]) -> dict:
         "overall_hit_rate": round(overall_hit_rate, 3),
         "by_signal_count": signal_breakdown,
         "by_setup_stage": stage_breakdown,
+        "by_days_since_break": days_since_break_breakdown,
+        "by_market_trend": market_trend_breakdown,
         "unresolved_diagnostic": unresolved_diagnostic,
     }
 
@@ -287,6 +345,26 @@ def write_backtest_report(trades: list[BacktestTrade], summary: dict, scan_mode:
         lines.append("| :--- | :--- | :--- |")
         for stage, stats in stage_breakdown.items():
             lines.append(f"| {stage} | {stats['count']} | {stats['hit_rate']:.1%} |")
+        lines.append("")
+
+    days_breakdown = summary.get("by_days_since_break")
+    if days_breakdown:
+        lines.append("## Hit rate by days since the breakout candle (fresh_breakout trades only)")
+        lines.append("*Day 1 = the signal day itself was the breakout candle - the \"enter on next candle\" case.*")
+        lines.append("")
+        lines.append("| Days since break | Count | Hit rate |")
+        lines.append("| :--- | :--- | :--- |")
+        for days, stats in days_breakdown.items():
+            lines.append(f"| {days} | {stats['count']} | {stats['hit_rate']:.1%} |")
+        lines.append("")
+
+    trend_breakdown = summary.get("by_market_trend")
+    if trend_breakdown:
+        lines.append("## Hit rate by NSE market trend on the signal day")
+        lines.append("| Market trend | Count | Hit rate |")
+        lines.append("| :--- | :--- | :--- |")
+        for trend, stats in trend_breakdown.items():
+            lines.append(f"| {trend} | {stats['count']} | {stats['hit_rate']:.1%} |")
         lines.append("")
 
     diag = summary.get("unresolved_diagnostic")

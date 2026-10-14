@@ -56,16 +56,12 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py scan_btst
 
-      - name: Run index options scan (CE + PE)
-        env:
-          TRADING_BROKER: angelone
-          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
-          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
-          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
-          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py options
+      # Index options scan step REMOVED (2026-10-14): the index-instrument
+      # fetch (NIFTY/BANKNIFTY/FINNIFTY) has never worked reliably - the
+      # Telegram message was consistently "3 failed to fetch" - and even a
+      # working fetch would arrive too late to matter for an options
+      # trade's intraday urgency. `python main.py options` still works for
+      # manual/on-demand use; it's just not run automatically anymore.
 
       - name: Archive old reports
         run: |
