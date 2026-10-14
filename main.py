@@ -32,7 +32,7 @@ from scanner.engine import ScannerEngine
 from scanner.levels import compute_trade_levels
 from scanner.trade_style import classify_trade_style, TradeStyle
 from scanner.index_options import recommend_index_options
-from scanner.global_cues import fetch_global_snapshot, compute_market_regime_bias
+from scanner.global_cues import fetch_global_snapshot, compute_market_regime_bias, compute_index_trend_bias
 from ai.model import BreakoutModel
 from ai.features import build_features
 from ai.explain import explain
@@ -115,6 +115,11 @@ def _build_table_lines(recs: list) -> list[str]:
         for idx, r in enumerate(recs, 1):
             grade = _grade_for_recommendation(r)
             stage = STAGE_LABELS.get(getattr(r, "setup_stage", None), "-")
+            days_since_break = getattr(r, "days_since_break", None)
+            if getattr(r, "setup_stage", None) == "fresh_breakout" and days_since_break:
+                # D1 = today IS the breakout candle (the "enter on next
+                # candle" case); D2/D3 = still fresh but a bit older.
+                stage = f"{stage} (D{days_since_break})"
             entry = r.levels.entry_trigger if r.levels else "Market"
             sl = r.levels.stop_loss if r.levels else "Dynamic"
             tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
@@ -314,6 +319,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             rec_package.__dict__["entry_distance_pct"] = entry_distance_pct
             rec_package.__dict__["setup_stage"] = stage_analysis["setup_stage"]
             rec_package.__dict__["setup_stage_reason"] = stage_analysis["reason"]
+            rec_package.__dict__["days_since_break"] = stage_analysis.get("days_since_break")
             recs.append(rec_package)
 
     if sector_map:
@@ -342,7 +348,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         except Exception:
             pass
 
-    csv_columns = ["symbol", "probability", "grade", "setup_stage", "n_signals", "entry_distance_pct",
+    csv_columns = ["symbol", "probability", "grade", "setup_stage", "days_since_break", "n_signals", "entry_distance_pct",
                    "entry_trigger", "stop_loss", "target_1", "target_2", "target_3", "target_4"]
     csv_rows = []
     for r in recs:
@@ -352,6 +358,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             "probability": round(r.probability, 4),
             "grade": _grade_for_recommendation(r),
             "setup_stage": getattr(r, "setup_stage", None),
+            "days_since_break": getattr(r, "days_since_break", None),
             "n_signals": max(0, len(r.top_reasons) - 1),
             "entry_distance_pct": round(dist, 4) if dist is not None else None,
             "entry_trigger": r.levels.entry_trigger if r.levels else None,
@@ -369,6 +376,7 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
             {
                 "symbol": row["symbol"], "grade": row["grade"], "probability": row["probability"],
                 "n_signals": row["n_signals"], "setup_stage": row["setup_stage"],
+                "days_since_break": row["days_since_break"],
                 "entry_trigger": row["entry_trigger"], "stop_loss": row["stop_loss"], "target_1": row["target_1"],
             }
             for row in csv_rows if row["symbol"] in {hr.symbol for hr in high_conviction_recs}
@@ -417,15 +425,34 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
     )
 
 
-def _get_market_multiplier() -> tuple[str, float]:
+def _get_market_multiplier(benchmark_df: pd.DataFrame | None = None) -> tuple[str, float]:
+    """
+    Combines TWO independent, non-gating backdrop multipliers:
+    overnight international cues (fetch_global_snapshot, unchanged)
+    and the NSE market's own trend (compute_index_trend_bias, added
+    2026-10-13 - see scanner/global_cues.py). Both mirror the same
+    "shift conviction, never override a genuine setup" design, and are
+    combined the same way the codebase already combines independent
+    modest multipliers elsewhere (conviction_boost * market_multiplier
+    below) - a straight product, not something new invented here.
+    """
     try:
         snapshot = fetch_global_snapshot()
-        label, multiplier = compute_market_regime_bias(snapshot)
-        logger.info(f"🌍 Global market backdrop: {label} -> {multiplier}x conviction multiplier")
-        return label, multiplier
+        global_label, global_mult = compute_market_regime_bias(snapshot)
     except Exception as e:
         logger.warning(f"Global cues fetch failed ({e}) - treating as neutral")
-        return "unknown (fetch failed)", 1.0
+        global_label, global_mult = "unknown (fetch failed)", 1.0
+
+    try:
+        index_label, index_mult = compute_index_trend_bias(benchmark_df)
+    except Exception as e:
+        logger.warning(f"Index trend check failed ({e}) - treating as neutral")
+        index_label, index_mult = "unknown (check failed)", 1.0
+
+    combined_mult = round(global_mult * index_mult, 4)
+    combined_label = f"{global_label}; {index_label}"
+    logger.info(f"🌍 Market backdrop: {combined_label} -> {combined_mult}x conviction multiplier")
+    return combined_label, combined_mult
 
 
 def _get_sector_map() -> dict:
@@ -454,7 +481,7 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
         valid_keys = list(bars.keys()) if bars else []
         benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
-    label, multiplier = _get_market_multiplier()
+    label, multiplier = _get_market_multiplier(benchmark_df)
     sector_map = _get_sector_map()
     process_scans_with_shared_data(scan_mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map)
 
@@ -622,7 +649,7 @@ if __name__ == "__main__":
             valid_keys = list(bars.keys()) if bars else []
             benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
-        label, multiplier = _get_market_multiplier()
+        label, multiplier = _get_market_multiplier(benchmark_df)
         sector_map = _get_sector_map()
 
         for mode in ["btst", "swing"]:

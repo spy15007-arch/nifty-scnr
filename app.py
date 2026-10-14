@@ -19,6 +19,12 @@ tracking/trade_log_*.csv ledgers (tracking/outcomes.py) and shows how
 past picks actually resolved - kept as a plain CSV read here too, same
 "no separate data pipeline" principle as the scan tabs, rather than
 importing the scanner/tracking package into the dashboard process.
+
+DAYS SINCE BREAK (2026-10-14): both CSVs now also carry a
+days_since_break column for fresh_breakout picks (1 = the pick itself
+was the breakout candle). The Track Record tab adds a win-rate-by-day
+breakdown alongside the existing by-stage one - live evidence on
+whether a day-1 entry actually performs differently from day-2/3.
 """
 import streamlit as st
 import pandas as pd
@@ -151,6 +157,22 @@ def render_track_record_tab():
                 by_stage.style.format({"win_rate": "{:.0%}"}),
                 use_container_width=True,
             )
+
+        if n_resolved > 0 and "days_since_break" in resolved.columns:
+            fresh_only = resolved[resolved["days_since_break"].notna()].copy()
+            if len(fresh_only) > 0:
+                st.caption("Win rate by days since the breakout candle, fresh-breakout picks only - "
+                           "day 1 means the pick itself WAS the breakout candle (entered the next session):")
+                fresh_only["days_since_break"] = fresh_only["days_since_break"].astype(float).astype(int)
+                by_days = fresh_only.groupby("days_since_break").apply(
+                    lambda g: pd.Series({"count": len(g), "win_rate": (g["status"] == "WON").mean()}),
+                    include_groups=False,
+                )
+                by_days.index = by_days.index.map(lambda d: f"Day {d}")
+                st.dataframe(
+                    by_days.style.format({"win_rate": "{:.0%}"}),
+                    use_container_width=True,
+                )
 
         def status_style(val):
             color = STATUS_COLORS.get(val, "#333333")
