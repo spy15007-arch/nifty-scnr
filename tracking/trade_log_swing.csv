@@ -1,0 +1,17 @@
+trade_id,symbol,scan_mode,signal_date,grade,probability,n_signals,setup_stage,entry_trigger,stop_loss,target_1,status,triggered,days_held,resolved_date,exit_price,pnl_pct,last_checked_date
+PNB_2026-10-13,PNB,swing,2026-10-13,B+,0.6093,4,pre_breakout,118.44,113.87,122.94,OPEN,False,0,,,,2026-10-13
+CUB_2026-10-13,CUB,swing,2026-10-13,B,0.5327,3,fresh_breakout,239.43,226.86,255.86,OPEN,False,0,,,,2026-10-13
+FSL_2026-10-13,FSL,swing,2026-10-13,B,0.4687,4,fresh_breakout,292.58,276.51,319.65,OPEN,False,0,,,,2026-10-13
+NIACL_2026-10-13,NIACL,swing,2026-10-13,C,0.3923,4,fresh_breakout,194.73,180.38,217.65,OPEN,False,0,,,,2026-10-13
+NYKAA_2026-10-13,NYKAA,swing,2026-10-13,C,0.2899,4,pre_breakout,344.59,328.9,366.24,OPEN,False,0,,,,2026-10-13
+RECLTD_2026-10-13,RECLTD,swing,2026-10-13,C,0.2706,3,pre_breakout,322.04,309.91,343.87,OPEN,False,0,,,,2026-10-13
+BANKBARODA_2026-10-13,BANKBARODA,swing,2026-10-13,C,0.2545,5,pre_breakout,239.88,232.17,254.84,OPEN,False,0,,,,2026-10-13
+WIPRO_2026-10-13,WIPRO,swing,2026-10-13,C,0.2307,3,pre_breakout,173.7,167.75,186.49,OPEN,False,0,,,,2026-10-13
+TARIL_2026-10-13,TARIL,swing,2026-10-13,C,0.2134,3,fresh_breakout,304.71,286.07,329.58,OPEN,False,0,,,,2026-10-13
+MANAPPURAM_2026-10-13,MANAPPURAM,swing,2026-10-13,C,0.2048,4,pre_breakout,331.56,316.53,354.92,OPEN,False,0,,,,2026-10-13
+IRFC_2026-10-13,IRFC,swing,2026-10-13,C,0.1979,3,pre_breakout,81.66,78.66,88.07,OPEN,False,0,,,,2026-10-13
+FEDERALBNK_2026-10-13,FEDERALBNK,swing,2026-10-13,C,0.1817,4,pre_breakout,334.97,322.8,355.89,OPEN,False,0,,,,2026-10-13
+LTFOODS_2026-10-13,LTFOODS,swing,2026-10-13,B,0.4604,3,pre_breakout,422.74,404.7,452.63,OPEN,False,0,,,,2026-10-13
+AAATECH_2026-10-13,AAATECH,swing,2026-10-13,B,0.4513,4,fresh_breakout,112.22,100.04,121.35,OPEN,False,0,,,,2026-10-13
+ATL_2026-10-13,ATL,swing,2026-10-13,C,0.4495,3,fresh_breakout,28.06,26.11,29.52,OPEN,False,0,,,,2026-10-13
+AURUM_2026-10-13,AURUM,swing,2026-10-13,C,0.2018,4,fresh_breakout,237.27,222.65,258.42,OPEN,False,0,,,,2026-10-13
