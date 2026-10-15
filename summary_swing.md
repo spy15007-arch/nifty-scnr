@@ -1,22 +1,27 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-10-14 16:37 UTC`
+*Evaluation Window:* `2026-10-15 11:24 UTC`
 
-*Global market backdrop:* hostile (composite -1.37%)
+*Global market backdrop:* neutral (composite -0.25%); index below its 50d trend (-1.67%)
 
-🏆 Displaying the top **9 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
+🏆 Displaying the top **14 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
 
 | Rank | Grade | Stage | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **B+** | 🔥 Fresh BO | **BAJAJHIND** | +5.3% | 23.22 | 21.74 | 25.44 | 30 | 35 | 40 | 4/7 |
-| **2** | **B+** | 🔥 Fresh BO | **PNB** | +0.5% | 119.14 | 114.38 | 123.67 | 140 | 150 | 160 | 5/7 |
-| **3** | **B** | 🔥 Fresh BO | **FSL** | +1.4% | 292.58 | 275.47 | 319.65 | 370 | 410 | 440 | 4/7 |
-| **4** | **C** | 🔥 Fresh BO | **JINDALSAW** | +7.8% | 320.14 | 304.19 | 345.15 | 390 | 430 | 460 | 4/7 |
-| **5** | **C** | 👀 Pre-BO | **CANBK** | +0.5% | 125.39 | 120.86 | 130.52 | 140 | 150 | 160 | 4/7 |
-| **6** | **C** | 🔥 Fresh BO | **NIACL** | +1.1% | 187.47 | 172.91 | 210.39 | 250 | 290 | 320 | 4/7 |
-| **7** | **C** | 🔥 Fresh BO | **AURUM** | N/A | Market | Dynamic | ATR Based | 3/7 |
-| **8** | **C** | 👀 Pre-BO | **IRCTC** | +0.8% | 480.96 | 464.8 | 504.83 | 550 | 600 | 625 | 3/7 |
-| **9** | **C** | 👀 Pre-BO | **FEDERALBNK** | +1.5% | 334.97 | 322.84 | 355.86 | 390 | 430 | 450 | 4/7 |
+| **1** | **A+** | 👀 Pre-BO | **PETRONET** | +0.7% | 297.39 | 288.18 | 306.7 | 330 | 340 | 350 | 7/7 |
+| **2** | **B** | 👀 Pre-BO | **BHEL** | +0.6% | 436.82 | 412.16 | 459.57 | 500 | 550 | 575 | 6/7 |
+| **3** | **C** | 👀 Pre-BO | **LTFOODS** | +0.7% | 422.74 | 404.58 | 452.63 | 525 | 550 | 600 | 3/7 |
+| **4** | **C** | 🔥 Fresh BO (D3) | **ANGELONE** | N/A | Market | Dynamic | ATR Based | 5/7 |
+| **5** | **C** | 🔥 Fresh BO (D3) | **FSL** | +3.6% | 292.58 | 275.09 | 319.65 | 370 | 410 | 440 | 4/7 |
+| **6** | **C** | 🔥 Fresh BO (D1) | **RITES** | +0.7% | 215.83 | 203.45 | 228.42 | 250 | 270 | 290 | 5/7 |
+| **7** | **C** | 🔥 Fresh BO (D1) | **ELECON** | N/A | Market | Dynamic | ATR Based | 3/7 |
+| **8** | **C** | 🔥 Fresh BO (D1) | **COHANCE** | +2.3% | 470.69 | 445.52 | 490.25 | 533.62 | 575 | 609.13 | 5/7 |
+| **9** | **C** | 👀 Pre-BO | **HINDPETRO** | +2.8% | 358.11 | 343.05 | 380.94 | 420 | 460 | 490 | 4/7 |
+| **10** | **C** | 👀 Pre-BO | **UCOBANK** | +1.8% | 23.95 | 23.02 | 25.66 | 30 | 35 | 40 | 3/7 |
+| **11** | **C** | 🔥 Fresh BO (D1) | **AWL** | +1.2% | 192.92 | 184.03 | 200.52 | 220 | 230 | 241.81 | 3/7 |
+| **12** | **C** | 👀 Pre-BO | **BERGEPAINT** | +1.2% | 475.6 | 458.78 | 505.05 | 575 | 625 | 650 | 4/7 |
+| **13** | **C** | 👀 Pre-BO | **MANAPPURAM** | +2.5% | 331.56 | 316.88 | 354.92 | 400 | 440 | 460 | 4/7 |
+| **14** | **C** | 🔥 Fresh BO (D1) | **BLS** | +3.0% | 234.47 | 224.42 | 251.16 | 280 | 310 | 330 | 5/7 |
 
 ---
 
