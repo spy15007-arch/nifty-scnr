@@ -1,16 +1,16 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-10-15 15:28 UTC`
+*Evaluation Window:* `2026-10-15 17:13 UTC`
 
-*Global market backdrop:* neutral (composite -0.09%); index below its 50d trend (-1.67%)
+*Global market backdrop:* hostile (composite -0.56%); index below its 50d trend (-1.67%)
 
 🏆 Displaying the top **19 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
 
 | Rank | Grade | Stage | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **A+** | 👀 Pre-BO | **PETRONET** | +0.7% | 297.39 | 288.18 | 306.7 | 330 | 340 | 350 | 7/7 |
-| **2** | **B** | 🔥 Fresh BO (D2) | **JINDALSAW** | +7.0% | 320.14 | 304.44 | 343.34 | 390 | 420 | 450 | 4/7 |
-| **3** | **B** | 👀 Pre-BO | **BHEL** | +0.6% | 436.82 | 412.16 | 459.57 | 500 | 550 | 575 | 6/7 |
+| **1** | **A** | 👀 Pre-BO | **PETRONET** | +0.7% | 297.39 | 288.18 | 306.7 | 330 | 340 | 350 | 7/7 |
+| **2** | **C** | 🔥 Fresh BO (D2) | **JINDALSAW** | +7.0% | 320.14 | 304.44 | 343.34 | 390 | 420 | 450 | 4/7 |
+| **3** | **C** | 👀 Pre-BO | **BHEL** | +0.6% | 436.82 | 412.16 | 459.57 | 500 | 550 | 575 | 6/7 |
 | **4** | **C** | 🔥 Fresh BO (D2) | **AURUM** | +0.3% | 239.87 | 222.84 | 261.02 | 300 | 330 | 360 | 3/7 |
 | **5** | **C** | 👀 Pre-BO | **LTFOODS** | +0.7% | 422.74 | 404.58 | 452.63 | 525 | 550 | 600 | 3/7 |
 | **6** | **C** | 🔥 Fresh BO (D3) | **ANGELONE** | N/A | Market | Dynamic | ATR Based | 5/7 |
