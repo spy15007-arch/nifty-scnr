@@ -1,15 +1,14 @@
 # 🌙 BTST ACCUMULATIONS (Top High-Conviction)
 
-*Evaluation Window:* `2026-10-15 17:13 UTC`
+*Evaluation Window:* `2026-10-16 13:43 UTC`
 
-*Global market backdrop:* hostile (composite -0.56%); index below its 50d trend (-1.67%)
+*Global market backdrop:* supportive (composite +1.16%); index below its 50d trend (-0.74%)
 
-🏆 Displaying the top **2 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing genuine same-day breakout momentum (not already extended before today), with 3+ confirming signals, are shown.
+🏆 Displaying the top **0 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing genuine same-day breakout momentum (not already extended before today), with 3+ confirming signals, are shown.
 
 | Rank | Grade | Stage | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
 | :--- | :---: | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **C** | 🔥 Fresh BO (D1) | **RITES** | +0.7% | 215.83 | 203.45 | 228.42 | 250 | 270 | 290 | 5/7 |
-| **2** | **C** | 👀 Pre-BO | **HINDPETRO** | +2.8% | 358.11 | 343.05 | 380.94 | 420 | 460 | 490 | 3/7 |
+| - | - | - | No candidates this session | - | - | - | - | - |
 
 ---
 
