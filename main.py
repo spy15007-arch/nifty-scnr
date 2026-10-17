@@ -16,6 +16,18 @@ btst_momentum_setup instead - requires the PRIOR days were near the
 base (not already extended) but TODAY specifically shows genuine
 breakout confirmation (volume, gain, strong close). SWING keeps
 near_recent_base - patient, no same-day urgency required.
+
+MARKET DIRECTION (2026-10-17): index-options strike alerts are not
+wanted (the strike has already moved by the time a scan reports), but
+the overall market direction is. scanner/market_direction.py builds it;
+it shows up as a one-line header on the scheduled BTST/Swing Telegram
+messages (reusing the benchmark bars and global snapshot the scan has
+already fetched - nothing extra to fetch, and any failure there leaves
+the scan message exactly as it was), and on demand via
+`python main.py market` (the "Market Direction (Manual)" workflow).
+It is display-only: it never changes which stocks are picked or how
+they are scored, and the module is imported lazily (inside the guarded
+blocks that use it) so the scans cannot depend on it loading.
 """
 import argparse
 import logging
@@ -38,7 +50,7 @@ from ai.features import build_features
 from ai.explain import explain
 from reports.generator import daily_scan_report, daily_options_report, calibration_report
 from backtest.engine import run_backtest, summarize_backtest, write_backtest_report
-from reports.notify import notify_scan_results, notify_option_results
+from reports.notify import notify_scan_results, notify_option_results, send_telegram_message
 import config
 
 from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup, classify_setup_stage
@@ -202,7 +214,10 @@ def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, m
         f.write("\n".join(lines))
 
 
-def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame, market_multiplier: float = 1.0, market_regime_label: str = "", sector_map: dict = None):
+def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame, market_multiplier: float = 1.0, market_regime_label: str = "", sector_map: dict = None, market_context: dict = None):
+    # market_context (optional, display-only): {"snapshot": <global cues>, "benchmark_is_index": bool}.
+    # Only feeds the one-line market-direction header on the Telegram message;
+    # it never influences which stocks are picked or how they are scored.
     _ensure_report_directories()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
 
@@ -419,13 +434,34 @@ def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.Dat
         logger.exception(f"Trade tracker: failed to summarize {scan_mode} track record")
         track_record_line = ""
 
+    # One-line market-direction header. Wrapped so that ANY failure here
+    # just means the message goes out without it - it can never block or
+    # alter the scan's own notification. The module is imported INSIDE the
+    # try on purpose: even a broken import of the new file (the one thing a
+    # top-level import could not survive) only costs the header, never the
+    # scan. Only trusts the benchmark when it really is the index ETF: if
+    # the benchmark fetch failed, the scan falls back to the first universe
+    # stock as a stand-in, and calling that "Nifty" would be wrong.
+    market_line = ""
+    if market_context:
+        try:
+            from scanner.market_direction import assess_market_direction, format_direction_line
+            market_line = format_direction_line(assess_market_direction(
+                benchmark if market_context.get("benchmark_is_index") else None,
+                market_context.get("snapshot") or {},
+                bars=bars,
+                nifty_source=config.RS_BENCHMARK,
+            ))
+        except Exception:
+            logger.exception("Market direction header failed - sending the scan message without it")
+
     notify_scan_results(
         high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID,
-        diagnostic=diagnostic, track_record_line=track_record_line,
+        diagnostic=diagnostic, track_record_line=track_record_line, market_line=market_line,
     )
 
 
-def _get_market_multiplier(benchmark_df: pd.DataFrame | None = None) -> tuple[str, float]:
+def _get_market_context(benchmark_df: pd.DataFrame | None = None) -> tuple[str, float, dict]:
     """
     Combines TWO independent, non-gating backdrop multipliers:
     overnight international cues (fetch_global_snapshot, unchanged)
@@ -435,7 +471,13 @@ def _get_market_multiplier(benchmark_df: pd.DataFrame | None = None) -> tuple[st
     combined the same way the codebase already combines independent
     modest multipliers elsewhere (conviction_boost * market_multiplier
     below) - a straight product, not something new invented here.
+
+    Renamed from _get_market_multiplier on 2026-10-17: the label and
+    multiplier are computed exactly as before, it just also hands back
+    the raw global snapshot so the market-direction header can reuse it
+    instead of fetching Yahoo Finance a second time.
     """
+    snapshot: dict = {}
     try:
         snapshot = fetch_global_snapshot()
         global_label, global_mult = compute_market_regime_bias(snapshot)
@@ -452,7 +494,7 @@ def _get_market_multiplier(benchmark_df: pd.DataFrame | None = None) -> tuple[st
     combined_mult = round(global_mult * index_mult, 4)
     combined_label = f"{global_label}; {index_label}"
     logger.info(f"🌍 Market backdrop: {combined_label} -> {combined_mult}x conviction multiplier")
-    return combined_label, combined_mult
+    return combined_label, combined_mult, snapshot
 
 
 def _get_sector_map() -> dict:
@@ -475,15 +517,20 @@ def execute_isolated_scan(scan_mode: str, test_limit=None):
     except Exception:
         bars = {}
 
+    benchmark_is_index = True
     try:
         benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=lookback)
     except Exception:
+        benchmark_is_index = False
         valid_keys = list(bars.keys()) if bars else []
         benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
-    label, multiplier = _get_market_multiplier(benchmark_df)
+    label, multiplier, snapshot = _get_market_context(benchmark_df)
     sector_map = _get_sector_map()
-    process_scans_with_shared_data(scan_mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map)
+    process_scans_with_shared_data(
+        scan_mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map,
+        market_context={"snapshot": snapshot, "benchmark_is_index": benchmark_is_index},
+    )
 
 
 def cmd_options(args, shared_store=None):
@@ -517,6 +564,46 @@ def cmd_options(args, shared_store=None):
                else "Data came through fine; no valid option setup met the criteria today.")
         )
     notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, diagnostic=diagnostic)
+
+
+def cmd_market(args=None):
+    """
+    On-demand market-direction readout (the "Market Direction (Manual)"
+    workflow). No stock scan and no option strikes - just which way the
+    market is leaning, sent to Telegram and printed in the run log.
+
+    Index data comes from fetch_index_history's fallback chain (real
+    index -> ETF proxy -> Yahoo Finance), so one broken source doesn't
+    leave the readout empty; the message says which source was used.
+    """
+    # Imported here, not at the top of the file: only this command needs
+    # them, so the scheduled scans never depend on the new module loading.
+    from scanner.market_direction import (
+        assess_market_direction, format_direction_message, fetch_index_history, to_plain_text,
+    )
+
+    try:
+        store = _get_store()
+    except Exception as e:
+        logger.warning(f"Angel One login failed ({e}) - index data will come from Yahoo Finance only")
+        store = None
+
+    nifty_df, nifty_source = fetch_index_history("Nifty 50", store)
+    bank_df, bank_source = fetch_index_history("Bank Nifty", store)
+    try:
+        snapshot = fetch_global_snapshot()
+    except Exception as e:
+        logger.warning(f"Global cues fetch failed ({e}) - the readout will not count them")
+        snapshot = {}
+
+    direction = assess_market_direction(
+        nifty_df, snapshot, bank_df=bank_df, nifty_source=nifty_source, bank_source=bank_source,
+    )
+    message = format_direction_message(direction)
+    logger.info("🧭 Market direction readout:\n" + to_plain_text(message))
+
+    if not send_telegram_message(config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, message):
+        logger.warning("The readout was not delivered to Telegram (not configured, or the send failed) - the log above has the full text")
 
 
 def cmd_calibrate(scan_mode: str = "swing", horizon_days: int = 10, min_days_old: int = 10):
@@ -609,7 +696,7 @@ def cmd_backtest(scan_mode: str = "swing", test_days: int = 120):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["scan_btst", "scan_swing", "options", "run_all", "calibrate", "backtest"])
+    parser.add_argument("command", choices=["scan_btst", "scan_swing", "market", "options", "run_all", "calibrate", "backtest"])
     parser.add_argument("--test-limit", dest="test_limit", default=os.getenv("TRADING_TEST_LIMIT") or None,
                          help="Limit scan to N symbols for testing")
     parser.add_argument("--calibrate-mode", dest="calibrate_mode", default="swing", choices=["btst", "swing"],
@@ -621,6 +708,9 @@ if __name__ == "__main__":
 
     elif args.command == "scan_swing":
         execute_isolated_scan("swing", test_limit=args.test_limit)
+
+    elif args.command == "market":
+        cmd_market(args)
 
     elif args.command == "options":
         cmd_options(args)
@@ -643,17 +733,23 @@ if __name__ == "__main__":
         except Exception:
             bars = {}
 
+        benchmark_is_index = True
         try:
             benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=450)
         except Exception:
+            benchmark_is_index = False
             valid_keys = list(bars.keys()) if bars else []
             benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
 
-        label, multiplier = _get_market_multiplier(benchmark_df)
+        label, multiplier, snapshot = _get_market_context(benchmark_df)
         sector_map = _get_sector_map()
+        market_context = {"snapshot": snapshot, "benchmark_is_index": benchmark_is_index}
 
         for mode in ["btst", "swing"]:
-            process_scans_with_shared_data(mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map)
+            process_scans_with_shared_data(
+                mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map,
+                market_context=market_context,
+            )
 
         # Index options scan REMOVED from the automated run (2026-10-14):
         # Angel One's index-instrument fetch has never worked reliably

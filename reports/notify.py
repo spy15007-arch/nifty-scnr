@@ -124,8 +124,12 @@ def notify_option_results(plans: list, bot_token: str, chat_id: str, diagnostic:
 
 
 def notify_scan_results(recommendations: list[Recommendation], bot_token: str, chat_id: str,
-                         diagnostic: str = "", track_record_line: str = ""):
+                         diagnostic: str = "", track_record_line: str = "", market_line: str = ""):
     message = format_message(recommendations)
+    if market_line:
+        # Already Telegram-HTML (built and escaped by scanner/market_direction.py),
+        # so it is NOT passed through html.escape here like the plain-text lines below.
+        message = f"{market_line}\n\n{message}"
     if diagnostic:
         message += f"\n\n🔎 <i>{html.escape(diagnostic)}</i>"
     if track_record_line:

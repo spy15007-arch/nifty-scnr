@@ -1,0 +1,44 @@
+name: Market Direction (Manual)
+
+# Press "Run workflow" whenever you want a fresh read on which way the
+# market is leaning (Nifty + Bank Nifty trend and overnight global cues),
+# delivered to Telegram. No stock scan, no option strikes.
+#
+# Manual only on purpose: the scheduled BTST (2:15 PM) and Swing (4:00 PM)
+# scans already open their Telegram message with a one-line market
+# direction, so this needs no schedule of its own. Replaces the old
+# "Index Options Scan (Manual)" workflow (2026-10-17) - strike-level
+# alerts are not wanted, and that scan's index fetch never worked anyway.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  direction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: 'Asia/Kolkata'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Read market direction
+        env:
+          TRADING_BROKER: angelone
+          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
+          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
+          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
+          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py market
