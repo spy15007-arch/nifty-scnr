@@ -1,25 +1,24 @@
 """
-Loads the tradable stock universe: NIFTY 500 (guaranteed liquid core)
-combined with additional NSE-listed names, capped at MAX_UNIVERSE_SIZE
-(default 1500) for a predictable runtime.
+Loads the tradable stock universe: the NIFTY 500 - NSE's own definition of
+"the market that matters" (Nifty 100 + Midcap 150 + Smallcap 250), i.e. the
+500 largest listed companies. These are the stocks big funds, FIIs and DIIs
+actually trade, which is where sustained breakouts come from.
 
-Why 1500, not the full ~2000 NSE list: NIFTY 500 is NSE's own
-definition of "the market that matters" (union of Nifty 100 + Midcap
-150 + Smallcap 250). The ~1500 names beyond that are overwhelmingly
-micro-caps/thin traders that mostly get discarded by the liquidity
-filter anyway - fetching all ~2000 adds more runtime for very little
-extra signal. 1500 keeps the guaranteed-liquid core AND adds real
-small-cap breadth without the long illiquid tail.
+CHANGED 2026-10-18: the old loader padded the NIFTY 500 with the first N
+extra NSE names IN ALPHABETICAL ORDER (so a Swing scan "enlarged" to 750 got
+250 arbitrary micro-caps starting with "20MICRONS", "3IINFOTECH"...). That
+added runtime and junk, not signal, so it is gone. Extra names beyond the
+NIFTY 500 are now only ever added when they are chosen on LIQUIDITY (see
+`extra_symbols` below) - never alphabetically.
 
-Time-critical scans (morning/afternoon) override this down to 500 via
-the TRADING_MAX_UNIVERSE env var set in their workflow files - only
-the non-time-critical EOD/run_all scans use the full 1500 by default.
+Price is NOT a universe criterion (no price cap - see config.py); the only
+filters are a penny-stock floor and a 20-day turnover floor, applied later by
+the scanner engine on the bars it actually fetched.
 
 Fallback chain, each degrading gracefully rather than hard-failing a
 scheduled scan:
-  1. NIFTY 500 + additional NSE names, capped at MAX_UNIVERSE_SIZE
-  2. NIFTY 500 only, if the full NSE list fetch fails
-  3. Hardcoded liquid NIFTY 50, if both live fetches fail
+  1. NIFTY 500 (+ liquidity-ranked extras if any were supplied)
+  2. Hardcoded liquid NIFTY 50, if the live NIFTY 500 fetch fails
 """
 from __future__ import annotations
 import logging
@@ -29,9 +28,10 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-NSE_FULL_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 NSE_500_URL = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
 
+# Upper bound on universe size (NIFTY 500 is always kept whole; this only
+# limits how many liquidity-ranked extras may be appended beyond it).
 MAX_UNIVERSE_SIZE = int(os.getenv("TRADING_MAX_UNIVERSE", "1500"))
 
 FALLBACK_UNIVERSE = [
@@ -68,18 +68,13 @@ def _load_nifty500(headers: dict, timeout: int) -> list[str]:
     return symbols
 
 
-def _load_full_nse(headers: dict, timeout: int) -> list[str]:
-    df = _fetch_csv(NSE_FULL_URL, headers, timeout)
-    df.columns = [c.strip() for c in df.columns]
-    if "SERIES" in df.columns:
-        df = df[df["SERIES"].str.strip() == "EQ"]
-    symbols = df["SYMBOL"].dropna().str.strip().unique().tolist()
-    if len(symbols) < 500:
-        raise ValueError(f"Suspiciously short full-NSE list ({len(symbols)})")
-    return symbols
-
-
-def load_universe(headers: dict | None = None, timeout: int = 20) -> list[str]:
+def load_universe(headers: dict | None = None, timeout: int = 20,
+                  extra_symbols: list[str] | None = None) -> list[str]:
+    """
+    The NIFTY 500, shuffled (so a run cut short by a time budget still sees an
+    unbiased sample), plus - only if the caller passes them - `extra_symbols`
+    that were chosen on liquidity, up to MAX_UNIVERSE_SIZE in total.
+    """
     headers = headers or _DEFAULT_HEADERS
 
     try:
@@ -90,18 +85,15 @@ def load_universe(headers: dict | None = None, timeout: int = 20) -> list[str]:
         random.shuffle(result)
         return result
 
-    try:
-        full_nse = _load_full_nse(headers, timeout)
-        extra = sorted(set(full_nse) - set(nifty500))
-        remaining_slots = max(0, MAX_UNIVERSE_SIZE - len(nifty500))
-        universe = nifty500 + extra[:remaining_slots]
-        logger.info(
-            f"Loaded {len(nifty500)} NIFTY 500 + {min(len(extra), remaining_slots)} additional NSE names "
-            f"= {len(universe)} total (capped at {MAX_UNIVERSE_SIZE})"
-        )
-    except Exception as e:
-        logger.warning(f"Full NSE list fetch failed ({e}) - using NIFTY 500 only ({len(nifty500)} symbols)")
-        universe = nifty500
+    universe = list(nifty500)
+    if extra_symbols:
+        have = set(universe)
+        room = max(0, MAX_UNIVERSE_SIZE - len(universe))
+        extras = [s for s in extra_symbols if s not in have][:room]
+        universe += extras
+        logger.info(f"Universe: {len(nifty500)} NIFTY 500 + {len(extras)} liquidity-ranked extras = {len(universe)}")
+    else:
+        logger.info(f"Universe: {len(universe)} NIFTY 500 stocks")
 
     random.shuffle(universe)
     return universe

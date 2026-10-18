@@ -24,9 +24,21 @@ DB_URL = os.getenv("TRADING_DB_URL", "postgresql://localhost:5432/trading")
 REDIS_URL = os.getenv("TRADING_REDIS_URL", "redis://localhost:6379/0")
 
 # --- Universe ---
-MIN_PRICE = 2.0
-MAX_PRICE = 500.0
-MIN_AVG_DOLLAR_VOLUME = 5_000_000  # 20-day avg $ volume floor, filters illiquid junk
+# NO upper price cap (removed 2026-10-18). A share's price says nothing about
+# its quality or its chance of breaking out, and the old Rs 500 cap threw away
+# roughly 58% of the 500 most-traded NSE stocks (most large and mid caps trade
+# above Rs 500) - exactly the stocks big funds buy. Cost per share only
+# affects how many shares you can buy, not the return, so it is a position-
+# sizing question, not a scan filter.
+MIN_PRICE = float(os.getenv("TRADING_MIN_PRICE", "2.0"))
+# Liquidity floor on 20-day average TURNOVER (price x volume, in rupees).
+# Raised from Rs 50 lakh to Rs 5 crore: big funds can only build positions in
+# stocks that trade enough to absorb them, and setups in thin stocks are mostly
+# noise. Every Nifty 500 stock clears Rs 5 crore on a normal day (the 500th
+# most-traded NSE stock trades ~Rs 36 crore/day), so this only removes the
+# illiquid tail. Override with TRADING_MIN_TURNOVER_INR.
+MIN_AVG_DOLLAR_VOLUME = float(os.getenv("TRADING_MIN_TURNOVER_INR", "50000000"))
+MIN_AVG_TURNOVER_INR = MIN_AVG_DOLLAR_VOLUME  # clearer alias; same number
 
 # --- Scanner thresholds (pre-breakout / accumulation detection) ---
 ATR_SQUEEZE_LOOKBACK = 20          # bars used to measure volatility contraction

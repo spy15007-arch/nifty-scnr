@@ -85,7 +85,9 @@ class ScannerEngine:
         if df.empty or len(df) < 20:
             return False
         price = df["close"].iloc[-1]
-        if not (config.MIN_PRICE <= price <= config.MAX_PRICE):
+        # Only a price FLOOR (penny-stock guard). There is deliberately no
+        # upper price cap - see config.py.
+        if price < config.MIN_PRICE:
             return False
         avg_dollar_vol = (df["close"] * df["volume"]).tail(20).mean()
         return avg_dollar_vol >= config.MIN_AVG_DOLLAR_VOLUME
