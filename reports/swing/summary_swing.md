@@ -1,8 +1,8 @@
 # 📈 SWING BREAKOUTS (Top High-Conviction)
 
-*Evaluation Window:* `2026-10-19 17:17 UTC`
+*Evaluation Window:* `2026-10-20 15:28 UTC`
 
-*Global market backdrop:* supportive (composite +1.40%); index below its 50d trend (-1.69%)
+*Global market backdrop:* supportive (composite +3.33%); index below its 50d trend (-1.69%)
 
 🏆 Displaying the top **13 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing still near their recent base (not already extended) - patient, multi-week setups, with 3+ confirming signals, are shown.
 
