@@ -40,7 +40,37 @@ MIN_PRICE = float(os.getenv("TRADING_MIN_PRICE", "2.0"))
 MIN_AVG_DOLLAR_VOLUME = float(os.getenv("TRADING_MIN_TURNOVER_INR", "50000000"))
 MIN_AVG_TURNOVER_INR = MIN_AVG_DOLLAR_VOLUME  # clearer alias; same number
 
-# --- Scanner thresholds (pre-breakout / accumulation detection) ---
+# --- Selection v2 (2026-10-19): evidence-based, see reports/evidence/ ---
+# Chosen and validated on 7 years of real NSE end-of-day data (2019-2026),
+# designed on 2019-2024 and checked separately on 2025-26. The legacy
+# 7-filter engine, the RSI 45-65 gate and the 3-signal minimum are no longer
+# used to pick stocks (they never showed an edge, and the RSI cap was
+# excluding genuine breakouts).
+#
+# A stock is only a candidate when it is a SETUP (just broke out of its
+# 50-day high on volume, or is sitting within 3% below that high) AND its
+# QUALITY SCORE is in the top half of the liquid universe that day.
+QUALITY_GATE_PCT = float(os.getenv("TRADING_QUALITY_GATE_PCT", "50"))   # keep stocks at/above this percentile
+BREAKOUT_LOOKBACK_SESSIONS = 50      # the "prior high" a breakout must clear
+FRESH_MIN_GAIN = 0.02                # breakout day must be up at least 2%
+FRESH_MIN_VOLUME_RATIO = 1.5         # projected full-day volume vs the previous 15-day average
+FRESH_MAX_EXTENSION = 0.05           # not more than 5% past the broken high (still chaseable)
+FRESH_MIN_CLOSE_POSITION = 0.60      # closing in the top 40% of the day's range
+PRIMED_NEAR_PCT = 0.03               # "about to break": within 3% below the 50-day high
+MAX_PICKS = {"btst": 8, "swing": 15}  # how many ranked picks a message carries
+
+# Trade plan (same numbers the research simulated):
+STOP_ATR_MULT = 2.5                  # initial stop = fill price x (1 - 2.5 x ATR%)
+TRAIL_ATR_MULT = 5.0                 # chandelier trail: highest close x (1 - 5 x ATR%), only ever moves up
+MAX_HOLD_SESSIONS = 60               # time stop
+ENTRY_VALID_SESSIONS = 5             # a buy-stop order stays valid this many sessions
+MAX_CHASE_PCT = 0.03                 # skip if the stock gaps more than 3% past the trigger
+ROUND_TRIP_COST = 0.0035             # 0.35%: STT, stamp duty, exchange/DP charges, brokerage and slippage
+RISK_PER_TRADE_PCT = 1.0             # sizing guidance only: % of capital risked to the stop (halved in a weak market)
+WEAK_BREADTH = 0.40                  # share of stocks above their 50-day average below which the market is "weak"
+HEALTHY_BREADTH = 0.60
+
+# --- Scanner thresholds (legacy 7-filter engine; no longer used for selection) ---
 ATR_SQUEEZE_LOOKBACK = 20          # bars used to measure volatility contraction
 ATR_SQUEEZE_PERCENTILE = 0.20      # flag if current ATR% is in bottom 20% of its own history
 REL_VOLUME_LOOKBACK = 20
