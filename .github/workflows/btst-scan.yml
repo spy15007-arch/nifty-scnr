@@ -1,5 +1,16 @@
 name: BTST Scan
 
+# HOW THIS STARTS (the BTST message has to be on your phone before about 2:30 PM IST):
+#   1. EXTERNAL TIMER (recommended) - a free cron-job.org job calls GitHub at 2:00 PM IST on weekdays, so the run
+#      starts on the dot. GitHub's own cron is often hours late. Setup: docs/TIMER_SETUP.md
+#   2. The "Run workflow" button here (source = manual) - always runs.
+#   3. GitHub's own cron below - kept only as a FALLBACK. If it starts after 2:20 PM IST, or the timer already
+#      sent today's scan, the program skips it on purpose (scanner/runguard.py): a BTST message after the
+#      deadline is useless, and the evening Swing scan lists the same stocks anyway.
+#
+# SPEED: the evening Swing scan saves a ~100-stock watchlist (data_cache/btst_watchlist.json); this run only
+# re-checks those stocks with live prices, which takes minutes instead of the whole market's 10+.
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,13 +18,26 @@ on:
         description: 'Limit scan to N symbols for testing'
         required: false
         default: ''
+      source:
+        description: 'Where this run comes from (leave as manual; the external timer sends "timer")'
+        required: false
+        type: choice
+        options:
+          - manual
+          - timer
+        default: manual
   schedule:
-    - cron: '45 8 * * 1-5'
+    - cron: '15 8 * * 1-5'   # 1:45 PM IST fallback
+
+# One scan at a time across all scan workflows: they share the tracking ledger and data_cache/ files.
+concurrency:
+  group: scan-state
+  cancel-in-progress: false
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30
     env:
       TZ: 'Asia/Kolkata'
     steps:
@@ -43,11 +67,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run BTST momentum scan
+      - name: Run BTST scan
         env:
-          TRADING_BROKER: angelone
+          TRADING_RUN_SOURCE: ${{ github.event_name == 'schedule' && 'schedule' || inputs.source || 'manual' }}
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
-          TRADING_MAX_UNIVERSE: '500'
+          TRADING_CAPITAL_INR: ${{ vars.TRADING_CAPITAL_INR }}
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
@@ -56,30 +80,24 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py scan_btst
 
-      # Index options scan step REMOVED (2026-10-14): the index-instrument
-      # fetch (NIFTY/BANKNIFTY/FINNIFTY) has never worked reliably - the
-      # Telegram message was consistently "3 failed to fetch" - and even a
-      # working fetch would arrive too late to matter for an options
-      # trade's intraday urgency. `python main.py options` still works for
-      # manual/on-demand use; it's just not run automatically anymore.
+      # Index options scan step REMOVED (2026-10-14): the index-instrument fetch never worked reliably and
+      # would arrive too late to matter. `python main.py options` still works for manual use.
 
-      - name: Archive old reports
-        run: |
-          find reports/btst reports/swing reports/output -name "*.md" -mtime +2 -delete 2>/dev/null || true
-          find reports/btst reports/swing reports/output -name "*.csv" -mtime +2 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "scan_results_*.csv" -mtime +2 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "summary_*.md" -mtime +2 -delete 2>/dev/null || true
-
-      - name: Commit BTST reports and latest results
+      - name: Commit BTST reports, scoreboard and data cache
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A reports/btst/ reports/output/ tracking/ scan_results_btst.csv summary.md summary_btst.md
+          git add -A reports/btst/ reports/output/ tracking/ data_cache/ scan_results_btst.csv summary.md summary_btst.md
           if ! git diff --cached --quiet; then
             git commit -m "Automated BTST scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
-            git fetch origin main
-            git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
-            git push origin HEAD:main
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
+              if git push origin HEAD:main; then break; fi
+              echo "Push attempt $attempt failed - retrying"
+              sleep $((attempt * 4))
+            done
           else
             echo "No new updates detected for the BTST session."
           fi

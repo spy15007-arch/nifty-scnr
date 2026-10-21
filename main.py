@@ -1,86 +1,100 @@
 """
-Entry point. Centralized rate-insulated data lake with explicit strategy siloing,
-advanced consolidation filtering, and structured two-tier root dashboard tracking.
+Entry point.
 
-INTRADAY MODE REMOVED (2026-09-18): morning scans were structurally
-unreliable under live-market-hours throttling.
+WHAT A SCAN DOES (rewritten 2026-10-19/20; the evidence behind every rule is in reports/evidence/):
 
-RENAMED afternoon->btst, eod->swing (2026-09-19) for clarity, and given
-BTST/SWING now use GENUINELY DIFFERENT second-gate logic (see below),
-not just different weight profiles.
+  1. fetch daily bars from Angel One (a stock's price is NOT a filter - no price cap)
+  2. refresh the end-of-day DELIVERY % file from NSE (the best free "institutional footprint")
+  3. replay the tracked trades on the completed sessions (the scoreboard, after costs)
+  4. rank the stocks:  a SETUP (fresh breakout on volume / about to break out)  AND  a top-half
+     QUALITY score (52-week-high proximity, 200-day trend, 12-month return, low volatility,
+     liquidity, delivery %)  -> scanner/pipeline.py
+  5. every pick gets a full plan: entry (buy now / buy-stop), stop, trailing stop, share count
+  6. write the CSV / Markdown files and send the Telegram message
 
-MODE-SPECIFIC SECOND GATE (2026-09-19): BTST's premise (overnight-to-
-next-day move) doesn't match "still coiled at base, needs ~30 days"
-(near_recent_base's logic, confirmed via backtest). BTST now uses
-btst_momentum_setup instead - requires the PRIOR days were near the
-base (not already extended) but TODAY specifically shows genuine
-breakout confirmation (volume, gain, strong close). SWING keeps
-near_recent_base - patient, no same-day urgency required.
+TWO-STAGE BTST (so the BTST message lands before 2:30 PM):
+  * an evening full-market run (the Swing scan) saves data_cache/btst_watchlist.json - the ~100
+    stocks that are close to breaking out - plus the whole market's scoring yardstick;
+  * the afternoon BTST run fetches only those ~100 stocks (about 2 minutes, not 10+), scores them
+    against the stored yardstick and messages. With no usable watchlist it falls back to the whole
+    market and stops fetching at 2:25 PM IST.
 
-MARKET DIRECTION (2026-10-17): index-options strike alerts are not
-wanted (the strike has already moved by the time a scan reports), but
-the overall market direction is. scanner/market_direction.py builds it;
-it shows up as a one-line header on the scheduled BTST/Swing Telegram
-messages (reusing the benchmark bars and global snapshot the scan has
-already fetched - nothing extra to fetch, and any failure there leaves
-the scan message exactly as it was), and on demand via
-`python main.py market` (the "Market Direction (Manual)" workflow).
-It is display-only: it never changes which stocks are picked or how
-they are scored, and the module is imported lazily (inside the guarded
-blocks that use it) so the scans cannot depend on it loading.
+RUN SOURCES (env TRADING_RUN_SOURCE, set by the workflows): "schedule" = GitHub's own cron, which
+is often hours late - such a run is skipped if it is too late to be useful or has already been done;
+"timer" = the external on-time timer; "manual" = a button press or a local run. See scanner/runguard.py.
+
+Index-option strike alerts are not wanted (the strike has moved by the time a scan reports) - the
+`options` command remains for manual use only. The overall MARKET DIRECTION is a one-line header on
+the scan messages and the `market` command (scanner/market_direction.py); it is display-only.
 """
+from __future__ import annotations
+
 import argparse
+import json
 import logging
+import math
 import os
-import glob
-import shutil
-import pandas as pd
+import sys
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
-from data.historical import AngelOneHistoricalStore, ParquetStore
-from data.universe import load_universe
-from scanner.engine import ScannerEngine
-from scanner.levels import compute_trade_levels
-from scanner.trade_style import classify_trade_style, TradeStyle
-from scanner.index_options import recommend_index_options
-from scanner.global_cues import fetch_global_snapshot, compute_market_regime_bias, compute_index_trend_bias
-from ai.model import BreakoutModel
-from ai.features import build_features
-from ai.explain import explain
-from reports.generator import daily_scan_report, daily_options_report, calibration_report
-from backtest.engine import run_backtest, summarize_backtest, write_backtest_report
-from reports.notify import notify_scan_results, notify_option_results, send_telegram_message
+import pandas as pd
+
 import config
+from data import nse_eod
+from reports import notify, summary
+from scanner import pipeline as pl
+from scanner import runguard, session
+from tracking import outcomes
 
-from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup, classify_setup_stage
-from tracking.outcomes import log_new_picks, update_open_trades, format_track_record_line
-from scanner.technicals import (
-    macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
-    obv_accumulation, adx_building,
-)
-from scanner.patterns import resample_to_weekly, ascending_triangle_setup, FilterResult as PatternResult
-from scanner.sectors import fetch_sector_map, apply_sector_clustering
-
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger(__name__)
 
+SCAN_LOOKBACK = 320                          # bars per stock (the 12-month return needs 253)
+WATCHLIST_PATH = "data_cache/btst_watchlist.json"
 DB_DIR = "market_data"
+MIN_WATCHLIST_SAVE = 150                     # a full-market run must have scored at least this many stocks to save a watchlist
 
 
+# --------------------------------------------------------------------------- #
+# Secrets never reach the logs
+# --------------------------------------------------------------------------- #
+def _secrets() -> list[str]:
+    return [config.ANGEL_API_KEY, config.ANGEL_CLIENT_ID, config.ANGEL_PASSWORD,
+            config.ANGEL_TOTP_SECRET, config.TELEGRAM_BOT_TOKEN]
+
+
+class _ScrubFormatter(logging.Formatter):
+    """Masks every credential in everything that is logged (messages and tracebacks alike)."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        return notify.scrub(super().format(record), *_secrets())
+
+
+def _install_log_scrubbing() -> None:
+    for h in logging.getLogger().handlers:
+        fmt = getattr(h.formatter, "_fmt", None) or "%(levelname)s:%(name)s:%(message)s"
+        h.setFormatter(_ScrubFormatter(fmt))
+
+
+def _safe(text) -> str:
+    return notify.scrub(str(text), *_secrets())
+
+
+def _alert(text: str) -> None:
+    """Best-effort short notice to Telegram (e.g. the run could not start). Never raises."""
+    try:
+        notify.notify_text(config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, text)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# --------------------------------------------------------------------------- #
+# Small helpers
+# --------------------------------------------------------------------------- #
 def _get_store():
+    from data.historical import AngelOneHistoricalStore
     return AngelOneHistoricalStore()
-
-
-def _get_training_store():
-    os.makedirs(DB_DIR, exist_ok=True)
-    has_files = any(f.endswith('.parquet') for f in os.listdir(DB_DIR)) if os.path.exists(DB_DIR) else False
-    if has_files:
-        logger.info(f"💾 Local data cache detected inside ./{DB_DIR}. Using it for training/backtesting.")
-        return ParquetStore(root=DB_DIR)
-    else:
-        logger.warning(f"⚠️ Local database path ./{DB_DIR} is blank. Falling back to live fetch for training.")
-        return AngelOneHistoricalStore()
 
 
 def _get_angelone_mapped_symbol(index_tag: str) -> str:
@@ -89,672 +103,464 @@ def _get_angelone_mapped_symbol(index_tag: str) -> str:
     return mapping.get(cleaned_tag, cleaned_tag)
 
 
-def _ensure_report_directories():
-    for folder in ["reports/btst", "reports/swing", "reports/output"]:
+def _ensure_report_directories() -> None:
+    for folder in ["reports/btst", "reports/swing", "reports/output", "data_cache", "tracking"]:
         os.makedirs(folder, exist_ok=True)
 
 
-def _grade_for_recommendation(r) -> str:
-    n_signals = max(0, len(r.top_reasons) - 1)
-    prob = r.probability
-
-    if prob >= 0.75 and n_signals >= 6:
-        return "A+"
-    elif prob >= 0.65 and n_signals >= 5:
-        return "A"
-    elif prob >= 0.55 and n_signals >= 4:
-        return "B+"
-    elif prob >= 0.45:
-        return "B"
-    return "C"
-
-
-STAGE_LABELS = {
-    "fresh_breakout": "🔥 Fresh BO",
-    "pre_breakout": "👀 Pre-BO",
-    "neither": "-",
-}
-
-
-def _build_table_lines(recs: list) -> list[str]:
-    lines = [
-        "| Rank | Grade | Stage | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |",
-        "| :--- | :---: | :---: | :--- | :---: | :--- | :--- | :--- | :--- |"
-    ]
-    if not recs:
-        lines.append("| - | - | - | No candidates this session | - | - | - | - | - |")
-    else:
-        for idx, r in enumerate(recs, 1):
-            grade = _grade_for_recommendation(r)
-            stage = STAGE_LABELS.get(getattr(r, "setup_stage", None), "-")
-            days_since_break = getattr(r, "days_since_break", None)
-            if getattr(r, "setup_stage", None) == "fresh_breakout" and days_since_break:
-                # D1 = today IS the breakout candle (the "enter on next
-                # candle" case); D2/D3 = still fresh but a bit older.
-                stage = f"{stage} (D{days_since_break})"
-            entry = r.levels.entry_trigger if r.levels else "Market"
-            sl = r.levels.stop_loss if r.levels else "Dynamic"
-            tg = " | ".join(str(t) for t in r.levels.targets[:4]) if r.levels else "ATR Based"
-            n_signals = max(0, len(r.top_reasons) - 1)
-            dist = getattr(r, "entry_distance_pct", None)
-            dist_str = f"{dist:+.1%}" if dist is not None else "N/A"
-            lines.append(f"| **{idx}** | **{grade}** | {stage} | **{r.symbol}** | {dist_str} | {entry} | {sl} | {tg} | {n_signals}/7 |")
-    return lines
-
-
-def _update_readme_section(scan_mode: str, recs: list):
-    marker_tag = scan_mode.upper()
-    start_marker = f"<!-- {marker_tag}_TABLE_START -->"
-    end_marker = f"<!-- {marker_tag}_TABLE_END -->"
-    date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-
-    titles = {
-        "btst": "🌙 Latest BTST Watchlist",
-        "swing": "📈 Latest Swing Watchlist",
-    }
-    title = titles.get(scan_mode, scan_mode.title())
-
-    table_lines = _build_table_lines(recs)
-    section = "\n".join([
-        start_marker,
-        f"### {title}",
-        f"*Updated: {date_str}*",
-        "",
-        *table_lines,
-        "",
-        end_marker,
-    ])
-
-    readme_path = "README.md"
-    if os.path.exists(readme_path):
-        with open(readme_path, "r", encoding="utf-8") as f:
-            content = f.read()
-    else:
-        content = "# NIFTY Scanner\n\nAutomated breakout scanner - live results below.\n\n"
-
-    if start_marker in content and end_marker in content:
-        pre = content.split(start_marker)[0]
-        post = content.split(end_marker)[1]
-        content = pre + section + post
-    else:
-        content = content.rstrip() + "\n\n" + section + "\n"
-
-    with open(readme_path, "w", encoding="utf-8") as f:
-        f.write(content)
-
-
-def _generate_clean_dashboard_md(scan_mode: str, recs: list, target_path: str, market_regime_label: str = ""):
-    date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-
-    if scan_mode == "btst":
-        title = "🌙 BTST ACCUMULATIONS (Top High-Conviction)"
-        gate_note = "genuine same-day breakout momentum (not already extended before today)"
-    else:
-        title = "📈 SWING BREAKOUTS (Top High-Conviction)"
-        gate_note = "still near their recent base (not already extended) - patient, multi-week setups"
-
-    lines = [
-        f"# {title}\n",
-        f"*Evaluation Window:* `{date_str}`\n",
-    ]
-    if market_regime_label:
-        lines.append(f"*Global market backdrop:* {market_regime_label}\n")
-    lines.append(
-        f"🏆 Displaying the top **{len(recs)} high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. "
-        f"Only candidates showing {gate_note}, with 3+ confirming signals, are shown.\n"
-    )
-    lines.extend(_build_table_lines(recs))
-    lines.append("\n---\n")
-    lines.append(
-        "*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. "
-        "A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. "
-        "CMP->Entry shows how far the trigger is from current price.*\n"
-    )
-    with open(target_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
-
-
-def process_scans_with_shared_data(scan_mode: str, bars: dict, benchmark: pd.DataFrame, market_multiplier: float = 1.0, market_regime_label: str = "", sector_map: dict = None, market_context: dict = None):
-    # market_context (optional, display-only): {"snapshot": <global cues>, "benchmark_is_index": bool}.
-    # Only feeds the one-line market-direction header on the Telegram message;
-    # it never influences which stocks are picked or how they are scored.
-    _ensure_report_directories()
-    date_str = datetime.utcnow().strftime("%Y-%m-%d")
-
-    # Check existing OPEN trades against today's already-fetched bars
-    # BEFORE logging today's new picks - and do it even on a day that
-    # finds zero new candidates, so the tracker never silently stalls.
-    try:
-        if bars:
-            update_open_trades(scan_mode, bars)
-    except Exception:
-        logger.exception(f"Trade tracker: failed to update open {scan_mode} trades - leaving ledger untouched")
-
-    if scan_mode == "btst":
-        strategy_title = "BTST"
-        output_subfolder = "reports/btst"
-        style_label = "BTST"
-    else:
-        strategy_title = "SWING"
-        output_subfolder = "reports/swing"
-        style_label = "SWING"
-
-    recs = []
-    funnel = {"symbols_with_data": 0, "engine_candidates": 0, "passed_rsi": 0, "passed_gate": 0, "passed_signal_min": 0}
-
-    if bars and len(bars) > 0:
-        funnel["symbols_with_data"] = len(bars)
-        engine = ScannerEngine(scan_mode=scan_mode)
-        try:
-            candidates = engine.scan_universe(bars, benchmark, top_n=100)
-        except Exception:
-            candidates = []
-        funnel["engine_candidates"] = len(candidates)
-
-        for cand in candidates:
-            df = bars.get(cand.symbol)
-            if df is None or df.empty or len(df) < 20:
-                continue
-
-            rsi_analysis = check_pre_breakout_setup(df)
-            if not rsi_analysis["flagged"]:
-                continue
-            funnel["passed_rsi"] += 1
-
-            # Computed once, here, and reused below both to decide the
-            # SWING gate AND to tag the final pick - one source of truth,
-            # so a candidate can never be gated in as "fresh breakout" by
-            # one code path and tagged differently by another.
-            stage_analysis = classify_setup_stage(df)
-
-            if scan_mode == "btst":
-                gate_analysis = btst_momentum_setup(df)
-            else:
-                # near_recent_base alone only ever catches "still coiled,
-                # hasn't moved yet" (pre-breakout) - by definition it can
-                # never pass a stock that's already broken out, since
-                # breaking out moves price away from the low it measures
-                # against. That left SWING structurally blind to "just
-                # broke out a few days ago, still early" setups. Widened
-                # (additively - OR, not instead of) to also admit those,
-                # using the same resistance-crossing tag applied below.
-                gate_analysis = near_recent_base(df)
-                gate_analysis = {
-                    **gate_analysis,
-                    "flagged": gate_analysis["flagged"] or stage_analysis["setup_stage"] == "fresh_breakout",
-                }
-            if not gate_analysis["flagged"]:
-                continue
-            funnel["passed_gate"] += 1
-
-            feats = build_features(df, benchmark)
-            levels = compute_trade_levels(df)
-            current_price = df['close'].iloc[-1]
-            entry_distance_pct = ((levels.entry_trigger - current_price) / current_price) if levels else None
-
-            macd_result = macd_bullish(df)
-            hh_hl_result = higher_highs_higher_lows(df)
-            vwap_result = rolling_vwap_position(df)
-            obv_result = obv_accumulation(df)
-            adx_result = adx_building(df)
-            try:
-                weekly_df = resample_to_weekly(df)
-                triangle_result = ascending_triangle_setup(weekly_df)
-            except Exception:
-                triangle_result = PatternResult(0.0, False, "weekly resample failed")
-
-            confirming_signals = [f"RSI {rsi_analysis['current_rsi']} (pre-breakout building zone)"]
-            if macd_result.passed:
-                confirming_signals.append(macd_result.reason)
-            if hh_hl_result.passed:
-                confirming_signals.append(hh_hl_result.reason)
-            if vwap_result.passed:
-                confirming_signals.append(vwap_result.reason)
-            if obv_result.passed:
-                confirming_signals.append(obv_result.reason)
-            if adx_result.passed:
-                confirming_signals.append(adx_result.reason)
-            if triangle_result.passed:
-                confirming_signals.append(triangle_result.reason)
-
-            if len(confirming_signals) < 3:
-                continue
-            funnel["passed_signal_min"] += 1
-
-            n_extra_confirming = len(confirming_signals) - 1
-            conviction_boost = 1.0 + (0.08 * n_extra_confirming)
-            adjusted_probability = min(0.99, cand.composite_score * conviction_boost * market_multiplier)
-
-            execution = classify_trade_style(df, feats, levels)
-            if execution:
-                execution.__dict__["style"] = TradeStyle(style_label)
-
-            rec_package = explain(cand.symbol, adjusted_probability, feats, levels, execution)
-            rec_package.top_reasons = [f"[{strategy_title}]"] + confirming_signals[:7]
-            rec_package.__dict__["entry_distance_pct"] = entry_distance_pct
-            rec_package.__dict__["setup_stage"] = stage_analysis["setup_stage"]
-            rec_package.__dict__["setup_stage_reason"] = stage_analysis["reason"]
-            rec_package.__dict__["days_since_break"] = stage_analysis.get("days_since_break")
-            recs.append(rec_package)
-
-    if sector_map:
-        recs = apply_sector_clustering(recs, sector_map)
-    else:
-        recs.sort(key=lambda r: r.probability, reverse=True)
-    high_conviction_recs = recs[:25]
-
-    try:
-        path = daily_scan_report(recs)
-    except Exception:
-        path = f"{output_subfolder}/scan_raw.md"
-        with open(path, "w") as pf:
-            pf.write("# Temp Initialization")
-
-    target_md_path = f"{output_subfolder}/scan_{date_str}.md"
-    target_csv_path = f"{output_subfolder}/scan_results_{scan_mode}_{date_str}.csv"
-
-    _generate_clean_dashboard_md(scan_mode, high_conviction_recs, f"{output_subfolder}/summary_{scan_mode}.md", market_regime_label)
-    shutil.copy(f"{output_subfolder}/summary_{scan_mode}.md", f"summary_{scan_mode}.md")
-    _update_readme_section(scan_mode, high_conviction_recs)
-
-    if os.path.exists(path):
-        try:
-            os.replace(path, target_md_path)
-        except Exception:
-            pass
-
-    csv_columns = ["symbol", "probability", "grade", "setup_stage", "days_since_break", "n_signals", "entry_distance_pct",
-                   "entry_trigger", "stop_loss", "target_1", "target_2", "target_3", "target_4"]
-    csv_rows = []
-    for r in recs:
-        dist = getattr(r, "entry_distance_pct", None)
-        csv_rows.append({
-            "symbol": r.symbol,
-            "probability": round(r.probability, 4),
-            "grade": _grade_for_recommendation(r),
-            "setup_stage": getattr(r, "setup_stage", None),
-            "days_since_break": getattr(r, "days_since_break", None),
-            "n_signals": max(0, len(r.top_reasons) - 1),
-            "entry_distance_pct": round(dist, 4) if dist is not None else None,
-            "entry_trigger": r.levels.entry_trigger if r.levels else None,
-            "stop_loss": r.levels.stop_loss if r.levels else None,
-            "target_1": r.levels.targets[0] if r.levels else None,
-            "target_2": r.levels.targets[1] if r.levels else None,
-            "target_3": r.levels.targets[2] if r.levels else None,
-            "target_4": r.levels.targets[3] if r.levels else None,
-        })
-    pd.DataFrame(csv_rows, columns=csv_columns).to_csv(target_csv_path, index=False)
-    pd.DataFrame(csv_rows, columns=csv_columns).to_csv(f"scan_results_{scan_mode}.csv", index=False)
-
-    try:
-        tracker_picks = [
-            {
-                "symbol": row["symbol"], "grade": row["grade"], "probability": row["probability"],
-                "n_signals": row["n_signals"], "setup_stage": row["setup_stage"],
-                "days_since_break": row["days_since_break"],
-                "entry_trigger": row["entry_trigger"], "stop_loss": row["stop_loss"], "target_1": row["target_1"],
-            }
-            for row in csv_rows if row["symbol"] in {hr.symbol for hr in high_conviction_recs}
-        ]
-        log_new_picks(scan_mode, tracker_picks, date_str)
-    except Exception:
-        logger.exception(f"Trade tracker: failed to log new {scan_mode} picks")
-
-    new_section = ""
-    if os.path.exists(f"summary_{scan_mode}.md"):
-        with open(f"summary_{scan_mode}.md", "r") as sf:
-            new_section = sf.read() + "\n\n"
-    existing_summary = ""
-    if os.path.exists("summary.md"):
-        with open("summary.md", "r") as ef:
-            existing_summary = ef.read()
-    with open("summary.md", "w") as master_f:
-        master_f.write(new_section + existing_summary)
-
-    logger.info(
-        f"🔎 [{strategy_title}] funnel: {funnel['symbols_with_data']} symbols loaded -> "
-        f"{funnel['engine_candidates']} passed engine filters -> {funnel['passed_rsi']} in RSI pre-breakout zone -> "
-        f"{funnel['passed_gate']} passed {strategy_title} timing gate -> {funnel['passed_signal_min']} had 3+ signals "
-        f"-> {len(high_conviction_recs)} final picks"
-    )
-
-    diagnostic = ""
-    if not high_conviction_recs:
-        diagnostic = (
-            f"Funnel: {funnel['symbols_with_data']} symbols loaded, {funnel['engine_candidates']} passed engine "
-            f"filters, {funnel['passed_rsi']} in RSI zone, {funnel['passed_gate']} passed the {strategy_title} "
-            f"timing gate, {funnel['passed_signal_min']} had 3+ confirming signals. "
-            + ("No data was loaded this run - check the broker connection/logs." if funnel['symbols_with_data'] == 0
-               else "This run completed normally; the market simply didn't offer a qualifying setup today.")
-        )
-
-    try:
-        track_record_line = format_track_record_line(scan_mode)
-    except Exception:
-        logger.exception(f"Trade tracker: failed to summarize {scan_mode} track record")
-        track_record_line = ""
-
-    # One-line market-direction header. Wrapped so that ANY failure here
-    # just means the message goes out without it - it can never block or
-    # alter the scan's own notification. The module is imported INSIDE the
-    # try on purpose: even a broken import of the new file (the one thing a
-    # top-level import could not survive) only costs the header, never the
-    # scan. Only trusts the benchmark when it really is the index ETF: if
-    # the benchmark fetch failed, the scan falls back to the first universe
-    # stock as a stand-in, and calling that "Nifty" would be wrong.
-    market_line = ""
-    if market_context:
-        try:
-            from scanner.market_direction import assess_market_direction, format_direction_line
-            market_line = format_direction_line(assess_market_direction(
-                benchmark if market_context.get("benchmark_is_index") else None,
-                market_context.get("snapshot") or {},
-                bars=bars,
-                nifty_source=config.RS_BENCHMARK,
-            ))
-        except Exception:
-            logger.exception("Market direction header failed - sending the scan message without it")
-
-    notify_scan_results(
-        high_conviction_recs, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID,
-        diagnostic=diagnostic, track_record_line=track_record_line, market_line=market_line,
-    )
-
-
-def _get_market_context(benchmark_df: pd.DataFrame | None = None) -> tuple[str, float, dict]:
-    """
-    Combines TWO independent, non-gating backdrop multipliers:
-    overnight international cues (fetch_global_snapshot, unchanged)
-    and the NSE market's own trend (compute_index_trend_bias, added
-    2026-10-13 - see scanner/global_cues.py). Both mirror the same
-    "shift conviction, never override a genuine setup" design, and are
-    combined the same way the codebase already combines independent
-    modest multipliers elsewhere (conviction_boost * market_multiplier
-    below) - a straight product, not something new invented here.
-
-    Renamed from _get_market_multiplier on 2026-10-17: the label and
-    multiplier are computed exactly as before, it just also hands back
-    the raw global snapshot so the market-direction header can reuse it
-    instead of fetching Yahoo Finance a second time.
-    """
-    snapshot: dict = {}
-    try:
-        snapshot = fetch_global_snapshot()
-        global_label, global_mult = compute_market_regime_bias(snapshot)
-    except Exception as e:
-        logger.warning(f"Global cues fetch failed ({e}) - treating as neutral")
-        global_label, global_mult = "unknown (fetch failed)", 1.0
-
-    try:
-        index_label, index_mult = compute_index_trend_bias(benchmark_df)
-    except Exception as e:
-        logger.warning(f"Index trend check failed ({e}) - treating as neutral")
-        index_label, index_mult = "unknown (check failed)", 1.0
-
-    combined_mult = round(global_mult * index_mult, 4)
-    combined_label = f"{global_label}; {index_label}"
-    logger.info(f"🌍 Market backdrop: {combined_label} -> {combined_mult}x conviction multiplier")
-    return combined_label, combined_mult, snapshot
-
-
-def _get_sector_map() -> dict:
-    try:
-        return fetch_sector_map()
-    except Exception as e:
-        logger.warning(f"Sector map fetch failed ({e}) - clustering will be skipped this run")
-        return {}
-
-
-def execute_isolated_scan(scan_mode: str, test_limit=None):
+def _load_universe(test_limit=None) -> list[str]:
+    from data.universe import load_universe
     universe = load_universe()
     if test_limit:
         universe = universe[: int(test_limit)]
+    return universe
 
-    store = _get_store()
-    lookback = 450 if scan_mode == "swing" else 250
+
+def _global_snapshot() -> dict:
     try:
-        bars = store.get_universe_bars(universe, lookback_days=lookback)
-    except Exception:
-        bars = {}
+        from scanner.global_cues import fetch_global_snapshot
+        return fetch_global_snapshot() or {}
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Global cues fetch failed ({_safe(e)}) - the market line will not count them")
+        return {}
 
-    benchmark_is_index = True
+
+def _sector_map() -> dict:
     try:
-        benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=lookback)
-    except Exception:
-        benchmark_is_index = False
-        valid_keys = list(bars.keys()) if bars else []
-        benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
-
-    label, multiplier, snapshot = _get_market_context(benchmark_df)
-    sector_map = _get_sector_map()
-    process_scans_with_shared_data(
-        scan_mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map,
-        market_context={"snapshot": snapshot, "benchmark_is_index": benchmark_is_index},
-    )
+        from scanner.sectors import fetch_sector_map
+        return fetch_sector_map() or {}
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Sector map fetch failed ({_safe(e)}) - sector notes will be skipped this run")
+        return {}
 
 
-def cmd_options(args, shared_store=None):
-    store = shared_store if shared_store else _get_store()
-    plans = []
-    checked = 0
-    fetch_failures = 0
-    for index_symbol in config.INDEX_UNIVERSE:
-        checked += 1
-        raw_symbol = index_symbol.strip().upper()
-        mapped_spot_symbol = _get_angelone_mapped_symbol(raw_symbol)
-        try:
-            df = store.get_bars(mapped_spot_symbol, lookback_days=250)
-        except Exception:
-            fetch_failures += 1
-            continue
-        if df is None or df.empty or len(df) < 100:
-            continue
-        feats = build_features(df, df)
-        index_plans = recommend_index_options(raw_symbol, df, feats)
-        plans.extend(index_plans)
+def _fetch_benchmark(store, lookback: int) -> tuple[pd.DataFrame, bool]:
+    try:
+        df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=lookback)
+        if df is not None and len(df):
+            return df, True
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Benchmark fetch failed ({_safe(e)}) - the market line will say index data is unavailable")
+    return pd.DataFrame(), False
 
-    path = daily_options_report(plans)
-    logger.info(f"🔎 [OPTIONS] funnel: {checked} indices checked ({fetch_failures} fetch failures) -> {len(plans)} setup(s) found")
 
-    diagnostic = ""
-    if not plans:
-        diagnostic = (
-            f"Checked {checked} index(es) ({', '.join(config.INDEX_UNIVERSE)}); {fetch_failures} failed to fetch. "
-            + ("All fetches failed - check the broker connection/logs." if fetch_failures == checked and checked > 0
-               else "Data came through fine; no valid option setup met the criteria today.")
+def _market_line(ctx: dict) -> str:
+    """One-line market direction for the message header. ANY failure just leaves it out."""
+    try:
+        from scanner.market_direction import assess_market_direction, format_direction_line
+        md = assess_market_direction(
+            ctx["benchmark_df"] if ctx.get("benchmark_is_index") else None,
+            ctx.get("snapshot") or {},
+            bars=None,                       # breadth is shown separately, from the whole liquid universe
+            nifty_source=config.RS_BENCHMARK,
         )
-    notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, diagnostic=diagnostic)
+        return format_direction_line(md)
+    except Exception:  # noqa: BLE001
+        logger.exception("Market direction header failed - sending the scan message without it")
+        return ""
 
 
-def cmd_market(args=None):
+# --------------------------------------------------------------------------- #
+# Watchlist (the two-stage BTST hand-over)
+# --------------------------------------------------------------------------- #
+def _read_watchlist(path: str = WATCHLIST_PATH) -> dict | None:
+    try:
+        with open(path) as f:
+            wl = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return wl if isinstance(wl, dict) else None
+
+
+def load_watchlist(now: datetime, path: str = WATCHLIST_PATH) -> dict | None:
+    """The saved watchlist if it is complete and recent enough, else None."""
+    wl = _read_watchlist(path)
+    if not wl or wl.get("version") != 1 or not wl.get("symbols"):
+        return None
+    if not (wl.get("stats") or {}).get("score_q"):
+        return None
+    try:
+        age = (session.ist_date(now) - date.fromisoformat(wl["as_of"])).days
+    except (KeyError, ValueError):
+        return None
+    if age < 0 or age > config.WATCHLIST_MAX_AGE_DAYS:
+        logger.info(f"Saved watchlist is {age} days old (limit {config.WATCHLIST_MAX_AGE_DAYS}) - not using it")
+        return None
+    return wl
+
+
+def save_watchlist(wl: dict, path: str = WATCHLIST_PATH) -> bool:
+    """Atomic write; never replaces a newer watchlist with an older one."""
+    try:
+        old = _read_watchlist(path)
+        if old and str(old.get("as_of", "")) > str(wl.get("as_of", "")):
+            return False
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(wl, f, separators=(",", ":"))
+        os.replace(tmp, path)
+        return True
+    except Exception:  # noqa: BLE001
+        logger.warning("Could not save the BTST watchlist", exc_info=True)
+        return False
+
+
+# --------------------------------------------------------------------------- #
+# Delivery % (end-of-day public data; optional - the scan runs without it)
+# --------------------------------------------------------------------------- #
+def _delivery(as_of: date | None, fast: bool) -> tuple[pd.Series | None, dict]:
+    try:
+        nse_eod.update_cache(max_fetches=4 if fast else 14, time_budget_s=20.0 if fast else 100.0)
+        return nse_eod.get_dlv20(as_of or session.ist_date())
+    except Exception:  # noqa: BLE001
+        logger.warning("Delivery-% layer failed - scoring without it", exc_info=True)
+        return None, {"reason": "delivery layer error"}
+
+
+# --------------------------------------------------------------------------- #
+# Fetching
+# --------------------------------------------------------------------------- #
+def _btst_deadline(now: datetime, source: str) -> datetime:
+    """When the afternoon BTST fetch must stop so the message lands before about 2:30 PM IST."""
+    h, m = config.BTST_FETCH_DEADLINE_IST
+    t = now.astimezone(session.IST)
+    deadline = t.replace(hour=h, minute=m, second=0, microsecond=0)
+    if (deadline - t).total_seconds() < 90 and source != "schedule":
+        deadline = t + timedelta(seconds=240)        # a hand-started run past the deadline still gets a fair chance
+    return deadline
+
+
+def _fetch(store, symbols: list[str], lookback: int, deadline: datetime | None = None,
+           cap_seconds: int = 5400) -> tuple[dict, dict]:
+    """Sequential fetch (the store's own circuit breakers apply) within a time budget."""
+    budget = float(cap_seconds)
+    if deadline is not None:
+        budget = max(0.0, min(budget, (deadline - session.now_ist()).total_seconds()))
+    t0 = time.time()
+    try:
+        bars = store.get_universe_bars(list(symbols), lookback_days=lookback, max_duration_seconds=int(budget))
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Universe fetch failed: {_safe(e)}")
+        bars = {}
+    info = {"requested": len(symbols), "loaded": len(bars), "seconds": round(time.time() - t0), "budget_s": round(budget)}
+    logger.info(f"📥 Fetched {info['loaded']}/{info['requested']} stocks in {info['seconds']}s (budget {info['budget_s']}s)")
+    return bars, info
+
+
+def fetch_phase(store, modes: list[str], test_limit, source: str, now: datetime) -> dict:
+    """Everything a scan needs from the outside world, gathered once (run_all shares it between both scans)."""
+    state = session.session_state(now)
+    live_btst = modes == ["btst"] and state == "open"
+    wl = load_watchlist(now) if (live_btst and not test_limit) else None
+
+    if wl:
+        symbols = list(wl["symbols"])[: config.WATCHLIST_SIZE]
+        kind = "watchlist"
+        logger.info(f"⚡ Fast BTST check: {len(symbols)} watchlist stocks (built from the close of {wl['as_of']})")
+    else:
+        symbols = _load_universe(test_limit)
+        kind = "universe"
+        if live_btst:
+            logger.info("No usable BTST watchlist - scanning the whole market with a 2:25 PM stop")
+    deadline = _btst_deadline(now, source) if live_btst else None
+
+    bars, info = _fetch(store, symbols, SCAN_LOOKBACK, deadline)
+    ctx = {"kind": kind, "watchlist": wl, "bars": bars, "track_bars": bars, "fetch": info,
+           "benchmark_df": pd.DataFrame(), "benchmark_is_index": False, "snapshot": {}, "sector_map": {}}
+    if not bars:
+        return ctx
+
+    # tracked trades whose stock is no longer in this run's bars (e.g. it left the index) still need prices
+    if kind == "universe" and not test_limit:
+        try:
+            led = outcomes.load_ledger()
+            active = set(led.loc[led["status"].isin(outcomes.ACTIVE), "symbol"])
+            missing = sorted(active - set(bars))[:40]
+            if missing:
+                extra, _ = _fetch(store, missing, SCAN_LOOKBACK, None, cap_seconds=120)
+                ctx["track_bars"] = {**bars, **extra}
+        except Exception:  # noqa: BLE001
+            logger.warning("Could not fetch prices for tracked trades outside the universe", exc_info=True)
+
+    ctx["benchmark_df"], ctx["benchmark_is_index"] = _fetch_benchmark(store, SCAN_LOOKBACK)
+    ctx["snapshot"] = _global_snapshot()
+    ctx["sector_map"] = _sector_map()
+    return ctx
+
+
+# --------------------------------------------------------------------------- #
+# One scan: analyse -> track -> write -> message
+# --------------------------------------------------------------------------- #
+def analyse(scan_mode: str, ctx: dict, source: str) -> int:
+    """Returns a process exit code (0 = fine, 1 = no data at all)."""
+    _ensure_report_directories()
+    bars = ctx["bars"]
+    now = session.now_ist()                  # AFTER the fetch: the volume projection must match the data's age
+    run_notes: list[str] = []
+    if ctx["kind"] == "watchlist":
+        wl = ctx["watchlist"]
+        run_notes.append(f"Fast afternoon check: the {len(bars)} stocks on last evening's watchlist ({wl['as_of']}), re-scored with "
+                         f"live prices against the whole market's yardstick; market breadth is as of that close")
+    elif ctx["fetch"].get("requested") and ctx["fetch"]["loaded"] < 0.9 * ctx["fetch"]["requested"] and ctx["fetch"]["loaded"] > 0:
+        run_notes.append(f"Partial scan: {ctx['fetch']['loaded']} of {ctx['fetch']['requested']} stocks were loaded before the "
+                         f"time limit or the broker's rate limit, so the list may miss some names")
+
+    # --- 1. the scoreboard: replay tracked trades on completed sessions -------------------------
+    report = {"checked": 0, "events": []}
+    try:
+        if ctx["track_bars"]:
+            report = outcomes.update_trades(ctx["track_bars"], now)
+    except Exception:  # noqa: BLE001
+        logger.exception("Scoreboard: could not update the tracked trades - ledger left as it was")
+
+    # --- 2. delivery % ----------------------------------------------------------------------------
+    ref = pl.reference_date(bars)
+    dlv20, dmeta = _delivery(ref, fast=ctx["kind"] == "watchlist")
+    if dlv20 is None and ctx["kind"] == "watchlist":
+        saved = (ctx["watchlist"] or {}).get("dlv20") or {}
+        if saved:
+            dlv20 = pd.Series(saved, dtype=float)        # last evening's values, better than none
+    if dlv20 is not None:
+        logger.info(f"📦 Delivery %: {dmeta.get('symbols', len(dlv20))} stocks, newest day {dmeta.get('newest', 'n/a')}")
+    else:
+        logger.info(f"📦 Delivery %: not used this run ({dmeta.get('reason', 'unavailable')})")
+
+    # --- 3. selection ---------------------------------------------------------------------------------
+    try:
+        exclude = outcomes.active_symbols(today=session.ist_date(now))
+    except Exception:  # noqa: BLE001
+        logger.exception("Scoreboard: could not read the ledger for repeats")
+        exclude = set()
+    wl = ctx["watchlist"]
+    result = pl.select_picks(
+        scan_mode, bars, now=now, dlv20=dlv20, sector_map=ctx["sector_map"],
+        stats=(wl["stats"] if wl else None), exclude=exclude,
+        skip_symbols={config.RS_BENCHMARK}, breadth_hint=(wl["breadth"] if wl else None),
+    )
+    if dlv20 is None and result.used_delivery:
+        result.used_delivery = False
+    if session.session_state(now) == "open" and result.ref_date and result.ref_date < session.ist_date(now):
+        run_notes.append(f"The newest price bar is from {result.ref_date.strftime('%a %d %b')}, not today - today may be a market holiday, "
+                         f"so this list is based on that close")
+    f = result.funnel
+    b50 = (result.breadth or {}).get("breadth50")
+    b50_text = f"{b50:.0%}" if isinstance(b50, (int, float)) and math.isfinite(b50) else "n/a"
+    logger.info(f"🔎 [{scan_mode.upper()}] funnel: {f['loaded']} loaded -> {f['scored']} scored -> {f['fresh']} fresh + "
+                f"{f['primed']} primed setups -> {f['passed_quality']} in the top half by quality -> "
+                f"{f['repeats']} already on the list -> {f['picks']} picks | breadth {b50_text} ({result.regime})")
+
+    # --- 4. messages and files -----------------------------------------------------------------------------
+    try:
+        led = outcomes.load_ledger()
+        open_rows = outcomes.open_positions(led).to_dict("records")
+        tracked_block = notify.format_tracked_block(report["events"], open_rows)
+        scoreboard_line = outcomes.format_scoreboard_line(led)
+    except Exception:  # noqa: BLE001
+        logger.exception("Scoreboard: could not summarise the ledger")
+        tracked_block, scoreboard_line = "", ""
+
+    try:
+        outcomes.log_new_picks(result.picks, now, regime=result.regime)
+    except Exception:  # noqa: BLE001
+        logger.exception("Scoreboard: could not log the new picks")
+
+    market_line = _market_line(ctx)
+    try:
+        summary.write_scan_outputs(scan_mode, result, now, market_line=market_line, tracked_text=tracked_block,
+                                   scoreboard_line=scoreboard_line, notes=run_notes)
+    except Exception:  # noqa: BLE001
+        logger.exception("Could not write the report files")
+
+    # the next afternoon's BTST watchlist: only from a full-market run on a COMPLETED session
+    if ctx["kind"] == "universe" and not result.live and len(result.feats) >= MIN_WATCHLIST_SAVE:
+        try:
+            new_wl = pl.build_watchlist(result, dlv20)
+            if new_wl and save_watchlist(new_wl):
+                logger.info(f"📝 Saved BTST watchlist for the next session: {len(new_wl['symbols'])} stocks (as of {new_wl['as_of']})")
+        except Exception:  # noqa: BLE001
+            logger.exception("Could not build the BTST watchlist")
+
+    sent = notify.notify_scan(result, scan_mode, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, now=now,
+                              market_line=market_line, tracked_block=tracked_block,
+                              scoreboard_line=scoreboard_line, notes=run_notes)
+    if not sent:
+        logger.warning("The scan message was not delivered to Telegram (not configured, or the send failed) - the files have the full result")
+
+    ok = len(bars) > 0
+    runguard.record_run(scan_mode, now, source, len(result.picks), ok=ok)
+    return 0 if ok else 1
+
+
+# --------------------------------------------------------------------------- #
+# Commands
+# --------------------------------------------------------------------------- #
+def cmd_scan(scan_mode: str, test_limit=None, source: str | None = None) -> int:
+    source = source or runguard.run_source()
+    now0 = session.now_ist()
+    skip, why = runguard.should_skip(scan_mode, source, now0)
+    if skip:
+        logger.info(f"⏭️  Skipping this {scan_mode} run: {why}")
+        return 0
+    try:
+        store = _get_store()
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Broker login failed: {_safe(e)}")
+        _alert(f"⚠️ The {scan_mode.upper()} scan could not start: Angel One login failed. Check the broker secrets / TOTP in the repo settings.")
+        return 1
+    ctx = fetch_phase(store, [scan_mode], test_limit, source, now0)
+    return analyse(scan_mode, ctx, source)
+
+
+def cmd_run_all(test_limit=None, source: str | None = None) -> int:
+    source = source or runguard.run_source()
+    now0 = session.now_ist()
+    modes = []
+    for m in ("btst", "swing"):
+        skip, why = runguard.should_skip(m, source, now0)
+        if skip:
+            logger.info(f"⏭️  Skipping the {m} part: {why}")
+        else:
+            modes.append(m)
+    if not modes:
+        return 0
+    try:
+        store = _get_store()
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Broker login failed: {_safe(e)}")
+        _alert("⚠️ The scans could not start: Angel One login failed. Check the broker secrets / TOTP in the repo settings.")
+        return 1
+    logger.info("⚡ Central data lake: downloading the market once for both scans...")
+    ctx = fetch_phase(store, ["all"] if len(modes) > 1 else modes, test_limit, source, now0)
+    code = 0
+    for m in modes:
+        code = max(code, analyse(m, ctx, source))
+    return code
+
+
+def cmd_market(args=None) -> int:
     """
-    On-demand market-direction readout (the "Market Direction (Manual)"
-    workflow). No stock scan and no option strikes - just which way the
-    market is leaning, sent to Telegram and printed in the run log.
-
-    Index data comes from fetch_index_history's fallback chain (real
-    index -> ETF proxy -> Yahoo Finance), so one broken source doesn't
-    leave the readout empty; the message says which source was used.
+    On-demand market-direction readout (the "Market Direction (Manual)" workflow). No stock scan and no
+    option strikes - just which way the market is leaning, sent to Telegram and printed in the run log.
     """
-    # Imported here, not at the top of the file: only this command needs
-    # them, so the scheduled scans never depend on the new module loading.
     from scanner.market_direction import (
         assess_market_direction, format_direction_message, fetch_index_history, to_plain_text,
     )
-
     try:
         store = _get_store()
-    except Exception as e:
-        logger.warning(f"Angel One login failed ({e}) - index data will come from Yahoo Finance only")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Angel One login failed ({_safe(e)}) - index data will come from Yahoo Finance only")
         store = None
 
     nifty_df, nifty_source = fetch_index_history("Nifty 50", store)
     bank_df, bank_source = fetch_index_history("Bank Nifty", store)
-    try:
-        snapshot = fetch_global_snapshot()
-    except Exception as e:
-        logger.warning(f"Global cues fetch failed ({e}) - the readout will not count them")
-        snapshot = {}
-
-    direction = assess_market_direction(
-        nifty_df, snapshot, bank_df=bank_df, nifty_source=nifty_source, bank_source=bank_source,
-    )
+    snapshot = _global_snapshot()
+    direction = assess_market_direction(nifty_df, snapshot, bank_df=bank_df, nifty_source=nifty_source, bank_source=bank_source)
     message = format_direction_message(direction)
     logger.info("🧭 Market direction readout:\n" + to_plain_text(message))
-
-    if not send_telegram_message(config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, message):
+    if not notify.send_telegram_message(config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, message):
         logger.warning("The readout was not delivered to Telegram (not configured, or the send failed) - the log above has the full text")
+    return 0
 
 
-def cmd_calibrate(scan_mode: str = "swing", horizon_days: int = 10, min_days_old: int = 10):
-    folder = f"reports/{scan_mode}"
-    pattern = f"{folder}/scan_results_{scan_mode}_*.csv"
-    files = sorted(glob.glob(pattern))
+def cmd_options(args=None, shared_store=None) -> int:
+    """Index option setups (manual only; not part of the automated run)."""
+    from ai.features import build_features
+    from reports.generator import daily_options_report
+    from scanner.index_options import recommend_index_options
 
-    if not files:
-        logger.warning(f"No historical scan_results CSVs found under {folder}/ yet - nothing to calibrate against.")
-        return
-
-    cutoff_date = datetime.utcnow() - timedelta(days=min_days_old)
-    store = _get_store()
-    predictions = []
-
-    for filepath in files:
-        date_str = os.path.basename(filepath).replace(f"scan_results_{scan_mode}_", "").replace(".csv", "")
+    store = shared_store if shared_store else _get_store()
+    plans, checked, fetch_failures = [], 0, 0
+    for index_symbol in config.INDEX_UNIVERSE:
+        checked += 1
+        raw_symbol = index_symbol.strip().upper()
         try:
-            entry_date = datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
+            df = store.get_bars(_get_angelone_mapped_symbol(raw_symbol), lookback_days=250)
+        except Exception:  # noqa: BLE001
+            fetch_failures += 1
             continue
-        if entry_date > cutoff_date:
+        if df is None or df.empty or len(df) < 100:
             continue
+        plans.extend(recommend_index_options(raw_symbol, df, build_features(df, df)))
 
-        try:
-            df = pd.read_csv(filepath)
-        except Exception:
-            continue
-
-        for _, row in df.iterrows():
-            symbol = row.get("symbol")
-            entry_trigger = row.get("entry_trigger")
-            stop_loss = row.get("stop_loss")
-            target_1 = row.get("target_1")
-            prob = row.get("probability")
-            if pd.isna(symbol) or pd.isna(entry_trigger) or pd.isna(stop_loss) or pd.isna(target_1) or pd.isna(prob):
-                continue
-
-            try:
-                symbol_bars = store.get_bars(symbol, lookback_days=250)
-            except Exception:
-                continue
-            if symbol_bars is None or symbol_bars.empty:
-                continue
-
-            future_bars = symbol_bars[symbol_bars.index > entry_date].head(horizon_days)
-            if future_bars.empty:
-                continue
-
-            hit_target = (future_bars["high"] >= target_1).any()
-            hit_stop = (future_bars["low"] <= stop_loss).any()
-
-            if hit_target and not hit_stop:
-                outcome = 1
-            elif hit_stop and not hit_target:
-                outcome = 0
-            elif hit_target and hit_stop:
-                target_day = future_bars[future_bars["high"] >= target_1].index[0]
-                stop_day = future_bars[future_bars["low"] <= stop_loss].index[0]
-                outcome = 1 if target_day <= stop_day else 0
-            else:
-                continue
-
-            predictions.append({"symbol": symbol, "predicted_prob": float(prob), "actual_outcome": outcome})
-
-    if not predictions:
-        logger.warning(
-            f"No resolved predictions found yet for {scan_mode} (need scans at least {min_days_old} "
-            f"days old with a clear target/stop outcome within {horizon_days} days) - check back later."
-        )
-        return
-
-    path = calibration_report(predictions)
-    logger.info(f"Calibration report written to {path} based on {len(predictions)} resolved predictions")
+    daily_options_report(plans)
+    logger.info(f"🔎 [OPTIONS] funnel: {checked} indices checked ({fetch_failures} fetch failures) -> {len(plans)} setup(s) found")
+    diagnostic = ""
+    if not plans:
+        diagnostic = (f"Checked {checked} index(es) ({', '.join(config.INDEX_UNIVERSE)}); {fetch_failures} failed to fetch. "
+                      + ("All fetches failed - check the broker connection/logs." if fetch_failures == checked and checked > 0
+                         else "Data came through fine; no valid option setup met the criteria today."))
+    notify.notify_option_results(plans, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, diagnostic=diagnostic)
+    return 0
 
 
-def cmd_backtest(scan_mode: str = "swing", test_days: int = 120):
-    universe = load_universe()
+def cmd_calibrate(scan_mode: str = "swing") -> int:
+    """
+    Live calibration: do higher-quality picks really do better in the tracked trades? Reads the ledger only
+    (no broker needed) and writes reports/output/live_scoreboard.md.
+    """
+    from backtest.engine import live_scoreboard_report
+    path, text = live_scoreboard_report(outcomes.load_ledger(), scan_mode=None)
+    logger.info("Live scoreboard report written to " + path + "\n" + text)
+    return 0
+
+
+def cmd_backtest(scan_mode: str = "swing", test_days: int = 250) -> int:
+    """
+    Replays today's selection rule over the recent past on the bars Angel One returns, with the same trade
+    simulator the live scoreboard uses. (Price-only quality score: delivery history is not available here.)
+    """
+    from backtest.engine import run_backtest, summarize_backtest, write_backtest_report
     store = _get_store()
-    bars = store.get_universe_bars(universe, lookback_days=280)
-    benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=280)
-
-    logger.info(f"Running backtest for {scan_mode} over last {test_days} trading days across {len(bars)} symbols...")
-    trades = run_backtest(bars, benchmark_df, scan_mode=scan_mode, test_days=test_days)
-    summary = summarize_backtest(trades)
-    path = write_backtest_report(trades, summary, scan_mode)
+    universe = _load_universe()
+    bars, info = _fetch(store, universe, 700, None)
+    if not bars:
+        logger.error("No price data was loaded - nothing to backtest")
+        return 1
+    trades = run_backtest(bars, scan_mode=scan_mode, test_days=test_days)
+    stats = summarize_backtest(trades)
+    path = write_backtest_report(trades, stats, scan_mode, n_stocks=len(bars))
     logger.info(f"Backtest report written to {path}")
-    logger.info(f"Summary: {summary}")
+    logger.info(f"Summary: {stats}")
+    return 0
 
 
-if __name__ == "__main__":
+# --------------------------------------------------------------------------- #
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["scan_btst", "scan_swing", "market", "options", "run_all", "calibrate", "backtest"])
     parser.add_argument("--test-limit", dest="test_limit", default=os.getenv("TRADING_TEST_LIMIT") or None,
-                         help="Limit scan to N symbols for testing")
+                        help="Limit scan to N symbols for testing")
     parser.add_argument("--calibrate-mode", dest="calibrate_mode", default="swing", choices=["btst", "swing"],
-                         help="Which scan mode's history to calibrate/backtest")
-    args = parser.parse_args()
+                        help="Which scan mode's history to calibrate/backtest")
+    parser.add_argument("--source", default=None, choices=["schedule", "timer", "manual"],
+                        help="Where this run came from (default: env TRADING_RUN_SOURCE, else manual)")
+    args = parser.parse_args(argv)
+    _install_log_scrubbing()
 
-    if args.command == "scan_btst":
-        execute_isolated_scan("btst", test_limit=args.test_limit)
+    try:
+        if args.command == "scan_btst":
+            return cmd_scan("btst", args.test_limit, args.source)
+        if args.command == "scan_swing":
+            return cmd_scan("swing", args.test_limit, args.source)
+        if args.command == "run_all":
+            return cmd_run_all(args.test_limit, args.source)
+        if args.command == "market":
+            return cmd_market(args)
+        if args.command == "options":
+            return cmd_options(args)
+        if args.command == "calibrate":
+            return cmd_calibrate(args.calibrate_mode)
+        if args.command == "backtest":
+            return cmd_backtest(args.calibrate_mode)
+    except Exception as e:  # noqa: BLE001 - the last line of defence: say so, loudly, instead of failing silently
+        logger.exception(f"{args.command} failed")
+        if args.command in ("scan_btst", "scan_swing", "run_all"):
+            _alert(f"⚠️ The {args.command.replace('scan_', '').upper()} scan failed: {type(e).__name__}: {_safe(e)[:300]}. "
+                   f"See the run log in GitHub Actions.")
+        return 1
+    return 0
 
-    elif args.command == "scan_swing":
-        execute_isolated_scan("swing", test_limit=args.test_limit)
 
-    elif args.command == "market":
-        cmd_market(args)
-
-    elif args.command == "options":
-        cmd_options(args)
-
-    elif args.command == "calibrate":
-        cmd_calibrate(scan_mode=args.calibrate_mode)
-
-    elif args.command == "backtest":
-        cmd_backtest(scan_mode=args.calibrate_mode)
-
-    elif args.command == "run_all":
-        logger.info("⚡ Central Data Lake Engaged: Downloading data matrix exactly once...")
-        universe = load_universe()
-        if args.test_limit:
-            universe = universe[: int(args.test_limit)]
-
-        store = _get_store()
-        try:
-            bars = store.get_universe_bars(universe, lookback_days=450)
-        except Exception:
-            bars = {}
-
-        benchmark_is_index = True
-        try:
-            benchmark_df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=450)
-        except Exception:
-            benchmark_is_index = False
-            valid_keys = list(bars.keys()) if bars else []
-            benchmark_df = bars[valid_keys[0]] if valid_keys else pd.DataFrame()
-
-        label, multiplier, snapshot = _get_market_context(benchmark_df)
-        sector_map = _get_sector_map()
-        market_context = {"snapshot": snapshot, "benchmark_is_index": benchmark_is_index}
-
-        for mode in ["btst", "swing"]:
-            process_scans_with_shared_data(
-                mode, bars, benchmark_df, market_multiplier=multiplier, market_regime_label=label, sector_map=sector_map,
-                market_context=market_context,
-            )
-
-        # Index options scan REMOVED from the automated run (2026-10-14):
-        # Angel One's index-instrument fetch has never worked reliably
-        # (NIFTY/BANKNIFTY/FINNIFTY all fail most runs) and even a
-        # working fetch would arrive too late to matter for an options
-        # trade's intraday urgency. `cmd_options` is left in place below
-        # and the "options" CLI command (python main.py options) still
-        # works for manual/on-demand use - just not auto-run anymore.
+if __name__ == "__main__":
+    sys.exit(main())

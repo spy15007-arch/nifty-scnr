@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       command:
-        description: 'Which to run'
+        description: 'backtest = replay the rule on ~3 years of broker data (about 10 minutes); calibrate = live scoreboard report by quality bucket (instant, no broker)'
         required: true
         type: choice
         options:
           - backtest
           - calibrate
-        default: 'backtest'
+        default: 'calibrate'
       scan_mode:
         description: 'Which scan mode to test/calibrate'
         required: true
@@ -56,7 +56,6 @@ jobs:
       - name: Run backtest or calibrate
         env:
           TRADING_BROKER: angelone
-          TRADING_MAX_UNIVERSE: '750'
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
@@ -70,9 +69,13 @@ jobs:
           git add -A reports/output/ || true
           if ! git diff --cached --quiet; then
             git commit -m "Backtest/calibrate report $(date -u +%Y-%m-%d)" || echo "No changes to commit"
-            git fetch origin main
-            git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
-            git push origin HEAD:main
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
+              if git push origin HEAD:main; then break; fi
+              echo "Push attempt $attempt failed - retrying"
+              sleep $((attempt * 4))
+            done
           else
             echo "No report changes to commit."
           fi

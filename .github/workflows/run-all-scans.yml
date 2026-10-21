@@ -1,5 +1,8 @@
 name: Run All Scans Manual Override
 
+# Runs the BTST and Swing scans together on one shared download of the market. Use it any time you want both
+# lists now. Always runs (source = manual); the second scan lists only stocks the first one did not already pick.
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,6 +10,10 @@ on:
         description: 'Limit scan to N symbols for testing (leave blank for full run)'
         required: false
         default: ''
+
+concurrency:
+  group: scan-state
+  cancel-in-progress: false
 
 jobs:
   execute-all:
@@ -43,9 +50,9 @@ jobs:
 
       - name: Run all scans
         env:
-          TRADING_BROKER: angelone
+          TRADING_RUN_SOURCE: manual
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
-          TRADING_MAX_UNIVERSE: '750'
+          TRADING_CAPITAL_INR: ${{ vars.TRADING_CAPITAL_INR }}
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
@@ -54,23 +61,21 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py run_all
 
-      - name: Archive old reports
-        run: |
-          find reports/btst reports/swing reports/output -name "*.md" -mtime +2 -delete 2>/dev/null || true
-          find reports/btst reports/swing reports/output -name "*.csv" -mtime +2 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "scan_results_*.csv" -mtime +2 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "summary_*.md" -mtime +2 -delete 2>/dev/null || true
-
-      - name: Commit all scan reports and latest results
+      - name: Commit all scan reports, scoreboard and data cache
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A reports/btst/ reports/swing/ reports/output/ tracking/ summary.md summary_btst.md summary_swing.md scan_results_btst.csv scan_results_swing.csv
+          git add -A reports/btst/ reports/swing/ reports/output/ tracking/ data_cache/ summary.md summary_btst.md summary_swing.md scan_results_btst.csv scan_results_swing.csv
           if ! git diff --cached --quiet; then
             git commit -m "Automated scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
-            git fetch origin main
-            git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
-            git push origin HEAD:main
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
+              if git push origin HEAD:main; then break; fi
+              echo "Push attempt $attempt failed - retrying"
+              sleep $((attempt * 4))
+            done
           else
             echo "No variations detected."
           fi

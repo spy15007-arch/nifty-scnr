@@ -88,6 +88,58 @@ def clean_bars(df: pd.DataFrame | None) -> pd.DataFrame | None:
     return d if len(d) else None
 
 
+def feature_frame(d: pd.DataFrame) -> pd.DataFrame:
+    """
+    Every feature for EVERY bar of an already-cleaned OHLCV frame (see clean_bars).
+
+    This is the single implementation of the feature definitions: the live
+    scan reads its last row (`compute_features`) and the backtest reads all
+    rows, so the two can never drift apart. Look-backs that need history
+    that is not there come out NaN.
+    """
+    o, h, l, c, v = d["open"], d["high"], d["low"], d["close"], d["volume"]
+    prev_c = c.shift(1)
+
+    sma50 = c.rolling(50, min_periods=45).mean()
+    sma200 = c.rolling(200, min_periods=190).mean()
+    ema21 = c.ewm(span=21, adjust=False, min_periods=15).mean()
+    hi252 = h.rolling(252, min_periods=200).max()
+
+    hn, ln, pcn = h.to_numpy(), l.to_numpy(), prev_c.to_numpy()
+    tr = np.fmax(hn - ln, np.fmax(np.abs(hn - pcn), np.abs(ln - pcn)))
+    atr14 = pd.Series(tr, index=d.index).rolling(14, min_periods=14).mean()
+
+    lookback = int(config.BREAKOUT_LOOKBACK_SESSIONS)
+    piv = h.shift(1).rolling(lookback, min_periods=int(lookback * 0.9)).max()
+    vol_avg15 = v.shift(1).rolling(15, min_periods=13).mean()
+    broke = (c > piv).fillna(False)
+    # length of the current run of closes above the rolling 50-day high (0 when not above it today)
+    run = broke.astype(int).groupby((~broke).cumsum()).cumsum()
+
+    out = pd.DataFrame(index=d.index)
+    out["open"], out["high"], out["low"], out["close"], out["volume"] = o, h, l, c, v
+    out["prev_close"] = prev_c
+    # --- quality-score inputs
+    out["dist_hi"] = c / hi252 - 1
+    out["sma200_chg"] = sma200 / sma200.shift(20) - 1
+    out["ret252"] = c / c.shift(252) - 1
+    out["atr_pct"] = atr14 / c
+    out["ema21_x"] = c / ema21 - 1
+    out["ret5"] = c / c.shift(5) - 1
+    out["turn20"] = (c * v).rolling(20, min_periods=15).mean()
+    # --- breakout structure (the look-back excludes the bar itself)
+    out["piv50"] = piv
+    out["piv_incl"] = np.where(piv.notna(), np.fmax(piv.to_numpy(), hn), np.nan)
+    out["gain1d"] = c / prev_c - 1
+    out["close_pos"] = (c - l) / (h - l + 1e-9)
+    out["rv15"] = (v / vol_avg15).where(vol_avg15 > 0)
+    out["first_break"] = ~(prev_c > piv.shift(1)).fillna(False)
+    out["days_since_break"] = (run - 1).where(run > 0)
+    # --- regime inputs
+    out["sma50"], out["sma200"] = sma50, sma200
+    return out.replace([np.inf, -np.inf], np.nan)
+
+
 def compute_features(df: pd.DataFrame | None, vol_fraction: float = 1.0) -> dict | None:
     """
     Everything the scan needs about the NEWEST bar of `df`.
@@ -106,81 +158,16 @@ def compute_features(df: pd.DataFrame | None, vol_fraction: float = 1.0) -> dict
         d = d.copy()
         d.iloc[-1, d.columns.get_loc("volume")] = d["volume"].iloc[-1] / max(float(vol_fraction), 0.05)
 
-    o, h, l, c, v = d["open"], d["high"], d["low"], d["close"], d["volume"]
-    n = len(d)
-    cn, hn, ln = c.to_numpy(), h.to_numpy(), l.to_numpy()
-    prev_c = c.shift(1)
-
-    def last(series: pd.Series) -> float:
-        x = series.iloc[-1]
-        return float(x) if pd.notna(x) else float("nan")
-
-    # --- trend / structure -------------------------------------------------
-    sma50 = c.rolling(50, min_periods=45).mean()
-    sma200 = c.rolling(200, min_periods=190).mean()
-    ema21 = c.ewm(span=21, adjust=False, min_periods=15).mean()
-    hi252 = h.rolling(252, min_periods=200).max()
-
-    close = float(cn[-1])
-    hi252_now = last(hi252)
-    dist_hi = close / hi252_now - 1 if _finite(hi252_now) and hi252_now > 0 else float("nan")
-    sma200_now = last(sma200)
-    sma200_prev = float(sma200.iloc[-21]) if n >= 21 and pd.notna(sma200.iloc[-21]) else float("nan")
-    sma200_chg = sma200_now / sma200_prev - 1 if _finite(sma200_now, sma200_prev) and sma200_prev > 0 else float("nan")
-    ret252 = close / float(cn[-253]) - 1 if n >= 253 else float("nan")
-    ret5 = close / float(cn[-6]) - 1 if n >= 6 else float("nan")
-    ema21_now = last(ema21)
-    ema21_x = close / ema21_now - 1 if _finite(ema21_now) and ema21_now else float("nan")
-
-    # --- volatility (true range includes the newest bar) -------------------
-    pcn = prev_c.to_numpy()
-    tr = np.fmax(hn - ln, np.fmax(np.abs(hn - pcn), np.abs(ln - pcn)))
-    atr14 = pd.Series(tr, index=d.index).rolling(14, min_periods=14).mean()
-    atr14_now = last(atr14)
-    atr_pct = atr14_now / close if _finite(atr14_now) else float("nan")
-
-    # --- liquidity ----------------------------------------------------------
-    turn20 = last((c * v).rolling(20, min_periods=15).mean())
-
-    # --- breakout structure (look-backs exclude the newest bar) ------------
-    lookback = int(config.BREAKOUT_LOOKBACK_SESSIONS)
-    piv_series = h.shift(1).rolling(lookback, min_periods=int(lookback * 0.9)).max()
-    piv50 = last(piv_series)
-    piv_incl = float(max(piv50, float(hn[-1]))) if _finite(piv50) else float("nan")
-    piv_prev = float(piv_series.iloc[-2]) if n >= 2 and pd.notna(piv_series.iloc[-2]) else float("nan")
-    prev_close = float(cn[-2]) if n >= 2 else float("nan")
-    gain1d = close / prev_close - 1 if _finite(prev_close) and prev_close else float("nan")
-    close_pos = float((cn[-1] - ln[-1]) / (hn[-1] - ln[-1] + 1e-9))
-    vol_avg15 = last(v.shift(1).rolling(15, min_periods=13).mean())
-    rv15 = float(v.iloc[-1]) / vol_avg15 if _finite(vol_avg15) and vol_avg15 > 0 else float("nan")
-    first_break = not (_finite(prev_close, piv_prev) and prev_close > piv_prev)
-
-    # sessions since the stock first closed above its own rolling 50-day high
-    # (0 = today is the first such close); None when it is not above it today
-    above = (c > piv_series).to_numpy()
-    run = 0
-    for flag in above[::-1]:
-        if flag:
-            run += 1
-        else:
-            break
-    days_since_break = run - 1 if run > 0 else None
-
+    row = feature_frame(d).iloc[-1]
+    out = {k: (float(row[k]) if pd.notna(row[k]) else float("nan")) for k in row.index
+           if k not in ("first_break", "days_since_break")}
     last_date = d.index[-1]
-    return {
-        "bars": n,
-        "last_date": last_date.date() if hasattr(last_date, "date") else last_date,
-        "open": float(o.iloc[-1]), "high": float(hn[-1]), "low": float(ln[-1]), "close": close,
-        "prev_close": prev_close, "volume": float(v.iloc[-1]),
-        # quality-score inputs
-        "dist_hi": dist_hi, "sma200_chg": sma200_chg, "ret252": ret252, "atr_pct": atr_pct,
-        "ema21_x": ema21_x, "ret5": ret5, "turn20": turn20,
-        # breakout structure
-        "piv50": piv50, "piv_incl": piv_incl, "gain1d": gain1d, "close_pos": close_pos,
-        "rv15": rv15, "first_break": bool(first_break), "days_since_break": days_since_break,
-        # regime inputs
-        "sma50": last(sma50), "sma200": sma200_now,
-    }
+    out["bars"] = len(d)
+    out["last_date"] = last_date.date() if hasattr(last_date, "date") else last_date
+    out["first_break"] = bool(row["first_break"])
+    dsb = row["days_since_break"]
+    out["days_since_break"] = int(dsb) if pd.notna(dsb) else None
+    return out
 
 
 def detect_setup(

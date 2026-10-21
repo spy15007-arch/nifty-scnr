@@ -1,382 +1,326 @@
 """
-Backtests the CURRENT scanning logic against historical data, without
-needing to wait weeks for live outcomes to accumulate.
+Backtest of TODAY'S selection rule on whatever daily bars the broker returns, plus the live-scoreboard report.
 
-CRITICAL DESIGN PRINCIPLE - no lookahead bias: at each simulated day i,
-every computation uses ONLY df.iloc[:i+1]. The outcome check afterward
-uses df.iloc[i+1:i+1+horizon] - bars the simulation never saw.
+The backtest is built from the very same parts as the live scan, so it cannot drift away from it:
+  * features / setups / quality score : scanner.footprint  (feature_frame = every bar at once)
+  * ranking, cool-down, pick cap      : the same rules as scanner.pipeline.select_picks
+  * trade management                  : scanner.tradesim  (the state machine the scoreboard uses)
 
-HORIZON = 30 days for SWING (diagnostic-confirmed: base-level entries
-genuinely need ~30 days to develop, recovering the hit rate lost when
-near_recent_base went live). BTST uses a much shorter horizon (3 days)
-matching its actual overnight-to-next-day premise - testing BTST
-against a 30-day window would be meaningless, since it's supposed to
-resolve almost immediately.
+NO LOOK-AHEAD: on signal day t only bars up to and including t are used to decide; the trade then runs on
+bars t+1 onward. Every trade is a buy-stop order for the next sessions (an end-of-day scan; the live
+"buy near the close" BTST entry needs intraday data and cannot be replayed from daily bars).
 
-MODE-SPECIFIC SECOND GATE (2026-09-19): SWING uses near_recent_base
-(patient, still-at-base). BTST uses btst_momentum_setup (same-day
-breakout confirmation) - kept in sync with the same mode-specific
-gates now in main.py's live scan.
-
-SIGNAL-COUNT FILTER: requires 3+ signals before a candidate counts at
-all - 1-2 signal hit rates were barely better than noise.
-
-DIAGNOSTIC: every trade also records how close it got to target_1
-(max_gain_pct, pct_of_target_reached) and where it ended up
-(final_gain_pct). Also tags each trade with its setup_stage
-(fresh_breakout / pre_breakout / neither, see scanner.breakout) purely
-as a DIAGNOSTIC breakdown - evidence on whether that tag actually
-correlates with hit rate, not a filter on what gets backtested.
-
-HORIZON_DAYS_BY_MODE is the one shared source of truth for how long a
-signal gets to resolve - tracking/outcomes.py (live) imports this same
-constant so a trade's live "still open" window always matches what the
-backtest itself used to validate these setups.
-
-ADDED 2026-10-14 - two more DIAGNOSTIC-only breakdowns, same spirit as
-setup_stage above (computed and recorded, never used to decide what
-gets backtested or how a trade resolves):
-  - days_since_break (from classify_setup_stage, already computed for
-    the setup_stage tag): for fresh_breakout trades specifically, was
-    the signal day itself the breakout candle (1) or a couple of
-    sessions later (2-3)? This is the direct evidence for whether a
-    single-candle "enter on next candle" breakout actually performs
-    differently from a slightly older one.
-  - market_trend: whether the NSE benchmark (via the same bench_as_of
-    already computed below for relative_strength/relative_strength)
-    was above/below its own trend on the signal day, per
-    scanner.global_cues.compute_index_trend_bias - the evidence on
-    whether that multiplier deserves to eventually become a harder
-    filter rather than just a ranking nudge.
+LIMITS (read these before trusting a number):
+  * Broker daily candles are NOT adjusted for splits / bonuses. A trade is dropped (VOID) if an overnight gap
+    beyond +/-35% happens while it is unfinished, as the live scoreboard does; features around a split are
+    distorted for that stock for a while, which can create a few false signals.
+  * The quality score here is the 7-factor price-only version (delivery-% history is not available).
+  * The market's liquidity ranking is judged on the stocks passed in, so the result describes that universe.
+  * Costs are the 0.35% round trip used everywhere; real slippage on thin stocks can be larger.
+The 7-year research on adjusted NSE data (reports/evidence/) remains the reference; this is a live-data cross-check.
 """
 from __future__ import annotations
-import logging
-import pandas as pd
-from dataclasses import dataclass
 
-from scanner.engine import ScannerEngine
-from scanner.breakout import check_pre_breakout_setup, near_recent_base, btst_momentum_setup, classify_setup_stage
-from scanner.technicals import (
-    macd_bullish, higher_highs_higher_lows, rolling_vwap_position,
-    obv_accumulation, adx_building,
-)
-from scanner.levels import compute_trade_levels
-from scanner.global_cues import compute_index_trend_bias
+import logging
+import math
+import os
+from collections import defaultdict
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
+
+import config
+from scanner import footprint as fp
+from scanner import tradesim as ts
+from scanner.pipeline import MAX_RISK_PCT, tick_up
 
 logger = logging.getLogger(__name__)
 
-HORIZON_DAYS_BY_MODE = {"btst": 3, "swing": 30}
+VOID_GAP = 0.35
+_NEED = ["close", "high", "turn20", "piv50", "piv_incl", "gain1d", "close_pos", "rv15", "dist_hi", "sma200_chg",
+         "ret252", "atr_pct", "ema21_x", "ret5", "sma50", "sma200"]
 
 
-@dataclass
-class BacktestTrade:
-    symbol: str
-    signal_date: str
-    predicted_prob: float
-    n_signals: int
-    entry_trigger: float
-    stop_loss: float
-    target_1: float
-    outcome: int
-    days_to_resolve: int | None
-    max_gain_pct: float
-    pct_of_target_reached: float
-    final_gain_pct: float
-    setup_stage: str = "neither"
-    days_since_break: int | None = None
-    market_trend: str = "unknown"
+def _naive_dates(index) -> pd.DatetimeIndex:
+    idx = pd.DatetimeIndex(index)
+    if idx.tz is not None:
+        idx = idx.tz_localize(None)
+    return idx.normalize()
 
 
-def _resolve_outcome(future_bars: pd.DataFrame, entry_trigger: float, target_1: float, stop_loss: float) -> tuple[int, int | None, float, float, float]:
-    target_hits = future_bars.index[future_bars["high"] >= target_1]
-    stop_hits = future_bars.index[future_bars["low"] <= stop_loss]
-
-    hit_target = len(target_hits) > 0
-    hit_stop = len(stop_hits) > 0
-
-    max_high = future_bars["high"].max()
-    final_close = future_bars["close"].iloc[-1]
-    max_gain_pct = (max_high - entry_trigger) / entry_trigger
-    target_gain_pct = (target_1 - entry_trigger) / entry_trigger
-    pct_of_target_reached = (max_gain_pct / target_gain_pct) if target_gain_pct > 0 else 0.0
-    final_gain_pct = (final_close - entry_trigger) / entry_trigger
-
-    if hit_target and not hit_stop:
-        days = future_bars.index.get_loc(target_hits[0]) + 1
-        return 1, days, max_gain_pct, pct_of_target_reached, final_gain_pct
-    if hit_stop and not hit_target:
-        days = future_bars.index.get_loc(stop_hits[0]) + 1
-        return 0, days, max_gain_pct, pct_of_target_reached, final_gain_pct
-    if hit_target and hit_stop:
-        t_pos = future_bars.index.get_loc(target_hits[0])
-        s_pos = future_bars.index.get_loc(stop_hits[0])
-        outcome = 1 if t_pos <= s_pos else 0
-        return outcome, min(t_pos, s_pos) + 1, max_gain_pct, pct_of_target_reached, final_gain_pct
-    return -1, None, max_gain_pct, pct_of_target_reached, final_gain_pct
-
-
-def run_backtest(
-    bars_by_symbol: dict[str, pd.DataFrame],
-    benchmark_df: pd.DataFrame,
-    scan_mode: str = "swing",
-    test_days: int = 120,
-    horizon_days: int | None = None,
-    min_history: int = 100,
-) -> list[BacktestTrade]:
-    if horizon_days is None:
-        horizon_days = HORIZON_DAYS_BY_MODE.get(scan_mode, 30)
-
-    engine = ScannerEngine(scan_mode=scan_mode)
-    trades: list[BacktestTrade] = []
-
-    for symbol, full_df in bars_by_symbol.items():
-        if len(full_df) < min_history + horizon_days:
+def _prepare(bars: dict, min_bars: int):
+    """Per symbol: cleaned bars on a plain-date index, and its feature frame."""
+    clean, frames = {}, {}
+    for sym, df in bars.items():
+        d = fp.clean_bars(df)
+        if d is None or len(d) < min_bars:
             continue
+        d = d.copy()
+        d.index = _naive_dates(d.index)
+        d = d[~d.index.duplicated(keep="last")].sort_index()
+        clean[sym] = d
+        frames[sym] = fp.feature_frame(d)
+    return clean, frames
 
-        start_idx = max(min_history, len(full_df) - test_days - horizon_days)
-        end_idx = len(full_df) - horizon_days
 
-        for i in range(start_idx, end_idx):
-            df_as_of = full_df.iloc[: i + 1]
-            if len(df_as_of) < min_history:
+def _simulate(plan: ts.TradePlan, d: pd.DataFrame, pos: int):
+    """Run one trade over the symbol's bars after position `pos`. Returns (state, outcome, exit_pos, void)."""
+    o = d["open"].to_numpy()[pos + 1:]
+    h = d["high"].to_numpy()[pos + 1:]
+    l = d["low"].to_numpy()[pos + 1:]
+    c = d["close"].to_numpy()[pos + 1:]
+    if len(c) == 0:
+        return ts.new_state(plan), None, None, False
+    prev = np.concatenate([[d["close"].to_numpy()[pos]], c[:-1]])
+    with np.errstate(all="ignore"):
+        gaps = o / prev - 1.0
+    bad = np.nonzero(np.isfinite(gaps) & (np.abs(gaps) > VOID_GAP))[0]
+    kv = int(bad[0]) if len(bad) else None
+    n = kv if kv is not None else len(c)
+    st = ts.replay(plan, zip(o[:n], h[:n], l[:n], c[:n]))
+    if kv is not None and st.status in (ts.PENDING, ts.OPEN):
+        return st, None, None, True
+    last_close = float(c[n - 1]) if n else float(plan.trigger)
+    oc = ts.outcome(plan, st, mark_px=last_close)
+    exit_pos = pos + st.exit_n if st.status == ts.CLOSED else None
+    return st, oc, exit_pos, False
+
+
+def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, cooldown: int | None = None,
+                 max_picks: int | None = None, min_bars: int = 120, dlv: pd.DataFrame | None = None,
+                 top_n_liquid: int | None = None) -> list[dict]:
+    """
+    Replay the rule on each of the last `test_days` sessions. Returns one dict per signal (including the ones
+    that never filled or are still open - summarise_backtest separates them).
+
+    dlv           optional DataFrame (index = dates, columns = symbols) of the lagged 20-day average delivery %;
+                  with it the 8-factor score is used, without it the 7-factor price-only score
+    top_n_liquid  keep only the N most-traded stocks of each day (the live scan's universe is the NIFTY 500);
+                  leave None when `bars` already is the universe
+    """
+    cooldown = config.COOLDOWN_SESSIONS if cooldown is None else cooldown
+    max_picks = max_picks or config.MAX_PICKS.get(scan_mode, 10)
+    clean, frames = _prepare(bars, min_bars)
+    if len(clean) < 30:
+        logger.warning(f"Only {len(clean)} usable stocks - too few for a meaningful backtest")
+        return []
+
+    syms = sorted(clean)
+    all_dates = sorted(set().union(*[set(d.index) for d in clean.values()]))
+    T, S = len(all_dates), len(syms)
+    date_pos = {d: i for i, d in enumerate(all_dates)}
+    M = {k: np.full((T, S), np.nan) for k in _NEED}
+    DL = np.full((T, S), np.nan)
+    if dlv is not None and len(dlv):
+        dl = dlv.copy()
+        dl.index = _naive_dates(dl.index)
+        dl = dl[~dl.index.duplicated(keep="last")]
+        dl = dl.reindex(index=pd.DatetimeIndex(all_dates), columns=syms)
+        DL = dl.to_numpy(dtype=float)
+    own_pos: list[dict] = []
+    for j, s in enumerate(syms):
+        fr = frames[s]
+        ix = np.array([date_pos[d] for d in fr.index])
+        for k in _NEED:
+            M[k][ix, j] = fr[k].to_numpy()
+        own_pos.append({d: i for i, d in enumerate(clean[s].index)})
+
+    test_idx = list(range(max(0, T - test_days), T))
+    last_sig: dict[str, int] = {}
+    busy_until: dict[str, int] = {}       # global date index when an unfinished trade ends (inf while still going)
+    trades: list[dict] = []
+    gate = config.QUALITY_GATE_PCT
+
+    for ti in test_idx:
+        close = M["close"][ti]
+        ok = np.isfinite(close) & (close >= config.MIN_PRICE) & (M["turn20"][ti] >= config.MIN_AVG_DOLLAR_VOLUME) \
+            & np.isfinite(M["piv50"][ti])
+        if ok.sum() < 50:
+            continue
+        js = np.nonzero(ok)[0]
+        if top_n_liquid and len(js) > top_n_liquid:
+            js = js[np.argsort(-M["turn20"][ti][js], kind="stable")[:top_n_liquid]]
+            js.sort()
+        feats = pd.DataFrame({k: M[k][ti][js] for k in _NEED}, index=[syms[j] for j in js])
+        dl_t = pd.Series(DL[ti][js], index=feats.index) if np.isfinite(DL[ti][js]).any() else None
+        scored, _ = fp.score_universe(feats, dl_t, min_delivery_coverage=config.DELIVERY_MIN_COVERAGE)
+        breadth = fp.market_breadth(feats)
+        regime = fp.regime_label(breadth.get("breadth50"))
+        near = (feats["close"] >= (1.0 - config.PRIMED_NEAR_PCT) * feats["piv_incl"]).to_numpy()
+
+        cands = []
+        for r in np.nonzero(near)[0]:
+            sym = feats.index[r]
+            q = scored["quality_pct"].iloc[r]
+            if not (isinstance(q, (float, np.floating)) and math.isfinite(q)) or q < gate:
                 continue
-
-            bench_as_of = benchmark_df[benchmark_df.index <= df_as_of.index[-1]]
-            if len(bench_as_of) < min_history:
+            su = fp.detect_setup({k: float(feats[k].iloc[r]) for k in _NEED})
+            if su["setup"] is None:
                 continue
+            cands.append((0 if su["setup"] == "fresh" else 1, -float(q), sym, su))
+        cands.sort(key=lambda t: (t[0], t[1], t[2]))
 
-            scan_result = engine.scan_symbol(symbol, df_as_of, bench_as_of)
-            if scan_result is None:
+        picked = 0
+        for _, negq, sym, su in cands:
+            if picked >= max_picks:
+                break
+            if ti < last_sig.get(sym, -10**9) + cooldown or ti < busy_until.get(sym, -1):
                 continue
-
-            rsi_analysis = check_pre_breakout_setup(df_as_of)
-            if not rsi_analysis["flagged"]:
+            j = syms.index(sym)
+            atr = float(feats.at[sym, "atr_pct"])
+            if not (math.isfinite(atr) and atr > 0):
                 continue
-
-            # Computed once, here, and reused for both the SWING gate and
-            # the final per-trade tag - mirrors main.py exactly, so the
-            # backtest's definition of "passed the gate" never drifts
-            # from what the live scan actually admits.
-            stage_analysis = classify_setup_stage(df_as_of)
-
-            if scan_mode == "btst":
-                gate_analysis = btst_momentum_setup(df_as_of)
-            else:
-                # Additive OR, same widening as main.py: near_recent_base
-                # alone can never pass an already-broken-out stock, so
-                # SWING also admits a confirmed fresh_breakout tag.
-                gate_analysis = near_recent_base(df_as_of)
-                gate_analysis = {
-                    **gate_analysis,
-                    "flagged": gate_analysis["flagged"] or stage_analysis["setup_stage"] == "fresh_breakout",
-                }
-            if not gate_analysis["flagged"]:
+            plan = ts.TradePlan("stop", tick_up(su["trigger"]), atr)
+            if plan.risk_pct > MAX_RISK_PCT:
                 continue
-
-            levels = compute_trade_levels(df_as_of)
-            if levels is None:
+            picked += 1
+            last_sig[sym] = ti
+            d = clean[sym]
+            pos = own_pos[j].get(all_dates[ti])
+            if pos is None:
                 continue
-
-            macd_result = macd_bullish(df_as_of)
-            hh_hl_result = higher_highs_higher_lows(df_as_of)
-            vwap_result = rolling_vwap_position(df_as_of)
-            obv_result = obv_accumulation(df_as_of)
-            adx_result = adx_building(df_as_of)
-
-            n_extra = sum([macd_result.passed, hh_hl_result.passed, vwap_result.passed,
-                           obv_result.passed, adx_result.passed])
-            n_signals = 1 + n_extra
-            if n_signals < 3:
-                continue
-            conviction_boost = 1.0 + (0.08 * n_extra)
-            predicted_prob = min(0.99, scan_result.composite_score * conviction_boost)
-
-            future_bars = full_df.iloc[i + 1: i + 1 + horizon_days]
-            if future_bars.empty:
-                continue
-
-            outcome, days, max_gain_pct, pct_of_target, final_gain_pct = _resolve_outcome(
-                future_bars, levels.entry_trigger, levels.target_1, levels.stop_loss
-            )
-
-            # DIAGNOSTIC only (see module docstring) - derived from the
-            # multiplier value rather than its descriptive label string,
-            # since the label's embedded percentage varies trade to
-            # trade and isn't a stable grouping key.
-            try:
-                _, trend_mult = compute_index_trend_bias(bench_as_of)
-                if trend_mult > 1.0:
-                    market_trend = "above_trend"
-                elif trend_mult < 1.0:
-                    market_trend = "below_trend"
-                else:
-                    market_trend = "flat_or_unknown"
-            except Exception:
-                market_trend = "flat_or_unknown"
-
-            trades.append(BacktestTrade(
-                symbol=symbol,
-                signal_date=str(df_as_of.index[-1].date()),
-                predicted_prob=round(predicted_prob, 4),
-                n_signals=n_signals,
-                entry_trigger=levels.entry_trigger,
-                stop_loss=levels.stop_loss,
-                target_1=levels.target_1,
-                outcome=outcome,
-                days_to_resolve=days,
-                max_gain_pct=round(max_gain_pct, 4),
-                pct_of_target_reached=round(pct_of_target, 4),
-                final_gain_pct=round(final_gain_pct, 4),
-                setup_stage=stage_analysis["setup_stage"],
-                days_since_break=stage_analysis.get("days_since_break"),
-                market_trend=market_trend,
-            ))
-
+            st, oc, exit_pos, void = _simulate(plan, d, pos)
+            dates = d.index
+            status = "VOID" if void else st.status
+            rec = {
+                "symbol": sym, "signal_date": all_dates[ti].date().isoformat(), "setup": su["setup"],
+                "quality_pct": round(-negq, 1), "atr_pct": round(atr, 4), "risk_pct": round(plan.risk_pct, 4),
+                "trigger": plan.trigger, "regime": regime, "status": status,
+                "fill_date": "", "exit_date": "", "exit_reason": st.exit_reason, "net": np.nan, "R": np.nan, "peak_R": np.nan,
+            }
+            if st.fill_n >= 1 and pos + st.fill_n < len(dates):
+                rec["fill_date"] = dates[pos + st.fill_n].date().isoformat()
+            if st.status == ts.CLOSED and exit_pos is not None and exit_pos < len(dates):
+                rec["exit_date"] = dates[exit_pos].date().isoformat()
+            if oc is not None and not void:
+                rec["net"], rec["R"] = oc["net"], oc["R"]
+                rec["peak_R"] = ts.peak_r(plan, st)
+            # block the symbol while the trade is unfinished (the live scan does the same)
+            if void:
+                busy_until[sym] = ti
+            elif st.status in (ts.PENDING, ts.OPEN):
+                busy_until[sym] = 10**9
+            elif st.status == ts.CLOSED and exit_pos is not None:
+                busy_until[sym] = date_pos.get(dates[exit_pos], ti)
+            trades.append(rec)
+    logger.info(f"Backtest ({scan_mode}): {len(trades)} signals over {len(test_idx)} sessions on {len(syms)} stocks")
     return trades
 
 
-def summarize_backtest(trades: list[BacktestTrade]) -> dict:
-    resolved = [t for t in trades if t.outcome in (0, 1)]
-    unresolved = [t for t in trades if t.outcome == -1]
-
-    if not resolved:
-        return {"total_signals": len(trades), "resolved": 0, "message": "No resolved trades to summarize"}
-
-    overall_hit_rate = sum(t.outcome for t in resolved) / len(resolved)
-
-    by_signals: dict[int, list[BacktestTrade]] = {}
-    for t in resolved:
-        by_signals.setdefault(t.n_signals, []).append(t)
-    signal_breakdown = {
-        n: {"count": len(ts), "hit_rate": round(sum(t.outcome for t in ts) / len(ts), 3)}
-        for n, ts in sorted(by_signals.items())
-    }
-
-    by_stage: dict[str, list[BacktestTrade]] = {}
-    for t in resolved:
-        by_stage.setdefault(t.setup_stage, []).append(t)
-    stage_breakdown = {
-        stage: {"count": len(ts), "hit_rate": round(sum(t.outcome for t in ts) / len(ts), 3)}
-        for stage, ts in sorted(by_stage.items())
-    }
-
-    # Fresh-breakout trades only - the direct evidence on whether a
-    # day-1 ("just printed its breakout candle") entry really performs
-    # differently from a day-2/3 one.
-    by_days: dict[int, list[BacktestTrade]] = {}
-    for t in resolved:
-        if t.setup_stage == "fresh_breakout" and t.days_since_break is not None:
-            by_days.setdefault(t.days_since_break, []).append(t)
-    days_since_break_breakdown = {
-        days: {"count": len(ts), "hit_rate": round(sum(t.outcome for t in ts) / len(ts), 3)}
-        for days, ts in sorted(by_days.items())
-    }
-
-    by_trend: dict[str, list[BacktestTrade]] = {}
-    for t in resolved:
-        by_trend.setdefault(t.market_trend, []).append(t)
-    market_trend_breakdown = {
-        trend: {"count": len(ts), "hit_rate": round(sum(t.outcome for t in ts) / len(ts), 3)}
-        for trend, ts in sorted(by_trend.items())
-    }
-
-    unresolved_diagnostic = {}
-    if unresolved:
-        close_to_target = [t for t in unresolved if t.pct_of_target_reached >= 0.80]
-        went_nowhere = [t for t in unresolved if -0.10 <= t.final_gain_pct <= 0.10 and t.pct_of_target_reached < 0.80]
-        drifted_down = [t for t in unresolved if t.final_gain_pct < -0.10]
-        drifted_up_not_enough = [t for t in unresolved if 0.10 < t.final_gain_pct and t.pct_of_target_reached < 0.80]
-
-        avg_pct_of_target = sum(t.pct_of_target_reached for t in unresolved) / len(unresolved)
-        avg_final_gain = sum(t.final_gain_pct for t in unresolved) / len(unresolved)
-
-        unresolved_diagnostic = {
-            "count": len(unresolved),
-            "avg_pct_of_target_reached": round(avg_pct_of_target, 3),
-            "avg_final_gain_pct": round(avg_final_gain, 4),
-            "got_close_80pct_or_more_of_target": len(close_to_target),
-            "went_nowhere_flat": len(went_nowhere),
-            "drifted_down_meaningfully": len(drifted_down),
-            "drifted_up_but_not_enough": len(drifted_up_not_enough),
-        }
-
+# --------------------------------------------------------------------------- #
+def _group_stats(net: np.ndarray, r: np.ndarray) -> dict:
+    n = int(len(net))
+    if n == 0:
+        return {"n": 0}
+    wins = net > 0
+    losses_sum = float(net[~wins].sum())
     return {
-        "total_signals": len(trades),
-        "resolved": len(resolved),
-        "still_open_at_horizon_end": len(unresolved),
-        "overall_hit_rate": round(overall_hit_rate, 3),
-        "by_signal_count": signal_breakdown,
-        "by_setup_stage": stage_breakdown,
-        "by_days_since_break": days_since_break_breakdown,
-        "by_market_trend": market_trend_breakdown,
-        "unresolved_diagnostic": unresolved_diagnostic,
+        "n": n, "win_rate": float(wins.mean()), "avg_net": float(net.mean()), "median_net": float(np.median(net)),
+        "avg_R": float(np.nanmean(r)), "best_R": float(np.nanmax(r)), "worst_R": float(np.nanmin(r)),
+        "profit_factor": float(net[wins].sum() / -losses_sum) if losses_sum < 0 else float("inf"),
     }
 
 
-def write_backtest_report(trades: list[BacktestTrade], summary: dict, scan_mode: str, out_dir: str = "./reports/output") -> str:
-    from pathlib import Path
-    from datetime import date
+def _bucket(q: float) -> str:
+    return "50-65" if q < 65 else "65-80" if q < 80 else "80-90" if q < 90 else "90-100"
 
-    Path(out_dir).mkdir(parents=True, exist_ok=True)
-    path = f"{out_dir}/backtest_{scan_mode}_{date.today().isoformat()}.md"
 
-    lines = [f"# Backtest Report - {scan_mode.upper()} - {date.today().isoformat()}", ""]
+def summarize_backtest(trades: list[dict]) -> dict:
+    """Closed trades only count toward win rate / R; unfilled, still-open and void ones are counted separately."""
+    df = pd.DataFrame(trades)
+    out: dict = {"signals": int(len(df))}
+    if df.empty:
+        out.update({"closed": 0, "open": 0, "pending": 0, "unfilled": 0, "void": 0, "all": {"n": 0}})
+        return out
+    for key, name in (("closed", "CLOSED"), ("open", "OPEN"), ("pending", "PENDING"), ("unfilled", "UNFILLED"), ("void", "VOID")):
+        out[key] = int((df["status"] == name).sum())
+    closed = df[df["status"] == "CLOSED"].copy()
+    out["all"] = _group_stats(closed["net"].to_numpy(float), closed["R"].to_numpy(float)) if len(closed) else {"n": 0}
+    if len(closed):
+        closed["year"] = closed["signal_date"].str[:4]
+        closed["bucket"] = closed["quality_pct"].map(_bucket)
+        for label, col in (("by_setup", "setup"), ("by_regime", "regime"), ("by_quality", "bucket"), ("by_year", "year")):
+            out[label] = {str(k): _group_stats(g["net"].to_numpy(float), g["R"].to_numpy(float))
+                          for k, g in closed.groupby(col)}
+        out["avg_hold_sessions"] = None
+    return out
 
-    if summary.get("resolved", 0) == 0:
-        lines.append("No resolved trades - not enough historical data or nothing was flagged in the test window.")
-        Path(path).write_text("\n".join(lines))
-        return path
 
-    lines.append(f"**{summary['total_signals']} total signals** ({summary['resolved']} resolved, "
-                 f"{summary['still_open_at_horizon_end']} still open at horizon end)")
-    lines.append(f"**Overall hit rate: {summary['overall_hit_rate']:.1%}** (target hit before stop)")
-    lines.append("")
-    lines.append("## Hit rate by signal-agreement count")
-    lines.append("| Signals confirming | Count | Hit rate |")
-    lines.append("| :--- | :--- | :--- |")
-    for n, stats in summary["by_signal_count"].items():
-        lines.append(f"| {n}/6 | {stats['count']} | {stats['hit_rate']:.1%} |")
-    lines.append("")
+def _fmt_stats(s: dict) -> str:
+    if not s.get("n"):
+        return "n=0"
+    pf = "inf" if math.isinf(s["profit_factor"]) else f"{s['profit_factor']:.2f}"
+    return (f"n={s['n']}, win rate {s['win_rate']:.0%}, avg {s['avg_net']:+.2%} per trade after costs "
+            f"({s['avg_R']:+.2f}R), median {s['median_net']:+.2%}, profit factor {pf}, best {s['best_R']:+.1f}R, worst {s['worst_R']:+.1f}R")
 
-    stage_breakdown = summary.get("by_setup_stage")
-    if stage_breakdown:
-        lines.append("## Hit rate by setup stage (fresh breakout / pre-breakout tag)")
-        lines.append("| Setup stage | Count | Hit rate |")
-        lines.append("| :--- | :--- | :--- |")
-        for stage, stats in stage_breakdown.items():
-            lines.append(f"| {stage} | {stats['count']} | {stats['hit_rate']:.1%} |")
-        lines.append("")
 
-    days_breakdown = summary.get("by_days_since_break")
-    if days_breakdown:
-        lines.append("## Hit rate by days since the breakout candle (fresh_breakout trades only)")
-        lines.append("*Day 1 = the signal day itself was the breakout candle - the \"enter on next candle\" case.*")
-        lines.append("")
-        lines.append("| Days since break | Count | Hit rate |")
-        lines.append("| :--- | :--- | :--- |")
-        for days, stats in days_breakdown.items():
-            lines.append(f"| {days} | {stats['count']} | {stats['hit_rate']:.1%} |")
-        lines.append("")
+def _table(title: str, groups: dict) -> list[str]:
+    if not groups:
+        return []
+    lines = [f"### {title}", "", "| Group | Trades | Win rate | Avg after costs | Avg R | Profit factor |", "| :-- | --: | --: | --: | --: | --: |"]
+    for k in sorted(groups):
+        s = groups[k]
+        pf = "inf" if math.isinf(s["profit_factor"]) else f"{s['profit_factor']:.2f}"
+        lines.append(f"| {k} | {s['n']} | {s['win_rate']:.0%} | {s['avg_net']:+.2%} | {s['avg_R']:+.2f} | {pf} |")
+    return lines + [""]
 
-    trend_breakdown = summary.get("by_market_trend")
-    if trend_breakdown:
-        lines.append("## Hit rate by NSE market trend on the signal day")
-        lines.append("| Market trend | Count | Hit rate |")
-        lines.append("| :--- | :--- | :--- |")
-        for trend, stats in trend_breakdown.items():
-            lines.append(f"| {trend} | {stats['count']} | {stats['hit_rate']:.1%} |")
-        lines.append("")
 
-    diag = summary.get("unresolved_diagnostic")
-    if diag:
-        lines.append("## What happened to the unresolved trades?")
-        lines.append(f"- **{diag['count']}** trades hit neither target nor stop within the horizon")
-        lines.append(f"- Average max progress toward target: **{diag['avg_pct_of_target_reached']:.0%}** of the way there")
-        lines.append(f"- Average gain/loss at horizon end: **{diag['avg_final_gain_pct']:+.1%}**")
-        lines.append(f"- Got 80%+ of the way to target: **{diag['got_close_80pct_or_more_of_target']}**")
-        lines.append(f"- Went essentially nowhere, flat: **{diag['went_nowhere_flat']}**")
-        lines.append(f"- Drifted up meaningfully but still short of target: **{diag['drifted_up_but_not_enough']}**")
-        lines.append(f"- Drifted down meaningfully without quite hitting stop: **{diag['drifted_down_meaningfully']}**")
+def write_backtest_report(trades: list[dict], stats: dict, scan_mode: str, n_stocks: int = 0,
+                          out_dir: str = "./reports/output") -> str:
+    os.makedirs(out_dir, exist_ok=True)
+    stamp = datetime.utcnow().strftime("%Y-%m-%d")
+    md_path = f"{out_dir}/backtest_{scan_mode}_{stamp}.md"
+    csv_path = f"{out_dir}/backtest_{scan_mode}_{stamp}_trades.csv"
+    pd.DataFrame(trades).to_csv(csv_path, index=False)
+    lines = [f"# Backtest - {scan_mode} rule, replayed on broker daily bars ({stamp})", "",
+             f"{n_stocks} stocks, {stats.get('signals', 0)} signals: {stats.get('closed', 0)} closed, {stats.get('open', 0)} still open, "
+             f"{stats.get('pending', 0)} still waiting for the buy-stop, {stats.get('unfilled', 0)} never triggered, "
+             f"{stats.get('void', 0)} dropped (suspected split/bonus gap).", "",
+             "**Closed trades:** " + _fmt_stats(stats.get("all", {"n": 0})), ""]
+    for title, key in (("By setup", "by_setup"), ("By market regime on the signal day", "by_regime"),
+                       ("By quality percentile", "by_quality"), ("By year", "by_year")):
+        lines += _table(title, stats.get(key, {}))
+    lines += ["---",
+              "Entry is a buy-stop at the trigger (valid 5 sessions), stop 2.5 ATR below the fill, trailing stop 5 ATR below the highest close, "
+              "60-session time limit, 0.35% round-trip costs. Only decisions available at the signal day's close are used. "
+              "Daily candles from the broker are not split/bonus adjusted, the quality score here is the 7-factor price-only version, "
+              "and a rule that worked on a past window is no promise about the next one.", ""]
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return md_path
 
-    Path(path).write_text("\n".join(lines))
-    return path
+
+# --------------------------------------------------------------------------- #
+def live_scoreboard_report(ledger: pd.DataFrame, scan_mode: str | None = None,
+                           out_dir: str = "./reports/output") -> tuple[str, str]:
+    """What the tracked picks actually did, split by quality bucket / setup / mode / market regime."""
+    from tracking import outcomes
+    df = ledger if scan_mode is None else ledger[ledger["scan_mode"] == scan_mode]
+    os.makedirs(out_dir, exist_ok=True)
+    path = f"{out_dir}/live_scoreboard.md"
+    s = outcomes.scoreboard(df)
+    lines = ["# Live scoreboard (picks as sent, followed exactly by the plan, after costs)", "",
+             f"{s['total']} picks logged since {s['first_signal'] or 'the start'}: {s['closed']} closed, {s['open']} open, "
+             f"{s['pending']} waiting for their buy-stop, {s['unfilled']} never triggered, {s['void']} dropped (split/bonus gap).", ""]
+    closed = df[df["status"] == "CLOSED"].copy()
+    if len(closed):
+        closed["net"] = closed["net"].astype(float)
+        closed["R"] = closed["R"].astype(float)
+        closed["bucket"] = closed["quality_pct"].astype(float).map(_bucket)
+        lines += ["**All closed trades:** " + _fmt_stats(_group_stats(closed["net"].to_numpy(), closed["R"].to_numpy())), ""]
+        if len(closed) < 30:
+            lines += ["*Fewer than 30 closed trades: too few to judge. Treat every number below as noise until there are 30+.*", ""]
+        for title, col in (("By quality percentile (does a higher rank do better?)", "bucket"), ("By setup", "setup"),
+                           ("By scan", "scan_mode"), ("By market regime on the signal day", "regime")):
+            groups = {str(k): _group_stats(g["net"].to_numpy(), g["R"].to_numpy()) for k, g in closed.groupby(col) if str(k)}
+            lines += _table(title, groups)
+    else:
+        lines += ["No trade has closed yet - results appear here as the tracked trades are stopped out or reach the time limit.", ""]
+    open_rows = df[df["status"] == "OPEN"]
+    if len(open_rows):
+        lines += [f"Open positions: {len(open_rows)}, average mark-to-market {open_rows['R'].astype(float).mean():+.2f}R", ""]
+    text = "\n".join(lines) + "\n"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return path, text

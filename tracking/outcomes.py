@@ -1,288 +1,339 @@
 """
-Trade outcome tracker: a persistent ledger of every pick this scanner
-has actually recommended, and what happened to it afterward - the
-live companion to backtest/engine.py's historical simulation.
+The scoreboard: a ledger of every pick the scanner has issued, and what a
+trader who followed the plan exactly would have got - after costs.
 
-Reuses the exact resolution rule the backtest already validated (hit
-target_1 before stop_loss = WON, vice versa = LOST; a same-day double
-hit resolves to WON, matching _resolve_outcome's day-index tie-break)
-and the exact same horizon per mode (HORIZON_DAYS_BY_MODE, imported
-from backtest.engine - one shared source of truth) so live and
-backtest numbers stay directly comparable, not two different
-definitions of "did it work" drifting apart.
+WHAT CHANGED (2026-10-19). The old tracker had three flaws that made its
+numbers untrustworthy: a pick that never triggered was counted as a LOSS; a
+same-day target+stop touch was counted as a WIN; and only the first target
+was tracked, with no costs. Real trades are not run that way, so the old
+"win rate" said little about real results. The old ledgers are kept for
+reference as tracking/legacy_v1_*.csv.
 
-DESIGN - reuses data, never refetches: update_open_trades() is called
-with the SAME `bars` dict main.py already fetched for today's scan.
-No extra Angel One API calls, no extra rate-limit exposure - this
-only reads bars that are already sitting in memory for the day's run.
-If a symbol isn't in today's `bars` (fetch failed, or it fell out of
-the universe), its open trade is just left untouched and re-checked
-next run - no API call is made on its behalf.
+HOW A TRADE IS RUN NOW - exactly the plan in scanner/tradesim.py, the same
+state machine the backtest uses:
 
-KNOWN SIMPLIFICATION (shared with the backtest, kept consistent on
-purpose): a trade resolves WON/LOST purely off target_1/stop_loss
-being touched from signal_date onward, without first requiring
-entry_trigger to have actually been crossed. In practice this rarely
-inflates wins (target_1 is always further from entry_trigger than
-entry_trigger is from the current price at signal time, so touching
-target_1 almost always implies trading through the trigger too), but
-it CAN mark a trade "LOST" that never actually triggered and so was
-never really taken. The `triggered` column records whether
-entry_trigger was ever touched while open, so that's visible in the
-data even though it isn't used to change WON/LOST - changing the
-resolution rule itself would make live numbers diverge from backtest
-numbers, which this module exists to stay comparable with.
+    PENDING   a buy-stop order that has not triggered yet (valid 5 sessions)
+    OPEN      bought; the stop trails up behind the highest close
+    CLOSED    stopped out (or 60-session time limit) - result in % and in R
+    UNFILLED  the buy-stop never triggered, or the stock gapped >3% past it:
+              no trade happened, so it is neither a win nor a loss
+    VOID      a corporate action (split/bonus) is suspected from an
+              impossible overnight gap; excluded from the statistics
 
-CSV LEDGER per mode (tracking/trade_log_<mode>.csv) - status is one
-of OPEN / WON / LOST / EXPIRED. EXPIRED means neither target nor stop
-was touched within HORIZON_DAYS_BY_MODE trading sessions - the same
-"still open at horizon end" bucket the backtest already reports on.
+R is the net return (after the 0.35% round-trip cost) divided by the initial
+risk: -1R is a full stop-out, +3R is a gain three times the amount risked.
+
+THE LEDGER IS REPLAYED, NOT PATCHED. Each run replays every unfinished trade
+from its signal date over the COMPLETED daily sessions after it (today's
+still-forming bar is never used). That makes updating idempotent - running it
+twice, or after a missed day, gives the same answer - and a trade's state can
+never be corrupted by a half-finished session.
+
+No extra API calls are needed: it uses the bars the scan already fetched
+(plus the caller may fetch a few extra symbols that are no longer in the scan).
 """
 from __future__ import annotations
+
 import logging
+import math
 import os
+from datetime import date
+
+import numpy as np
 import pandas as pd
 
-from backtest.engine import HORIZON_DAYS_BY_MODE
+import config
+from scanner import session
+from scanner import tradesim as ts
 
 logger = logging.getLogger(__name__)
 
 TRACKING_DIR = "tracking"
+LEDGER_PATH = f"{TRACKING_DIR}/trades.csv"
 
-LEDGER_COLUMNS = [
-    "trade_id", "symbol", "scan_mode", "signal_date", "grade", "probability",
-    "n_signals", "setup_stage", "days_since_break", "entry_trigger", "stop_loss", "target_1",
-    "status", "triggered", "days_held", "resolved_date", "exit_price",
-    "pnl_pct", "last_checked_date",
-]
+META_COLS = ["trade_id", "symbol", "scan_mode", "setup", "signal_date", "signal_time_ist",
+             "quality_pct", "grade", "sector", "regime"]
+PLAN_COLS = ["entry_mode", "trigger", "atr_pct", "stop_mult", "trail_mult", "valid_sessions",
+             "max_hold", "max_chase", "cost"]
+STATE_COLS = ["status", "sessions", "fill_n", "fill_px", "init_stop", "trail", "hc", "exit_n",
+              "exit_px", "exit_reason"]
+RESULT_COLS = ["fill_date", "exit_date", "net", "R", "peak_R", "last_close", "last_checked_date"]
+COLUMNS = META_COLS + PLAN_COLS + STATE_COLS + RESULT_COLS
 
-
-def _ledger_path(scan_mode: str) -> str:
-    return f"{TRACKING_DIR}/trade_log_{scan_mode}.csv"
-
-
-def _as_bool(value) -> bool:
-    """CSV round-trips bool columns as the strings 'True'/'False' (or
-    leaves them as real bools if called within the same process) -
-    bool('False') is True in plain Python, so this needs an explicit
-    string check rather than a bare bool() cast."""
-    if isinstance(value, bool):
-        return value
-    return str(value).strip().lower() == "true"
+_TEXT_COLS = {"trade_id", "symbol", "scan_mode", "setup", "signal_date", "signal_time_ist", "grade", "sector",
+              "regime", "entry_mode", "status", "exit_reason", "fill_date", "exit_date", "last_checked_date"}
+ACTIVE = ("PENDING", "OPEN")
+FINAL = ("CLOSED", "UNFILLED", "VOID")
+VOID_GAP = 0.35          # an overnight gap beyond +/-35% is a corporate action, not a price move
 
 
-def _load_ledger(scan_mode: str) -> pd.DataFrame:
-    path = _ledger_path(scan_mode)
+# --------------------------------------------------------------------------- #
+def load_ledger(path: str = LEDGER_PATH) -> pd.DataFrame:
     if not os.path.exists(path):
-        return pd.DataFrame(columns=LEDGER_COLUMNS)
+        return pd.DataFrame(columns=COLUMNS)
     try:
-        df = pd.read_csv(path, dtype={"signal_date": str, "resolved_date": str, "last_checked_date": str})
+        df = pd.read_csv(path, dtype=str, keep_default_na=False)
     except pd.errors.EmptyDataError:
-        return pd.DataFrame(columns=LEDGER_COLUMNS)
+        return pd.DataFrame(columns=COLUMNS)
     if df.empty:
-        return pd.DataFrame(columns=LEDGER_COLUMNS)
-    for col in LEDGER_COLUMNS:
+        return pd.DataFrame(columns=COLUMNS)
+    for col in COLUMNS:
         if col not in df.columns:
-            df[col] = None
-    df["triggered"] = df["triggered"].apply(_as_bool)
-    return df[LEDGER_COLUMNS].copy()
+            df[col] = ""
+    df = df[COLUMNS].copy()
+    for col in COLUMNS:
+        if col in _TEXT_COLS:
+            df[col] = df[col].fillna("").astype(str)
+        else:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df.reset_index(drop=True)
 
 
-def _save_ledger(scan_mode: str, df: pd.DataFrame):
-    os.makedirs(TRACKING_DIR, exist_ok=True)
-    df.to_csv(_ledger_path(scan_mode), columns=LEDGER_COLUMNS, index=False)
+def save_ledger(df: pd.DataFrame, path: str = LEDGER_PATH) -> None:
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    df.to_csv(path, columns=COLUMNS, index=False)
 
 
-def log_new_picks(scan_mode: str, picks: list[dict], signal_date: str) -> int:
+def _row_dict(row: pd.Series) -> dict:
+    """A ledger row as plain python values (NaN/blank become None) for the (de)serialisers."""
+    out = {}
+    for k, v in row.items():
+        if isinstance(v, float) and math.isnan(v):
+            out[k] = None
+        elif isinstance(v, str) and v == "":
+            out[k] = None
+        else:
+            out[k] = v
+    return out
+
+
+# --------------------------------------------------------------------------- #
+def active_symbols(df: pd.DataFrame | None = None, today: date | None = None,
+                   cooldown_sessions: int | None = None) -> set[str]:
     """
-    Appends today's high-conviction picks as new OPEN trades. `picks`
-    is a list of plain dicts (symbol, grade, probability, n_signals,
-    setup_stage, days_since_break, entry_trigger, stop_loss, target_1) - the same shape
-    main.py already builds for the scan CSV, kept decoupled here from
-    ai.explain's Recommendation class on purpose. Skips a symbol that
-    already has an OPEN trade in this mode's ledger - same setup,
-    don't restart tracking on it. Returns how many rows were added.
+    Symbols that must not be picked again: those with an unfinished trade, and
+    those picked within the cool-down window (the research counted one trade
+    per stock per 15 sessions, so a stock that stays set-up for a week is one
+    idea, not five).
     """
-    df = _load_ledger(scan_mode)
-    open_symbols = set(df.loc[df["status"] == "OPEN", "symbol"]) if not df.empty else set()
+    df = load_ledger() if df is None else df
+    cooldown = config.COOLDOWN_SESSIONS if cooldown_sessions is None else cooldown_sessions
+    today = today or session.ist_date()
+    out: set[str] = set()
+    for _, r in df.iterrows():
+        if r["status"] in ACTIVE:
+            out.add(r["symbol"])
+            continue
+        try:
+            sig = date.fromisoformat(r["signal_date"])
+        except Exception:
+            continue
+        if int(np.busday_count(sig, today)) < cooldown:
+            out.add(r["symbol"])
+    return out
 
+
+def log_new_picks(picks: list, now=None, regime: str = "", path: str = LEDGER_PATH) -> int:
+    """
+    Append the picks (scanner.pipeline.Pick objects) as new trades: PENDING for
+    a buy-stop, OPEN for a buy-now. A pick whose trade_id already exists is
+    skipped, so re-running the same scan twice cannot double-count.
+    """
+    df = load_ledger(path)
+    have = set(df["trade_id"])
     new_rows = []
     for p in picks:
-        symbol = p.get("symbol")
-        if not symbol or symbol in open_symbols:
+        tid = f"{p.symbol}_{p.signal_date}_{p.scan_mode}"
+        if tid in have:
             continue
-        if p.get("entry_trigger") is None or p.get("stop_loss") is None or p.get("target_1") is None:
-            continue  # no valid levels, nothing to track
-        new_rows.append({
-            "trade_id": f"{symbol}_{signal_date}",
-            "symbol": symbol,
-            "scan_mode": scan_mode,
-            "signal_date": signal_date,
-            "grade": p.get("grade"),
-            "probability": p.get("probability"),
-            "n_signals": p.get("n_signals"),
-            "setup_stage": p.get("setup_stage"),
-            "days_since_break": p.get("days_since_break"),
-            "entry_trigger": p.get("entry_trigger"),
-            "stop_loss": p.get("stop_loss"),
-            "target_1": p.get("target_1"),
-            "status": "OPEN",
-            "triggered": False,
-            "days_held": 0,
-            "resolved_date": None,
-            "exit_price": None,
-            "pnl_pct": None,
-            "last_checked_date": signal_date,
+        plan = p.plan()
+        st = ts.new_state(plan)
+        row = {c: None for c in COLUMNS}
+        row.update({
+            "trade_id": tid, "symbol": p.symbol, "scan_mode": p.scan_mode, "setup": p.setup,
+            "signal_date": p.signal_date, "signal_time_ist": p.signal_time_ist,
+            "quality_pct": round(p.quality_pct, 1), "grade": p.grade, "sector": p.sector or "", "regime": regime,
+            **ts.plan_to_dict(plan), **ts.state_to_dict(st),
+            "fill_date": p.signal_date if st.status == ts.OPEN else "",
+            "last_close": p.price, "last_checked_date": p.signal_date,
         })
-        open_symbols.add(symbol)  # guard against duplicate symbols within the same picks list
-
-    # Always persist (even header-only) so the ledger file exists from the
-    # first run onward - same "write valid headers even when empty"
-    # convention already used for scan_results_*.csv, so a dashboard or
-    # workflow checking for this file's presence never has to guess.
-    updated = pd.concat([df, pd.DataFrame(new_rows, columns=LEDGER_COLUMNS)], ignore_index=True) if new_rows else df
-    _save_ledger(scan_mode, updated)
+        # a freshly opened buy-now trade is flat (before costs) at the entry price
+        if st.status == ts.OPEN:
+            o = ts.outcome(plan, st, mark_px=p.price)
+            row["net"], row["R"], row["peak_R"] = o["net"], o["R"], 0.0
+        new_rows.append(row)
+        have.add(tid)
+    updated = pd.concat([df, pd.DataFrame(new_rows, columns=COLUMNS)], ignore_index=True) if new_rows else df
+    # always write (even header-only) so the file exists from the first run
+    save_ledger(updated, path)
     if new_rows:
-        logger.info(f"📒 Tracker ({scan_mode}): logged {len(new_rows)} new open trade(s)")
+        logger.info(f"📒 Scoreboard: logged {len(new_rows)} new trade(s)")
     return len(new_rows)
 
 
-def update_open_trades(scan_mode: str, bars: dict) -> dict:
+# --------------------------------------------------------------------------- #
+def _completed(df: pd.DataFrame | None, now) -> pd.DataFrame | None:
+    """The bars of `df` that are complete sessions: today's still-forming bar is dropped while the market is open."""
+    if df is None or df.empty:
+        return None
+    d = df.sort_index()
+    d = d[~d.index.duplicated(keep="last")]
+    if session.session_state(now) == "open":
+        last = d.index[-1]
+        last_date = last.date() if hasattr(last, "date") else last
+        if last_date == session.ist_date(now):
+            d = d.iloc[:-1]
+    return d if len(d) else None
+
+
+def _idx_dates(index) -> list[date]:
+    return [t.date() if hasattr(t, "date") else t for t in index]
+
+
+def update_trades(bars: dict, now=None, path: str = LEDGER_PATH) -> dict:
     """
-    Checks every OPEN trade in this mode's ledger against the LATEST
-    bar already present in `bars` (today's already-fetched scan data -
-    no new API calls here). Resolves WON/LOST exactly like
-    backtest._resolve_outcome (same-day double-hit -> WON), and
-    EXPIRED once a trade has been open HORIZON_DAYS_BY_MODE[scan_mode]
-    checks without resolving either way.
+    Replay every unfinished trade over the completed sessions available in
+    `bars`. Returns {"checked": n, "events": [...]} where each event describes
+    something worth telling the user (a buy-stop filled, a stop hit, the stop
+    raised, ...). Trades whose symbol has no bars this run are left untouched.
     """
-    df = _load_ledger(scan_mode)
-    stats = {"checked": 0, "won": 0, "lost": 0, "expired": 0}
+    df = load_ledger(path)
+    now = now or session.now_ist()
+    report = {"checked": 0, "events": []}
     if df.empty:
-        return stats
+        return report
 
-    horizon = HORIZON_DAYS_BY_MODE.get(scan_mode, 30)
-    open_idx = df.index[df["status"] == "OPEN"]
-
-    for idx in open_idx:
+    for idx in df.index[df["status"].isin(ACTIVE)]:
         row = df.loc[idx]
-        symbol = row["symbol"]
-        sym_df = bars.get(symbol)
-        if sym_df is None or sym_df.empty:
-            continue  # no fresh data today - leave OPEN, try again next run
+        sym = row["symbol"]
+        bdf = _completed(bars.get(sym), now)
+        if bdf is None:
+            continue
+        try:
+            sig = date.fromisoformat(row["signal_date"])
+        except Exception:
+            continue
+        dates = _idx_dates(bdf.index)
+        keep = np.array([dt > sig for dt in dates], dtype=bool)
+        after = bdf[keep]
+        adates = [dt for dt, k in zip(dates, keep) if k]
 
-        today_bar = sym_df.iloc[-1]
-        last_idx_val = sym_df.index[-1]
-        today_date = str(last_idx_val.date()) if hasattr(last_idx_val, "date") else str(last_idx_val)
-        if today_date == row["last_checked_date"]:
-            continue  # already checked against this exact bar (e.g. a same-day re-run)
+        rd = _row_dict(row)
+        plan = ts.plan_from_dict(rd)
+        prev = ts.state_from_dict(rd)
+        report["checked"] += 1
 
-        stats["checked"] += 1
-        target_1 = float(row["target_1"])
-        stop_loss = float(row["stop_loss"])
-        entry_trigger = float(row["entry_trigger"])
+        # A split/bonus/demerger shows up as an impossible overnight gap. If the trade is still unfinished
+        # when such a gap happens, its prices are no longer comparable: stop scoring it (VOID). A trade that
+        # had already finished before the gap is unaffected.
+        n_after = len(after)
+        kv = None
+        if n_after:
+            before_sig = bdf[~keep]
+            ref_close = float(before_sig["close"].iloc[-1]) if len(before_sig) else float("nan")
+            a_open = after["open"].to_numpy(dtype=float)
+            a_close = after["close"].to_numpy(dtype=float)
+            prev_closes = np.concatenate([[ref_close], a_close[:-1]])
+            with np.errstate(all="ignore"):
+                gaps = a_open / prev_closes - 1.0
+            bad_idx = np.nonzero(np.isfinite(gaps) & (np.abs(gaps) > VOID_GAP))[0]
+            kv = int(bad_idx[0]) if len(bad_idx) else None
+        run = after.iloc[:kv] if kv is not None else after
+        st = ts.replay(plan, zip(run["open"], run["high"], run["low"], run["close"]))
+        if kv is not None and st.status in (ts.PENDING, ts.OPEN):
+            df.at[idx, "status"] = "VOID"
+            df.at[idx, "exit_reason"] = "corporate_action_suspected"
+            df.at[idx, "last_checked_date"] = str(adates[kv])
+            report["events"].append({"kind": "void", "symbol": sym, "date": str(adates[kv]), "gap": float(gaps[kv])})
+            continue
+        last_close = float(run["close"].iloc[-1]) if len(run) else float(row["last_close"] if pd.notna(row["last_close"]) else plan.trigger)
 
-        triggered = _as_bool(row["triggered"]) or bool(today_bar["high"] >= entry_trigger)
-        hit_target = bool(today_bar["high"] >= target_1)
-        hit_stop = bool(today_bar["low"] <= stop_loss)
-        days_held = int(row["days_held"]) + 1
+        for k, v in ts.state_to_dict(st).items():
+            df.at[idx, k] = v if v is not None else np.nan
+        df.at[idx, "last_close"] = last_close
+        df.at[idx, "last_checked_date"] = str(adates[-1]) if adates else row["last_checked_date"]
+        if st.fill_n >= 0 and st.status in ("OPEN", "CLOSED"):
+            df.at[idx, "fill_date"] = (str(adates[st.fill_n - 1]) if st.fill_n >= 1 and st.fill_n <= len(adates) else row["signal_date"])
+        if st.status == "CLOSED" and 1 <= st.exit_n <= len(adates):
+            df.at[idx, "exit_date"] = str(adates[st.exit_n - 1])
+        o = ts.outcome(plan, st, mark_px=last_close)
+        if o:
+            df.at[idx, "net"], df.at[idx, "R"] = o["net"], o["R"]
+            df.at[idx, "peak_R"] = ts.peak_r(plan, st)
 
-        df.at[idx, "triggered"] = triggered
-        df.at[idx, "days_held"] = days_held
-        df.at[idx, "last_checked_date"] = today_date
+        # ---- what is worth telling the user -----------------------------------------
+        if prev.status == ts.PENDING and st.status in (ts.OPEN, ts.CLOSED):
+            report["events"].append({"kind": "filled", "symbol": sym, "price": st.fill_px,
+                                     "date": str(adates[st.fill_n - 1]) if 1 <= st.fill_n <= len(adates) else ""})
+        if prev.status == ts.PENDING and st.status == ts.UNFILLED:
+            report["events"].append({"kind": "unfilled", "symbol": sym, "reason": st.exit_reason})
+        if prev.status in (ts.PENDING, ts.OPEN) and st.status == ts.CLOSED:
+            report["events"].append({"kind": "closed", "symbol": sym, "reason": st.exit_reason, "price": st.exit_px,
+                                     "net": o["net"] if o else None, "R": o["R"] if o else None,
+                                     "date": str(adates[st.exit_n - 1]) if 1 <= st.exit_n <= len(adates) else ""})
+        if prev.status == ts.OPEN and st.status == ts.OPEN and math.isfinite(prev.trail) and st.trail > prev.trail * 1.0005:
+            report["events"].append({"kind": "trail_raised", "symbol": sym, "old": prev.trail, "new": st.trail})
 
-        if hit_target or hit_stop:
-            # Same-day double hit resolves to WON - matches
-            # backtest._resolve_outcome's t_pos <= s_pos tie-break.
-            # Known simplification, same caveat as the backtest: real
-            # intraday sequencing isn't knowable from a daily bar.
-            won = hit_target
-            exit_price = target_1 if won else stop_loss
-            df.at[idx, "status"] = "WON" if won else "LOST"
-            df.at[idx, "resolved_date"] = today_date
-            df.at[idx, "exit_price"] = round(exit_price, 2)
-            df.at[idx, "pnl_pct"] = round((exit_price - entry_trigger) / entry_trigger, 4)
-            stats["won" if won else "lost"] += 1
-        elif days_held >= horizon:
-            exit_price = float(today_bar["close"])
-            df.at[idx, "status"] = "EXPIRED"
-            df.at[idx, "resolved_date"] = today_date
-            df.at[idx, "exit_price"] = round(exit_price, 2)
-            df.at[idx, "pnl_pct"] = round((exit_price - entry_trigger) / entry_trigger, 4)
-            stats["expired"] += 1
-
-    _save_ledger(scan_mode, df)
-    if stats["checked"]:
-        logger.info(
-            f"📒 Tracker ({scan_mode}): checked {stats['checked']} open trade(s) -> "
-            f"{stats['won']} won, {stats['lost']} lost, {stats['expired']} expired"
-        )
-    return stats
+    save_ledger(df, path)
+    if report["checked"]:
+        kinds = [e["kind"] for e in report["events"]]
+        logger.info(f"📒 Scoreboard: checked {report['checked']} unfinished trade(s) -> "
+                    f"{kinds.count('filled')} filled, {kinds.count('closed')} closed, "
+                    f"{kinds.count('unfilled')} never triggered, {kinds.count('trail_raised')} stops raised")
+    return report
 
 
-def summarize_track_record(scan_mode: str) -> dict:
-    df = _load_ledger(scan_mode)
-    if df.empty:
-        return {"total": 0, "open": 0, "resolved": 0, "expired": 0, "message": "No tracked trades yet"}
-
-    resolved = df[df["status"].isin(["WON", "LOST"])].copy()
-    result = {
-        "total": len(df),
-        "open": int((df["status"] == "OPEN").sum()),
-        "resolved": len(resolved),
-        "expired": int((df["status"] == "EXPIRED").sum()),
+# --------------------------------------------------------------------------- #
+def scoreboard(df: pd.DataFrame | None = None, scan_mode: str | None = None, setup: str | None = None) -> dict:
+    """Plain numbers describing the ledger: only CLOSED trades count toward win rate and R."""
+    df = load_ledger() if df is None else df
+    if scan_mode:
+        df = df[df["scan_mode"] == scan_mode]
+    if setup:
+        df = df[df["setup"] == setup]
+    closed = df[df["status"] == "CLOSED"]
+    res = {
+        "total": int(len(df)), "pending": int((df["status"] == "PENDING").sum()),
+        "open": int((df["status"] == "OPEN").sum()), "closed": int(len(closed)),
+        "unfilled": int((df["status"] == "UNFILLED").sum()), "void": int((df["status"] == "VOID").sum()),
+        "first_signal": str(df["signal_date"].min()) if len(df) else "",
     }
-    if len(resolved) == 0:
-        result["message"] = "No trades resolved yet - check back once some picks hit target or stop"
-        return result
-
-    resolved["days_held"] = resolved["days_held"].astype(float)
-    resolved["pnl_pct"] = resolved["pnl_pct"].astype(float)
-    wins = int((resolved["status"] == "WON").sum())
-    result.update({
-        "wins": wins,
-        "losses": len(resolved) - wins,
-        "win_rate": round(wins / len(resolved), 3),
-        "avg_days_held": round(resolved["days_held"].mean(), 1),
-        "avg_pnl_pct": round(resolved["pnl_pct"].mean(), 4),
-    })
-
-    by_grade = {}
-    for grade, g in resolved.groupby("grade"):
-        w = int((g["status"] == "WON").sum())
-        by_grade[grade] = {"count": len(g), "win_rate": round(w / len(g), 3)}
-    result["by_grade"] = by_grade
-
-    by_stage = {}
-    for stage, g in resolved.groupby("setup_stage"):
-        w = int((g["status"] == "WON").sum())
-        by_stage[stage] = {"count": len(g), "win_rate": round(w / len(g), 3)}
-    result["by_setup_stage"] = by_stage
-
-    # Fresh-breakout picks only (days_since_break is None/NaN for
-    # pre_breakout/neither picks, and for any trade logged before this
-    # column existed) - the live evidence on whether a day-1 pick
-    # ("just printed its breakout candle, entered next session") really
-    # does perform differently from a day-2/3 one, mirroring the same
-    # breakdown the backtest reports.
-    by_days_since_break = {}
-    fresh_only = resolved[resolved["days_since_break"].notna()].copy()
-    if len(fresh_only) > 0:
-        fresh_only["days_since_break"] = fresh_only["days_since_break"].astype(float).astype(int)
-        for days, g in fresh_only.groupby("days_since_break"):
-            w = int((g["status"] == "WON").sum())
-            by_days_since_break[int(days)] = {"count": len(g), "win_rate": round(w / len(g), 3)}
-    result["by_days_since_break"] = by_days_since_break
-
-    return result
+    if len(closed):
+        net = closed["net"].astype(float)
+        r = closed["R"].astype(float)
+        wins = net[net > 0]
+        losses = net[net <= 0]
+        res.update({
+            "wins": int(len(wins)), "win_rate": float(len(wins) / len(closed)),
+            "avg_net": float(net.mean()), "avg_R": float(r.mean()),
+            "median_net": float(net.median()),
+            "profit_factor": float(wins.sum() / -losses.sum()) if len(losses) and losses.sum() < 0 else float("inf"),
+            "best_R": float(r.max()), "worst_R": float(r.min()),
+            "avg_hold": float((closed["exit_n"] - closed["fill_n"]).mean()),
+        })
+    openpos = df[df["status"] == "OPEN"]
+    if len(openpos):
+        res["open_avg_R"] = float(openpos["R"].astype(float).mean())
+    return res
 
 
-def format_track_record_line(scan_mode: str) -> str:
-    """Short one-line summary for the Telegram footer / dashboard."""
-    s = summarize_track_record(scan_mode)
-    if s.get("resolved", 0) == 0:
-        return f"Track record ({scan_mode.upper()}): {s.get('open', 0)} open, no resolved trades yet"
-    return (
-        f"Track record ({scan_mode.upper()}): {s['wins']}W-{s['losses']}L ({s['win_rate']:.0%} win rate) "
-        f"all-time, avg {s['avg_pnl_pct']:+.1%} per resolved trade, {s['open']} still open"
-    )
+def format_scoreboard_line(df: pd.DataFrame | None = None, scan_mode: str | None = None) -> str:
+    """One honest line for the message footer."""
+    s = scoreboard(df, scan_mode=scan_mode)
+    if s["total"] == 0:
+        return "Scoreboard: nothing tracked yet - results appear here as picks are triggered and closed"
+    parts = [f"{s['closed']} closed", f"{s['open']} open", f"{s['pending']} waiting for their buy-stop"]
+    line = "Scoreboard since " + (s["first_signal"] or "start") + ": " + ", ".join(parts)
+    if s["closed"]:
+        line += (f" | closed trades: {s['win_rate']:.0%} winners, average {s['avg_R']:+.2f}R "
+                 f"({s['avg_net']:+.1%} per trade after costs)")
+        if s["closed"] < 30:
+            line += " - too few closed trades to judge yet (need 30+)"
+    return line
+
+
+def open_positions(df: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Trades the user may be holding or waiting on, newest first."""
+    df = load_ledger() if df is None else df
+    act = df[df["status"].isin(ACTIVE)].copy()
+    return act.sort_values("signal_date", ascending=False)

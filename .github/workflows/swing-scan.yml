@@ -1,5 +1,14 @@
 name: Swing Scan
 
+# HOW THIS STARTS:
+#   1. EXTERNAL TIMER (recommended) - cron-job.org calls GitHub at 4:05 PM IST on weekdays (docs/TIMER_SETUP.md).
+#   2. The "Run workflow" button (source = manual) - always runs.
+#   3. GitHub's own cron below - a fallback. Being late is fine for this scan (it reads the day's final candles);
+#      the program skips it only when this session's Swing scan has already been sent.
+#
+# This is the FULL-MARKET run. Besides the Swing picks it saves the ~100-stock watchlist that tomorrow's
+# afternoon BTST scan re-checks (data_cache/btst_watchlist.json) and refreshes the delivery-% data.
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,8 +16,20 @@ on:
         description: 'Limit scan to N symbols for testing'
         required: false
         default: ''
+      source:
+        description: 'Where this run comes from (leave as manual; the external timer sends "timer")'
+        required: false
+        type: choice
+        options:
+          - manual
+          - timer
+        default: manual
   schedule:
-    - cron: '30 10 * * 1-5'
+    - cron: '30 10 * * 1-5'   # 4:00 PM IST fallback
+
+concurrency:
+  group: scan-state
+  cancel-in-progress: false
 
 jobs:
   scan:
@@ -45,9 +66,9 @@ jobs:
 
       - name: Run swing scan
         env:
-          TRADING_BROKER: angelone
+          TRADING_RUN_SOURCE: ${{ github.event_name == 'schedule' && 'schedule' || inputs.source || 'manual' }}
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
-          TRADING_MAX_UNIVERSE: '750'
+          TRADING_CAPITAL_INR: ${{ vars.TRADING_CAPITAL_INR }}
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
@@ -56,23 +77,21 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py scan_swing
 
-      - name: Archive old reports
-        run: |
-          find reports/btst reports/swing reports/output -name "*.md" -mtime +2 -delete 2>/dev/null || true
-          find reports/btst reports/swing reports/output -name "*.csv" -mtime +2 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "scan_results_*.csv" -mtime +2 -delete 2>/dev/null || true
-          find . -maxdepth 1 -name "summary_*.md" -mtime +2 -delete 2>/dev/null || true
-
-      - name: Commit Swing reports and latest results
+      - name: Commit Swing reports, scoreboard and data cache
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A reports/swing/ tracking/ scan_results_swing.csv summary.md summary_swing.md
+          git add -A reports/swing/ reports/output/ tracking/ data_cache/ scan_results_swing.csv summary.md summary_swing.md
           if ! git diff --cached --quiet; then
             git commit -m "Automated Swing scan update $(date -u +%Y-%m-%d)" || echo "No changes to commit"
-            git fetch origin main
-            git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
-            git push origin HEAD:main
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              git merge origin/main --no-edit -X ours -m "Merge remote changes" || true
+              if git push origin HEAD:main; then break; fi
+              echo "Push attempt $attempt failed - retrying"
+              sleep $((attempt * 4))
+            done
           else
             echo "No new updates detected for the Swing session."
           fi
