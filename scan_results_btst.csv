@@ -1,3 +1,1 @@
-symbol,probability,grade,setup_stage,days_since_break,n_signals,entry_distance_pct,entry_trigger,stop_loss,target_1,target_2,target_3,target_4
-UNIONBANK,0.4717,B,fresh_breakout,1.0,4,0.0021,181.08,172.27,190.24,210,220,240.0
-ABB,0.3977,C,pre_breakout,,4,0.0106,7048.07,6711.75,7366.55,7900,8400,8897.83
+symbol,setup,stage,grade,quality_pct,entry_mode,price,entry_price,max_entry,stop_loss,risk_pct,trail_pct,atr_pct,plus_1R,plus_2R,plus_3R,pivot_50d_high,ext_pct,gain_pct,vol_ratio,dist_52w_high_pct,ret_12m_pct,delivery_20d_pct,days_since_break,first_break,sector,qty,position_value,valid_sessions,signal_date,signal_time_ist,scan_mode

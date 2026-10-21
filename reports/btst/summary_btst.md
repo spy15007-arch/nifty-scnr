@@ -1,16 +1,18 @@
-# 🌙 BTST ACCUMULATIONS (Top High-Conviction)
+# 🌙 BTST scan - Wed 21 Oct 2026, 2:28 PM IST
 
-*Evaluation Window:* `2026-10-20 14:02 UTC`
+*Live prices at 2:28 PM IST (today's volume projected to a full day)*
 
-*Global market backdrop:* supportive (composite +2.44%); index below its 50d trend (-1.69%)
+**Market:** 🧭 🔴 Bearish (score -4/6) · Nifty -0.8% today · global supportive
 
-🏆 Displaying the top **2 high-conviction alpha ideas**, best to worst, graded by conviction and signal agreement. Only candidates showing genuine same-day breakout momentum (not already extended before today), with 3+ confirming signals, are shown.
+*Partial scan: 11 of 501 stocks were loaded before the time limit or the broker's rate limit, so the list may miss some names*
 
-| Rank | Grade | Stage | Ticker | CMP->Entry | Entry Trigger | Stop Loss | Targets (T1 - T4) | Signals (of 7) |
-| :--- | :---: | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
-| **1** | **B** | 🔥 Fresh BO (D1) | **UNIONBANK** | +0.2% | 181.08 | 172.27 | 190.24 | 210 | 220 | 240 | 4/7 |
-| **2** | **C** | 👀 Pre-BO | **ABB** | +1.1% | 7048.07 | 6711.75 | 7366.55 | 7900 | 8400 | 8897.83 | 4/7 |
+*Funnel: 11 stocks checked → 0 fresh breakouts + 0 about to break → 0 in the top half by quality → 0 listed*
+
+| # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |
+| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
+| - | No new pick | - | - | - | - | - | - | - |
 
 ---
+*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and exit only through the stop, which trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-outs; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
 
-*Grade key: A+ = probability >=75% with 6+ of 7 signals agreeing. A = >=65% with 5+ agreeing. B+ = >=55% with 4+ agreeing. B = >=45%. C = below that but still made the cut. CMP->Entry shows how far the trigger is from current price.*
+*Scoreboard: nothing tracked yet - results appear here as picks are triggered and closed*

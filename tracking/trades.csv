@@ -1,0 +1,1 @@
+trade_id,symbol,scan_mode,setup,signal_date,signal_time_ist,quality_pct,grade,sector,regime,entry_mode,trigger,atr_pct,stop_mult,trail_mult,valid_sessions,max_hold,max_chase,cost,status,sessions,fill_n,fill_px,init_stop,trail,hc,exit_n,exit_px,exit_reason,fill_date,exit_date,net,R,peak_R,last_close,last_checked_date
