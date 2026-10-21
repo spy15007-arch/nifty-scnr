@@ -1,1 +1,5 @@
 trade_id,symbol,scan_mode,setup,signal_date,signal_time_ist,quality_pct,grade,sector,regime,entry_mode,trigger,atr_pct,stop_mult,trail_mult,valid_sessions,max_hold,max_chase,cost,status,sessions,fill_n,fill_px,init_stop,trail,hc,exit_n,exit_px,exit_reason,fill_date,exit_date,net,R,peak_R,last_close,last_checked_date
+INDHOTEL_2026-10-21_swing,INDHOTEL,swing,primed,2026-10-21,,74.3,B,,weak,stop,777.75,0.02565926769114022,2.5,5.0,5,60,0.03,0.0035,PENDING,0,-1,,,,,-1,,,,,,,,753.0,2026-10-21
+PETRONET_2026-10-21_swing,PETRONET,swing,primed,2026-10-21,,71.6,B,Energy,weak,stop,301.25,0.019939467312348674,2.5,5.0,5,60,0.03,0.0035,PENDING,0,-1,,,,,-1,,,,,,,,295.0,2026-10-21
+DRREDDY_2026-10-21_swing,DRREDDY,swing,primed,2026-10-21,,69.4,B,Pharma,weak,stop,1255.35,0.02226367445330885,2.5,5.0,5,60,0.03,0.0035,PENDING,0,-1,,,,,-1,,,,,,,,1244.5,2026-10-21
+PVRINOX_2026-10-21_swing,PVRINOX,swing,primed,2026-10-21,,53.1,C,Media,weak,stop,1434.9,0.03722809386114272,2.5,5.0,5,60,0.03,0.0035,PENDING,0,-1,,,,,-1,,,,,,,,1417.9,2026-10-21

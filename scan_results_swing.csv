@@ -1,14 +1,5 @@
-symbol,probability,grade,setup_stage,days_since_break,n_signals,entry_distance_pct,entry_trigger,stop_loss,target_1,target_2,target_3,target_4
-PETRONET,0.7257,A,pre_breakout,,7,0.0035,294.69,285.59,304.0,320,340,350.0
-UNIONBANK,0.4554,B,fresh_breakout,1.0,4,0.0021,181.08,172.27,190.24,210,220,240.0
-HBLENGINE,0.405,C,fresh_breakout,2.0,4,0.0229,831.56,781.76,885.13,975,1075,1125.0
-BHEL,0.3859,C,pre_breakout,,5,0.0222,436.82,412.6,459.57,500,550,575.0
-LTFOODS,0.3799,C,pre_breakout,,3,0.0442,422.74,404.8,452.63,525,550,600.0
-ABB,0.3315,C,pre_breakout,,5,0.0106,7048.07,6711.75,7366.55,7900,8400,8897.83
-NYKAA,0.3268,C,pre_breakout,,6,0.0236,344.59,329.25,366.24,410,440,470.0
-JSWSTEEL,0.3189,C,pre_breakout,,3,0.0163,1261.52,1214.34,1307.07,1400,1475,1525.0
-BANKINDIA,0.3141,C,fresh_breakout,1.0,4,0.0337,141.39,135.66,147.12,160,170,180.0
-INDIANB,0.286,C,fresh_breakout,2.0,4,0.0149,869.59,833.38,902.03,975,1025,1068.75
-AXISBANK,0.2825,C,pre_breakout,,3,0.0195,1260.12,1216.32,1313.24,1400,1500,1550.0
-UBL,0.2819,C,pre_breakout,,3,0.0076,1213.92,1159.37,1290.31,1425,1550,1650.0
-LTM,0.2554,C,fresh_breakout,2.0,3,0.0243,4368.72,4136.1,4680.71,5200,5700,6100.0
+symbol,setup,stage,grade,quality_pct,entry_mode,price,entry_price,max_entry,stop_loss,risk_pct,trail_pct,atr_pct,plus_1R,plus_2R,plus_3R,pivot_50d_high,ext_pct,gain_pct,vol_ratio,dist_52w_high_pct,ret_12m_pct,delivery_20d_pct,days_since_break,first_break,sector,qty,position_value,valid_sessions,signal_date,signal_time_ist,scan_mode
+INDHOTEL,primed,About to break out (3.0% below the 50-day high),B,74.3,stop,753.0,777.75,801.05,727.85,0.0641,0.1283,0.0257,827.65,877.55,927.45,776.15,-0.0298,-0.0092,1.03,-0.0298,0.0371,59.7,,True,,10,7778.0,5,2026-10-21,,swing
+PETRONET,primed,About to break out (1.9% below the 50-day high),B,71.6,stop,295.0,301.25,310.25,286.2,0.0498,0.0997,0.0199,316.3,331.3,346.35,300.6,-0.0186,0.0046,1.48,-0.0962,0.0491,60.2,,True,Energy,33,9941.0,5,2026-10-21,,swing
+DRREDDY,primed,About to break out (0.7% below the 50-day high),B,69.4,stop,1244.5,1255.35,1293.0,1185.45,0.0557,0.1113,0.0223,1325.25,1395.1,1465.0,1252.8,-0.0066,0.0016,0.52,-0.1204,-0.0142,55.9,,True,Pharma,7,8787.0,5,2026-10-21,,swing
+PVRINOX,primed,About to break out (1.0% below the 50-day high),C,53.1,stop,1417.9,1434.9,1477.9,1301.35,0.0931,0.1861,0.0372,1568.45,1702.0,1835.55,1432.0,-0.0098,0.0113,0.99,-0.0098,0.2891,47.2,,True,Media,3,4305.0,5,2026-10-21,,swing

@@ -5,5 +5,12 @@
   "ok": true,
   "picks": 0,
   "source": "manual"
+ },
+ "swing": {
+  "at": "2026-10-21 17:21 IST",
+  "key": "2026-10-21",
+  "ok": true,
+  "picks": 4,
+  "source": "manual"
  }
 }
