@@ -368,6 +368,11 @@ class Messages(unittest.TestCase):
         chunks = notify.split_message(big, max_len=3900)
         self.assertTrue(all(len(c) <= 3900 for c in chunks) and len(chunks) >= 3)
 
+    def test_prices_are_shown_exactly_as_the_plan_uses_them(self):
+        self.assertEqual(pl.fmt_price(1626.65), "1,626.65")
+        self.assertEqual(pl.fmt_price(99.05), "99.05")
+        self.assertEqual(pl.fmt_price(float("nan")), "-")
+
     def test_scrub_masks_secrets(self):
         self.assertEqual(notify.scrub("url https://x/botABC123SECRET/send", "ABC123SECRET"), "url https://x/bot***/send")
 

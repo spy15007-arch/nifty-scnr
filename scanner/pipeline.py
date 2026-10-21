@@ -59,7 +59,7 @@ def tick_down(x: float, tick: float = TICK) -> float:
 def fmt_price(x: float | None) -> str:
     if x is None or not math.isfinite(x):
         return "-"
-    return f"{x:,.1f}" if x >= 1000 else f"{x:,.2f}"
+    return f"{x:,.2f}"                    # always the exact 0.05-tick price the plan uses (no silent rounding of a stop or trigger)
 
 
 # --------------------------------------------------------------------------- #

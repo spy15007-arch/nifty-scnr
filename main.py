@@ -316,7 +316,9 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
 
     # --- 2. delivery % ----------------------------------------------------------------------------
     ref = pl.reference_date(bars)
-    dlv20, dmeta = _delivery(ref, fast=ctx["kind"] == "watchlist")
+    # while the market is open nothing new is published (the day's file appears ~6-7 PM), and a BTST message is on a clock:
+    # keep the refresh short there; the evening full-market run does the thorough catch-up
+    dlv20, dmeta = _delivery(ref, fast=ctx["kind"] == "watchlist" or session.session_state(now) == "open")
     if dlv20 is None and ctx["kind"] == "watchlist":
         saved = (ctx["watchlist"] or {}).get("dlv20") or {}
         if saved:
