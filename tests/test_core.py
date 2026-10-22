@@ -378,8 +378,8 @@ class Messages(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
-class EndToEnd(unittest.TestCase):
-    """main.py with a stub broker, in a scratch directory."""
+class E2EHarness:
+    """main.py with a stub broker, in a scratch directory (shared by the end-to-end test classes)."""
 
     @classmethod
     def setUpClass(cls):
@@ -398,18 +398,32 @@ class EndToEnd(unittest.TestCase):
         os.chdir(self.cwd)
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def _run(self, argv, now, source="manual", bars=None):
-        bars = self.bars if bars is None else bars
-
+    def _make_store(self, bars, quotes=None):
+        """Stub broker: candles for any stock in `bars`; live quotes only if `quotes` (a function, or an Exception to raise) is given."""
         class Store:
             def get_universe_bars(s, symbols, lookback_days, max_duration_seconds=5400):
                 s.symbols = list(symbols)
+                s.last_report = {"requested": len(symbols), "loaded": sum(1 for k in symbols if k in bars), "stopped": "", "errors": []}
                 return {k: bars[k].tail(lookback_days).copy() for k in symbols if k in bars}
 
             def get_bars(s, symbol, lookback_days):
                 raise KeyError(symbol)
 
         store = Store()
+        store.symbols = []                      # stocks fetched the slow (candle) way
+        store.quote_calls = []                  # stocks asked for in live-quote calls
+        if quotes is not None:
+            def get_quotes(symbols):
+                store.quote_calls.append(list(symbols))
+                if isinstance(quotes, Exception):
+                    raise quotes
+                return quotes(list(symbols))
+            store.get_quotes = get_quotes
+        return store
+
+    def _run(self, argv, now, source="manual", bars=None, quotes=None):
+        bars = self.bars if bars is None else bars
+        store = self._make_store(bars, quotes)
 
         def post(url, json=None, timeout=None, **kw):
             self.sent.append(json["text"])
@@ -432,6 +446,8 @@ class EndToEnd(unittest.TestCase):
                 logging.disable(logging.NOTSET)
         return code, store
 
+
+class EndToEnd(E2EHarness, unittest.TestCase):
     def test_swing_run_writes_everything_and_saves_the_watchlist(self):
         code, _ = self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
         self.assertEqual(code, 0)
@@ -470,6 +486,104 @@ class EndToEnd(unittest.TestCase):
         code, _ = self._run(["scan_swing"], at(2026, 10, 13, 17, 0), bars={})
         self.assertEqual(code, 1)
         self.assertTrue(any("No price data" in m for m in self.sent))
+
+
+# --------------------------------------------------------------------------- #
+class QuoteRoute(E2EHarness, unittest.TestCase):
+    """The afternoon BTST on saved candles + live quotes: a handful of broker calls instead of one per stock."""
+
+    @classmethod
+    def setUpClass(cls):
+        base = make_market(n_stocks=200)
+        # real prices sit on a 0.05 tick: round the synthetic ones so the saved candles are lossless
+        cls.bars = {s: d.round({"open": 2, "high": 2, "low": 2, "close": 2, "volume": 0}) for s, d in base.items()}
+        cls.nxt = {}
+        for s, d in cls.bars.items():                                               # next session: a slightly different bar
+            last = d.iloc[[-1]].copy()
+            last.index = [d.index[-1] + pd.Timedelta(days=1)]
+            last[["open", "high", "low", "close"]] = (last[["open", "high", "low", "close"]] * 1.01).round(2)
+            cls.nxt[s] = pd.concat([d, last])
+
+    @staticmethod
+    def quotes_from(bars):
+        def fn(symbols):
+            out = {}
+            for s in symbols:
+                t, y = bars[s].iloc[-1], bars[s].iloc[-2]
+                out[s] = {"ltp": float(t["close"]), "open": float(t["open"]), "high": float(t["high"]), "low": float(t["low"]),
+                          "prev_close": float(y["close"]), "volume": float(t["volume"])}
+            return out
+        return fn
+
+    def _evening(self):
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        self.sent.clear()
+        return self.M.load_watchlist(at(2026, 10, 14, 14, 0))
+
+    def test_the_evening_run_saves_the_candles_of_exactly_the_watchlist(self):
+        wl = self._evening()
+        self.assertIsNotNone(wl)
+        from data import history_cache
+        hist, as_of = history_cache.load()
+        self.assertEqual(set(hist), set(wl["symbols"]))
+        self.assertEqual(as_of, "2026-10-13")
+        sym = wl["symbols"][0]
+        pd.testing.assert_frame_equal(hist[sym], self.bars[sym].tail(len(hist[sym])), check_freq=False, check_dtype=False)
+
+    def test_merged_bars_equal_the_candle_bars(self):
+        wl = self._evening()
+        syms = list(wl["symbols"])
+        store = self._make_store(self.nxt, self.quotes_from(self.nxt))
+        bars, info = self.M._watchlist_bars(store, wl, syms, at(2026, 10, 14, 14, 0), None)
+        self.assertEqual((info["via"], store.symbols, len(store.quote_calls)), ("quotes", [], 1))
+        self.assertEqual(set(bars), set(syms))
+        for s in syms:
+            exp = self.nxt[s].tail(len(bars[s]))
+            pd.testing.assert_frame_equal(bars[s], exp, check_freq=False, check_dtype=False)
+
+    def test_scan_btst_uses_quotes_only_and_says_so(self):
+        self._evening()
+        code, store = self._run(["scan_btst"], at(2026, 10, 14, 14, 0), bars=self.nxt, quotes=self.quotes_from(self.nxt))
+        self.assertEqual(code, 0)
+        self.assertEqual(store.symbols, [])                                         # not one candle call for the watchlist
+        self.assertEqual(len(store.quote_calls), 1)
+        self.assertTrue(any("live quotes" in m for m in self.sent), self.sent[:1])
+        self.assertFalse(any("Partial scan" in m for m in self.sent))
+
+    def test_quote_failure_falls_back_to_candles(self):
+        wl = self._evening()
+        code, store = self._run(["scan_btst"], at(2026, 10, 14, 14, 0), bars=self.nxt, quotes=RuntimeError("no usable quote from the broker"))
+        self.assertEqual(code, 0)
+        self.assertEqual(set(store.symbols), set(wl["symbols"]))
+
+    def test_a_stock_whose_price_scale_changed_is_fetched_the_slow_way(self):
+        wl = self._evening()
+        odd = wl["symbols"][3]
+        good = self.quotes_from(self.nxt)
+
+        def quotes(symbols):
+            out = good(symbols)
+            out[odd] = {**out[odd], "prev_close": out[odd]["prev_close"] * 0.5}       # e.g. a 2-for-1 split since the saved candles
+            return out
+        code, store = self._run(["scan_btst"], at(2026, 10, 14, 14, 0), bars=self.nxt, quotes=quotes)
+        self.assertEqual(code, 0)
+        self.assertEqual(store.symbols, [odd])
+
+    def test_without_saved_candles_the_normal_fetch_is_used(self):
+        wl = self._evening()
+        os.remove("data_cache/btst_history.csv.gz")
+        code, store = self._run(["scan_btst"], at(2026, 10, 14, 14, 0), bars=self.nxt, quotes=self.quotes_from(self.nxt))
+        self.assertEqual(code, 0)
+        self.assertEqual(store.quote_calls, [])
+        self.assertEqual(set(store.symbols), set(wl["symbols"]))
+
+    def test_partial_fetch_note_quotes_the_brokers_words(self):
+        note = self.M._partial_note({"loaded": 11, "requested": 501, "report": {
+            "stopped": "the broker kept refusing requests", "errors": [("Something Went Wrong, Please Try After Sometime", 440)]}})
+        self.assertIn("11 of 501", note)
+        self.assertIn("kept refusing", note)
+        self.assertIn("Something Went Wrong", note)
+        self.assertIn("None of the 501", self.M._partial_note({"loaded": 0, "requested": 501, "report": {}}))
 
 
 if __name__ == "__main__":

@@ -41,7 +41,7 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 
 import config
-from data import nse_eod
+from data import history_cache, nse_eod
 from reports import notify, summary
 from scanner import pipeline as pl
 from scanner import runguard, session
@@ -243,8 +243,69 @@ def _fetch(store, symbols: list[str], lookback: int, deadline: datetime | None =
     except Exception as e:  # noqa: BLE001
         logger.error(f"Universe fetch failed: {_safe(e)}")
         bars = {}
-    info = {"requested": len(symbols), "loaded": len(bars), "seconds": round(time.time() - t0), "budget_s": round(budget)}
+    info = {"requested": len(symbols), "loaded": len(bars), "seconds": round(time.time() - t0), "budget_s": round(budget),
+            "via": "candles", "report": dict(getattr(store, "last_report", None) or {})}
     logger.info(f"📥 Fetched {info['loaded']}/{info['requested']} stocks in {info['seconds']}s (budget {info['budget_s']}s)")
+    return bars, info
+
+
+def _partial_note(f: dict) -> str:
+    """One plain sentence for a scan that loaded fewer stocks than it asked for, with the broker's own words when known."""
+    rep = f.get("report") or {}
+    why = {"time budget": "the time limit was reached",
+           "the broker kept refusing requests": "the broker kept refusing requests"}.get(rep.get("stopped"), "the broker returned no data for the rest")
+    if f["loaded"]:
+        text = f"Partial scan: {f['loaded']} of {f['requested']} stocks were loaded ({why}), so the list may miss some names"
+    else:
+        text = f"None of the {f['requested']} stocks could be loaded ({why})"
+    errs = rep.get("errors") or []
+    if errs:
+        text += ". Broker said: " + "; ".join(f"'{m}' x{n}" for m, n in errs[:2])
+    return text
+
+
+def _watchlist_bars(store, wl: dict, symbols: list[str], now: datetime, deadline: datetime | None) -> tuple[dict, dict]:
+    """
+    Bars for the afternoon BTST check. CHEAP ROUTE FIRST: yesterday's candles saved by the evening run + live quotes
+    (50 stocks per call), merged only where the quote's previous close matches the saved close. Whatever that route
+    cannot cover - or all of it, if it fails - is fetched the normal slow way within the deadline.
+    """
+    t0 = time.time()
+    bars: dict = {}
+    via = "candles"
+    quote_note = ""
+    try:
+        hist, hist_as_of = history_cache.load()
+        usable = {sym: hist[sym] for sym in symbols if sym in hist}
+        if not hist or hist_as_of != wl.get("as_of"):
+            quote_note = "no saved candles for this watchlist"
+        elif len(usable) < 0.8 * len(symbols):
+            quote_note = f"saved candles cover only {len(usable)} of {len(symbols)} stocks"
+        else:
+            quotes = store.get_quotes(list(usable))
+            merged, mrep = history_cache.merge_live(usable, quotes, session.ist_date(now))
+            logger.info(f"⚡ Live quotes: {len(quotes)} received, {mrep['merged']} merged, {len(mrep['no_quote'])} without a quote, "
+                        f"{len(mrep['mismatch'])} whose previous close did not match the saved candles")
+            if len(merged) >= 0.8 * len(symbols):
+                bars, via = merged, "quotes"
+            else:
+                quote_note = f"quotes matched only {len(merged)} of {len(symbols)} stocks"
+    except Exception as e:  # noqa: BLE001 - any failure of the cheap route falls back to the normal fetch
+        quote_note = f"quote route failed ({_safe(e)})"
+        bars = {}
+    if quote_note:
+        logger.warning(f"Live-quote route not used: {quote_note} - fetching candles instead")
+
+    pending = [sym for sym in symbols if sym not in bars]
+    report: dict = {}
+    if pending:
+        extra, einfo = _fetch(store, pending, SCAN_LOOKBACK, deadline)
+        bars.update(extra)
+        report = einfo.get("report") or {}
+    info = {"requested": len(symbols), "loaded": len(bars), "seconds": round(time.time() - t0), "budget_s": 0,
+            "via": via, "report": report, "quote_note": quote_note}
+    logger.info(f"📥 Watchlist ready: {len(bars)}/{len(symbols)} stocks via {'live quotes' if via == 'quotes' else 'candles'} "
+                f"in {info['seconds']}s")
     return bars, info
 
 
@@ -265,7 +326,10 @@ def fetch_phase(store, modes: list[str], test_limit, source: str, now: datetime)
             logger.info("No usable BTST watchlist - scanning the whole market with a 2:25 PM stop")
     deadline = _btst_deadline(now, source) if live_btst else None
 
-    bars, info = _fetch(store, symbols, SCAN_LOOKBACK, deadline)
+    if wl:
+        bars, info = _watchlist_bars(store, wl, symbols, now, deadline)
+    else:
+        bars, info = _fetch(store, symbols, SCAN_LOOKBACK, deadline)
     ctx = {"kind": kind, "watchlist": wl, "bars": bars, "track_bars": bars, "fetch": info,
            "benchmark_df": pd.DataFrame(), "benchmark_is_index": False, "snapshot": {}, "sector_map": {}}
     if not bars:
@@ -298,13 +362,14 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     bars = ctx["bars"]
     now = session.now_ist()                  # AFTER the fetch: the volume projection must match the data's age
     run_notes: list[str] = []
+    fetch = ctx["fetch"]
     if ctx["kind"] == "watchlist":
         wl = ctx["watchlist"]
+        source_txt = "live quotes" if fetch.get("via") == "quotes" else "live prices"
         run_notes.append(f"Fast afternoon check: the {len(bars)} stocks on last evening's watchlist ({wl['as_of']}), re-scored with "
-                         f"live prices against the whole market's yardstick; market breadth is as of that close")
-    elif ctx["fetch"].get("requested") and ctx["fetch"]["loaded"] < 0.9 * ctx["fetch"]["requested"] and ctx["fetch"]["loaded"] > 0:
-        run_notes.append(f"Partial scan: {ctx['fetch']['loaded']} of {ctx['fetch']['requested']} stocks were loaded before the "
-                         f"time limit or the broker's rate limit, so the list may miss some names")
+                         f"{source_txt} against the whole market's yardstick; market breadth is as of that close")
+    if fetch.get("requested") and fetch["loaded"] < 0.9 * fetch["requested"]:
+        run_notes.append(_partial_note(fetch))
 
     # --- 1. the scoreboard: replay tracked trades on completed sessions -------------------------
     report = {"checked": 0, "events": []}
@@ -380,6 +445,8 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
             new_wl = pl.build_watchlist(result, dlv20)
             if new_wl and save_watchlist(new_wl):
                 logger.info(f"📝 Saved BTST watchlist for the next session: {len(new_wl['symbols'])} stocks (as of {new_wl['as_of']})")
+                n_saved = history_cache.save(bars, new_wl["symbols"], keep=SCAN_LOOKBACK)
+                logger.info(f"📝 Saved the daily candles of {n_saved} watchlist stocks for the next BTST's live-quote route")
         except Exception:  # noqa: BLE001
             logger.exception("Could not build the BTST watchlist")
 
