@@ -14,7 +14,10 @@ kept only as a fallback. Two things must then hold:
 
 Skipping rules:
   * schedule (GitHub's cron) and timer runs are skipped when that scan already ran for the same day/session -
-    whichever of the two gets there first sends the message, the other stays quiet;
+    whichever of the two gets there first sends the message, the other stays quiet. For BTST only a COMPLETE
+    LIVE run (market open, most stocks loaded) counts, and only for BTST_DEDUPE_MINUTES: a morning or after-hours
+    run (the last-close view), an earlier trial run or a run the broker starved of data must never use up the real
+    afternoon slot;
   * a scheduled BTST run that starts too late in the day is skipped (the timer run has no time limit of its own,
     its fetch simply stops at 2:25 PM);
   * a manual run (the "Run workflow" button) always goes ahead.
@@ -36,6 +39,8 @@ logger = logging.getLogger(__name__)
 
 MARKERS_PATH = "data_cache/run_markers.json"
 SWING_READY = time(15, 45)       # from here a weekday's daily candle is final and the swing scan can use it
+BTST_DEDUPE_MINUTES = 20         # a complete live BTST run this recent makes a second scheduled/timer one redundant
+                                 # (GitHub's 1:45 PM fallback and the 2:00 PM timer are 15 minutes apart)
 
 
 def run_source() -> str:
@@ -72,6 +77,13 @@ def load_markers(path: str = MARKERS_PATH) -> dict:
         return {}
 
 
+def _parse_at(text) -> datetime | None:
+    try:
+        return datetime.strptime(str(text), "%Y-%m-%d %H:%M IST").replace(tzinfo=session.IST)
+    except ValueError:
+        return None
+
+
 def should_skip(scan_mode: str, source: str, now: datetime, path: str = MARKERS_PATH) -> tuple[bool, str]:
     """(skip, reason). Manual runs are never skipped; scheduled and timer runs are skipped as described above."""
     if source not in ("schedule", "timer"):
@@ -79,8 +91,14 @@ def should_skip(scan_mode: str, source: str, now: datetime, path: str = MARKERS_
     key = run_key(scan_mode, now)
     m = load_markers(path).get(scan_mode) or {}
     if m.get("key") == key and m.get("ok"):
-        return True, (f"the {scan_mode} scan for {key} already ran ({m.get('source', '?')} run at {m.get('at', '?')}) - "
-                      f"this late scheduled run would only repeat it")
+        if scan_mode != "btst":
+            return True, (f"the {scan_mode} scan for {key} already ran ({m.get('source', '?')} run at {m.get('at', '?')}) - "
+                          f"this scheduled run would only repeat it")
+        t = now.astimezone(session.IST) if now.tzinfo else now.replace(tzinfo=session.IST)
+        ran = _parse_at(m.get("at"))
+        if m.get("live") and ran is not None and 0 <= (t - ran).total_seconds() <= BTST_DEDUPE_MINUTES * 60:
+            return True, (f"a live BTST scan already ran today ({m.get('source', '?')} run at {m.get('at', '?')}) - "
+                          f"this scheduled run would only repeat it")
     if scan_mode == "btst" and source == "schedule":
         t = now.astimezone(session.IST) if now.tzinfo else now.replace(tzinfo=session.IST)
         cutoff = time(*config.BTST_LATE_CUTOFF_IST)
@@ -91,13 +109,13 @@ def should_skip(scan_mode: str, source: str, now: datetime, path: str = MARKERS_
 
 
 def record_run(scan_mode: str, now: datetime, source: str, picks: int, ok: bool = True,
-               path: str = MARKERS_PATH) -> None:
+               path: str = MARKERS_PATH, live: bool = False) -> None:
     """Remember that this scan ran for its key. Best-effort: never raises."""
     try:
         data = load_markers(path)
         t = now.astimezone(session.IST) if now.tzinfo else now.replace(tzinfo=session.IST)
         data[scan_mode] = {"key": run_key(scan_mode, now), "at": t.strftime("%Y-%m-%d %H:%M IST"),
-                           "source": source, "picks": int(picks), "ok": bool(ok)}
+                           "source": source, "picks": int(picks), "ok": bool(ok), "live": bool(live)}
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "w") as f:
             json.dump(data, f, indent=1, sort_keys=True)

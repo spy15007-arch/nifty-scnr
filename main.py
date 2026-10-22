@@ -54,6 +54,7 @@ SCAN_LOOKBACK = 320                          # bars per stock (the 12-month retu
 WATCHLIST_PATH = "data_cache/btst_watchlist.json"
 DB_DIR = "market_data"
 MIN_WATCHLIST_SAVE = 150                     # a full-market run must have scored at least this many stocks to save a watchlist
+MIN_COMPLETE_SHARE = 0.6                     # a run that loaded less than this share of what it asked for does not count as 'done'
 
 
 # --------------------------------------------------------------------------- #
@@ -456,9 +457,11 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     if not sent:
         logger.warning("The scan message was not delivered to Telegram (not configured, or the send failed) - the files have the full result")
 
-    ok = len(bars) > 0
-    runguard.record_run(scan_mode, now, source, len(result.picks), ok=ok)
-    return 0 if ok else 1
+    # the run guard only treats a run as 'done' when it actually saw most of its stocks: a scan starved by the broker
+    # (the 11-of-501 case) must not stop the next scheduled or timer run from trying again
+    got_most = not fetch.get("requested") or fetch["loaded"] >= MIN_COMPLETE_SHARE * fetch["requested"]
+    runguard.record_run(scan_mode, now, source, len(result.picks), ok=bool(bars) and got_most, live=bool(result.live))
+    return 0 if bars else 1
 
 
 # --------------------------------------------------------------------------- #

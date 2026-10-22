@@ -169,12 +169,35 @@ class RunGuard(unittest.TestCase):
         self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 13, 14, 40), self.path)[0])
 
     def test_duplicates_are_skipped_in_both_directions(self):
-        runguard.record_run("btst", at(2026, 10, 13, 13, 47), "schedule", 4, path=self.path)
+        runguard.record_run("btst", at(2026, 10, 13, 13, 47), "schedule", 4, path=self.path, live=True)
         self.assertTrue(runguard.should_skip("btst", "timer", at(2026, 10, 13, 14, 0), self.path)[0])
         runguard.record_run("swing", at(2026, 10, 13, 16, 5), "timer", 4, path=self.path)
         self.assertTrue(runguard.should_skip("swing", "schedule", at(2026, 10, 13, 22, 30), self.path)[0])
         self.assertTrue(runguard.should_skip("swing", "schedule", at(2026, 10, 14, 1, 10), self.path)[0])   # after midnight, same session
         self.assertFalse(runguard.should_skip("swing", "schedule", at(2026, 10, 14, 16, 5), self.path)[0])  # next session
+
+    def test_a_morning_or_trial_run_never_uses_up_the_afternoon_slot(self):
+        # 8:42 AM timer test: market closed, so it is the last-close view and not live
+        runguard.record_run("btst", at(2026, 10, 22, 8, 42), "timer", 0, path=self.path, live=False)
+        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
+        # an old marker written before the flag existed behaves the same
+        with open(self.path, "w") as f:
+            json.dump({"btst": {"at": "2026-10-22 08:42 IST", "key": "2026-10-22", "ok": True, "picks": 0, "source": "timer"}}, f)
+        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
+        # a live trial run at 1:29 PM does not block the 2:00 PM timer run (31 minutes later), nor does one at 1:35 ...
+        for hh, mm in ((13, 29), (13, 35)):
+            runguard.record_run("btst", at(2026, 10, 22, hh, mm), "timer", 2, path=self.path, live=True)
+            self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
+        # ... but a live run 10 minutes earlier does (the 1:45 PM GitHub fallback and the 2:00 PM timer arriving together)
+        runguard.record_run("btst", at(2026, 10, 22, 13, 50), "schedule", 2, path=self.path, live=True)
+        self.assertTrue(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
+        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 10, 22, 14, 5), self.path)[0])
+        # a starved run (the broker refused most stocks) never blocks a retry, however recent
+        runguard.record_run("btst", at(2026, 10, 22, 13, 55), "timer", 0, ok=False, path=self.path, live=True)
+        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
+        # and a manual run always goes ahead
+        runguard.record_run("btst", at(2026, 10, 22, 13, 58), "timer", 2, path=self.path, live=True)
+        self.assertFalse(runguard.should_skip("btst", "manual", at(2026, 10, 22, 14, 0), self.path)[0])
 
     def test_failed_run_does_not_block_a_retry(self):
         runguard.record_run("swing", at(2026, 10, 13, 16, 5), "timer", 0, ok=False, path=self.path)
@@ -475,6 +498,44 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.sent.clear()
         code, store2 = self._run(["scan_btst"], at(2026, 10, 14, 18, 30), source="schedule", bars=nxt)
         self.assertEqual((code, self.sent), (0, []))                                 # too late + already done
+
+    def _next_session(self):
+        nxt = {}
+        for s, d in self.bars.items():                                              # next session = a copy of the last bar, a day later
+            last = d.iloc[[-1]].copy()
+            last.index = [d.index[-1] + pd.Timedelta(days=1)]
+            nxt[s] = pd.concat([d, last])
+        return nxt
+
+    def test_only_a_complete_live_btst_run_blocks_the_next_one(self):
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        nxt = self._next_session()
+        wl = self.M.load_watchlist(at(2026, 10, 14, 14, 0))
+        thin = {s: nxt[s] for s in wl["symbols"][: max(1, len(wl["symbols"]) // 4)]}
+        self._run(["scan_btst"], at(2026, 10, 14, 13, 50), source="timer", bars=thin)
+        marker = _load_json("data_cache/run_markers.json")["btst"]
+        self.assertFalse(marker["ok"])                                               # starved: loaded a quarter of the watchlist
+        self.sent.clear()
+        code, _ = self._run(["scan_btst"], at(2026, 10, 14, 14, 0), source="timer", bars=nxt)
+        marker = _load_json("data_cache/run_markers.json")["btst"]
+        self.assertEqual(code, 0)
+        self.assertTrue(self.sent)                                                   # the thin run did not use up the slot
+        self.assertTrue(marker["ok"] and marker["live"], marker)
+        self.sent.clear()
+        self._run(["scan_btst"], at(2026, 10, 14, 14, 8), source="schedule", bars=nxt)
+        self.assertEqual(self.sent, [])                                              # the fallback arriving right after: quiet
+        self._run(["scan_btst"], at(2026, 10, 14, 14, 9), source="manual", bars=nxt)
+        self.assertTrue(self.sent)                                                   # the button always runs
+
+    def test_a_morning_btst_run_does_not_use_up_the_afternoon_one(self):
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        nxt = self._next_session()
+        self._run(["scan_btst"], at(2026, 10, 14, 8, 42), source="timer", bars=nxt)  # a pre-open test: last-close view, not live
+        marker = _load_json("data_cache/run_markers.json")["btst"]
+        self.assertFalse(marker["live"])
+        self.sent.clear()
+        self._run(["scan_btst"], at(2026, 10, 14, 14, 0), source="timer", bars=nxt)
+        self.assertTrue(self.sent)
 
     def test_a_thin_fetch_never_overwrites_the_watchlist(self):
         small = {k: v for k, v in list(self.bars.items())[:90]}                       # a partial fetch: far fewer stocks than the universe
