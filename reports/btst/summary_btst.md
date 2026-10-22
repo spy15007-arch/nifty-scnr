@@ -1,18 +1,21 @@
-# 🌙 BTST scan - Thu 22 Oct 2026, 8:42 AM IST
+# 🌙 BTST scan - Thu 22 Oct 2026, 2:24 PM IST
 
-*Based on the close of Wed 21 Oct 2026*
+*Live prices at 2:24 PM IST (today's volume projected to a full day)*
 
-**Market:** 🧭 🔴 Bearish (score -3/6) · Nifty -0.6% last session · global supportive
+**Market:** 🧭 🔴 Bearish (score -6/6) · Nifty -0.4% today · global hostile
 
 **Breadth:** 14% of liquid stocks are above their 50-day average (weak - use half size)
 
-*Funnel: 495 stocks checked → 1 fresh breakouts + 14 about to break → 4 in the top half by quality → 0 listed, 4 already on the list*
+*Fast afternoon check: the 64 stocks on last evening's watchlist (2026-10-21), re-scored with live prices against the whole market's yardstick; market breadth is as of that close*
+
+*Funnel: 64 stocks checked → 1 fresh breakouts + 4 about to break → 4 in the top half by quality → 2 listed, 2 already on the list*
 
 | # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
-| - | No new pick | - | - | - | - | - | - | - |
+| 1 | **ANANDRATHI** | 👀 About to break out (1.8% below the 50-day high) | 77 | Buy-stop 2,272.95 (skip if opens above 2,341.10) | 2,145.10 (-5.6%) | 11.2% | 3 | 51% |
+| 2 | **INDUSTOWER** | 👀 About to break out (2.9% below the 50-day high) | 59 | Buy-stop 393.10 (skip if opens above 404.85) | 367.40 (-6.5%) | 13.1% | 19 | 57% |
 
-Already on your list (not repeated): INDHOTEL, DRREDDY, PETRONET, PVRINOX
+Already on your list (not repeated): DRREDDY, INDHOTEL
 
 ## Trades already on your list
 
