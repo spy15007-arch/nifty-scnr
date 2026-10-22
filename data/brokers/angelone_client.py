@@ -53,6 +53,10 @@ def _normalise(msg) -> str:
     return re.sub(r"\d+", "#", str(msg).strip().lower())[:90]
 
 
+def _truthy(flag) -> bool:
+    return flag is True or (isinstance(flag, (str, int)) and str(flag).strip().lower() in ("true", "1"))
+
+
 def _num(x):
     try:
         v = float(x)
@@ -66,10 +70,10 @@ def read_candle_reply(response) -> tuple[bool, list, str]:
     if not isinstance(response, dict):
         return False, [], f"unexpected reply of type {type(response).__name__}"
     status, data = response.get("status"), response.get("data")
-    if status is True:
-        return True, data if isinstance(data, list) else [], ""
-    if status is None and isinstance(data, list) and data:          # a gateway variant that omits the flag
+    if isinstance(data, list) and data:                              # candles present: success, whatever the flag looks like
         return True, data, ""
+    if _truthy(status):                                              # success with nothing in the range
+        return True, [], ""
     msg = response.get("message") or response.get("error") or response.get("errorcode") or "no data and no message"
     code = response.get("errorcode")
     return False, [], f"{msg}" + (f" [{code}]" if code and str(code) not in str(msg) else "")
@@ -240,9 +244,9 @@ class AngelOneDataClient:
                     if not is_transient_error(e):
                         break
                     continue
-                if isinstance(reply, dict) and reply.get("status") is True:
-                    data = reply.get("data")
-                    fetched = data.get("fetched") if isinstance(data, dict) else None
+                data = reply.get("data") if isinstance(reply, dict) else None
+                fetched = data.get("fetched") if isinstance(data, dict) else None
+                if isinstance(reply, dict) and (fetched or _truthy(reply.get("status"))):
                     for q in fetched or []:
                         sym = by_token.get(str((q or {}).get("symbolToken")))
                         rec = read_quote_record(q) if sym else None

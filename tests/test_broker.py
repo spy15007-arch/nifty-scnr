@@ -74,6 +74,10 @@ class ErrorWords(unittest.TestCase):
         self.assertIn("Something Went Wrong", why)
         self.assertFalse(read_candle_reply(None)[0])
         self.assertFalse(read_candle_reply({"status": False, "data": []})[0])                      # a refusal with an empty list
+        rows = candle_reply(2)["data"]
+        for flag in (None, "true", "True", 1):                                                    # candles present = success, however the flag is spelt
+            self.assertEqual(read_candle_reply({"status": flag, "data": rows})[:2], (True, rows), flag)
+        self.assertEqual(read_candle_reply({"status": "true", "data": []})[:2], (True, []))
 
     def test_reading_quote_records(self):
         good = {"ltp": 100, "open": 99, "high": 101, "low": 98, "close": 99.5, "tradeVolume": 5000}
