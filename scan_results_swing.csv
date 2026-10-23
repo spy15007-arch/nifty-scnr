@@ -1,2 +1,1 @@
 symbol,setup,stage,grade,quality_pct,entry_mode,price,entry_price,max_entry,stop_loss,risk_pct,trail_pct,atr_pct,plus_1R,plus_2R,plus_3R,pivot_50d_high,ext_pct,gain_pct,vol_ratio,dist_52w_high_pct,ret_12m_pct,delivery_20d_pct,days_since_break,first_break,sector,qty,position_value,valid_sessions,signal_date,signal_time_ist,scan_mode
-CASTROLIND,primed,About to break out (3.0% below the 50-day high),A,81.6,stop,197.38,203.85,209.95,194.3,0.0468,0.0936,0.0187,213.4,222.95,232.5,203.4,-0.0296,0.0061,1.46,-0.0474,-0.0058,59.4,,True,Energy,52,10600.0,5,2026-10-22,,swing
