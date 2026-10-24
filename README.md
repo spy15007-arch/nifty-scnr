@@ -9,7 +9,7 @@ It is a **ranked shortlist, not a guarantee.** Replayed on seven years of real N
 | Scan | When | What it is |
 | :-- | :-- | :-- |
 | 🌙 **BTST** | about 2:00 PM IST, before the close | Fresh breakouts to **buy now, near the close**, plus stocks about to break out (buy-stop orders). Re-checks last evening's watchlist (up to 150 stocks) with live prices: the evening run saves their candles, so the afternoon run needs only a few live-quote calls and finishes in minutes. |
-| 📈 **Swing** | about 4:05 PM IST, after the close | The full-market scan on the day's final candles: buy-stop orders for tomorrow. Also builds tomorrow's BTST watchlist and refreshes the delivery-% data. |
+| 📈 **Swing** | about 4:05 PM IST, after the close | The full-market scan on the day's final candles: buy-stop orders for tomorrow. Also builds tomorrow's BTST watchlist (and saves its candles) and refreshes the delivery-% data. It fetches about 500 stocks one by one at the broker's pace: roughly 10 minutes on a normal day. |
 | 🧭 **Market direction** | button | Which way Nifty/Bank Nifty and global cues lean (also a one-line header on both scans). |
 
 Index-option strike alerts are not part of the automatic run (the strike has moved by the time a scan reports). `python main.py options` still exists for manual use.
@@ -43,10 +43,21 @@ Every pick is logged and followed exactly by the plan, then judged on **closed**
 | `scan_results_btst.csv`, `scan_results_swing.csv` | latest picks with the whole plan (dated copies in `reports/<mode>/`) |
 | `summary_btst.md`, `summary_swing.md`, `summary.md` | latest write-ups (the master file keeps the newest 24) |
 | `tracking/trades.csv` | the scoreboard ledger |
-| `data_cache/` | delivery-% cache, the BTST watchlist, run markers |
-| `reports/output/` | backtest and live-scoreboard reports |
+| `data_cache/` | delivery-% cache, the BTST watchlist and its saved candles (`btst_history.csv.gz`), run markers |
+| `reports/output/` | backtest and live-scoreboard reports, and `fetch_report_btst.json` / `fetch_report_swing.json`: what the latest run's data fetch did (see below) |
 
 `streamlit run app.py` shows picks, open trades with their current stops, and the scoreboard by quality bucket / setup / market regime.
+
+## When a scan says "Partial scan"
+
+The scans get their prices from Angel One, which now and then refuses requests. Each scan therefore says plainly what it got: *"Partial scan: 448 of 501 stocks were loaded - the 45-minute time limit ran out before the last 51 were fetched ..."*, plus the stocks the broker does not list and the broker's own words when it refused. How it copes (`data/brokers/angelone_client.py`, `data/historical.py`):
+
+* a refused request is retried after a short pause (1 s, then 2 s; longer if the broker said "rate") and does **not** slow the calls that follow - the pace only drops while the broker is refusing *right now* (3+ refusals in a row, or a third of the last 20 calls) and is back to full speed about 20 calls after it recovers;
+* a real outage (15 refused stocks in a row) triggers a 45-second cool-down, up to three times, then the run carries on; stocks refused the first time get a second pass;
+* the fetch stops after 45 minutes and the scan runs on what it has; stocks with an open tracked trade and last evening's watchlist are fetched first, so a cut-short run still has the ones that matter;
+* the afternoon BTST needs only a few live-quote calls (not one per stock) and gets the market line from Yahoo Finance first, because the broker's candle endpoint is the unreliable one during market hours.
+
+Every run also commits `reports/output/fetch_report_<scan>.json` - route used (`quotes` or `candles`), stocks asked for and loaded, seconds, cool-downs, never-reached and refused counts, the broker's most common replies, and how many calls were slowed - so a slow or short scan can be explained without opening the run log.
 
 ## Running it
 
