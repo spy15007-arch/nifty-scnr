@@ -1,14 +1,12 @@
-# 🌙 BTST scan - Fri 23 Oct 2026, 2:01 PM IST
+# 🌙 BTST scan - Sat 24 Oct 2026, 2:11 PM IST
 
-*Live prices at 2:01 PM IST (today's volume projected to a full day)*
+*Based on the close of Fri 23 Oct 2026*
 
-**Market:** 🧭 ⚪ Unclear · index data unavailable · global hostile
+**Market:** 🧭 🔴 Bearish (score -6/6) · Nifty -0.7% last session · global hostile
 
-**Breadth:** 13% of liquid stocks are above their 50-day average (weak - use half size)
+**Breadth:** 10% of liquid stocks are above their 50-day average (weak - use half size)
 
-*Fast afternoon check: the 54 stocks on last evening's watchlist (2026-10-22), re-scored with live quotes against the whole market's yardstick; market breadth is as of that close*
-
-*Funnel: 54 stocks checked → 0 fresh breakouts + 3 about to break → 3 in the top half by quality → 0 listed, 3 already on the list*
+*Funnel: 495 stocks checked → 0 fresh breakouts + 8 about to break → 3 in the top half by quality → 0 listed, 3 already on the list*
 
 | # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
