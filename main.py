@@ -135,14 +135,30 @@ def _sector_map() -> dict:
         return {}
 
 
-def _fetch_benchmark(store, lookback: int) -> tuple[pd.DataFrame, bool]:
-    try:
+def _fetch_benchmark(store, lookback: int, prefer_yahoo: bool = False) -> tuple[pd.DataFrame, bool, str]:
+    """
+    The Nifty proxy for the one-line market direction: (daily bars, found, source symbol).
+    After the close the broker's own candles come first. During market hours (the afternoon BTST) the broker's candle
+    endpoint is the unreliable one, so Yahoo Finance's Nifty 50 goes first - the line then rarely says "index data unavailable".
+    """
+    def from_yahoo():
+        from scanner.market_direction import fetch_index_history
+        df, symbol = fetch_index_history("Nifty 50", None, lookback_days=lookback)      # store=None: the Yahoo source only
+        return (df, symbol) if df is not None and len(df) else (None, "")
+
+    def from_broker():
         df = store.get_bars(_get_angelone_mapped_symbol(config.RS_BENCHMARK), lookback_days=lookback)
-        if df is not None and len(df):
-            return df, True
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Benchmark fetch failed ({_safe(e)}) - the market line will say index data is unavailable")
-    return pd.DataFrame(), False
+        return (df, config.RS_BENCHMARK) if df is not None and len(df) else (None, "")
+
+    for name, fn in (("Yahoo Finance", from_yahoo), ("the broker", from_broker)) if prefer_yahoo else (("the broker", from_broker), ("Yahoo Finance", from_yahoo)):
+        try:
+            df, symbol = fn()
+            if df is not None:
+                return df, True, symbol
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Benchmark fetch from {name} failed ({_safe(e)})")
+    logger.warning("Benchmark unavailable from every source - the market line will say index data is unavailable")
+    return pd.DataFrame(), False, ""
 
 
 def _market_line(ctx: dict) -> str:
@@ -153,7 +169,7 @@ def _market_line(ctx: dict) -> str:
             ctx["benchmark_df"] if ctx.get("benchmark_is_index") else None,
             ctx.get("snapshot") or {},
             bars=None,                       # breadth is shown separately, from the whole liquid universe
-            nifty_source=config.RS_BENCHMARK,
+            nifty_source=ctx.get("benchmark_source") or config.RS_BENCHMARK,
         )
         return format_direction_line(md)
     except Exception:  # noqa: BLE001
@@ -232,8 +248,11 @@ def _btst_deadline(now: datetime, source: str) -> datetime:
     return deadline
 
 
+FETCH_CAP_S = 2700                           # a healthy full-market fetch takes ~10 minutes; 45 is a generous ceiling
+
+
 def _fetch(store, symbols: list[str], lookback: int, deadline: datetime | None = None,
-           cap_seconds: int = 5400) -> tuple[dict, dict]:
+           cap_seconds: int = FETCH_CAP_S) -> tuple[dict, dict]:
     """Sequential fetch (the store's own circuit breakers apply) within a time budget."""
     budget = float(cap_seconds)
     if deadline is not None:
@@ -251,18 +270,57 @@ def _fetch(store, symbols: list[str], lookback: int, deadline: datetime | None =
 
 
 def _partial_note(f: dict) -> str:
-    """One plain sentence for a scan that loaded fewer stocks than it asked for, with the broker's own words when known."""
+    """
+    A plain explanation for a scan that loaded fewer stocks than it asked for: how many, why it stopped, which names the
+    broker does not know, and the broker's own words when it refused. (No quotes or '#' placeholders - the text is shown as is.)
+    """
     rep = f.get("report") or {}
-    why = {"time budget": "the time limit was reached",
-           "the broker kept refusing requests": "the broker kept refusing requests"}.get(rep.get("stopped"), "the broker returned no data for the rest")
-    if f["loaded"]:
-        text = f"Partial scan: {f['loaded']} of {f['requested']} stocks were loaded ({why}), so the list may miss some names"
+    stopped = rep.get("stopped") or ""
+    unreached = int(rep.get("not_reached") or 0)
+    if stopped == "time budget":
+        mins = round((f.get("budget_s") or 0) / 60)
+        why = (f"the {mins}-minute time limit ran out" if mins else "the time limit ran out")
+        why += f" before the last {unreached} were fetched" if unreached else ""
+    elif stopped:
+        why = stopped
     else:
-        text = f"None of the {f['requested']} stocks could be loaded ({why})"
+        why = "the broker returned no data for the rest"
+    if f["loaded"]:
+        text = f"Partial scan: {f['loaded']} of {f['requested']} stocks were loaded - {why}, so the list may miss some names"
+    else:
+        text = f"None of the {f['requested']} stocks could be loaded - {why}"
+    missing = [str(s) for s in (rep.get("not_found") or [])]
+    n_missing = int(rep.get("not_found_n") or len(missing))
+    if n_missing:
+        shown = ", ".join(missing[:4]) + (f" and {n_missing - len(missing[:4])} more" if n_missing > len(missing[:4]) else "")
+        text += f". Not in the broker's stock list: {shown}"
     errs = rep.get("errors") or []
     if errs:
-        text += ". Broker said: " + "; ".join(f"'{m}' x{n}" for m, n in errs[:2])
+        text += ". The broker said: " + "; ".join(f"{m} (x{n})" for m, n in errs[:2])
     return text
+
+
+def _priority_order(symbols: list[str], first: list[str]) -> list[str]:
+    """`first` (the stocks that matter most) lead, in the order given, then everyone else in the original order. Nothing is added or dropped."""
+    have = set(symbols)
+    head = [s for s in dict.fromkeys(first) if s in have]
+    seen = set(head)
+    return head + [s for s in symbols if s not in seen]
+
+
+def _must_have_symbols() -> list[str]:
+    """Stocks to fetch FIRST in a full-market run, so a run cut short still has them: those with an unfinished tracked trade
+    (the scoreboard needs their prices) and last evening's watchlist (the likeliest candidates today)."""
+    out: list[str] = []
+    try:
+        led = outcomes.load_ledger()
+        out += sorted(set(led.loc[led["status"].isin(outcomes.ACTIVE), "symbol"]))
+    except Exception:  # noqa: BLE001
+        logger.warning("Could not read the ledger to order the fetch", exc_info=True)
+    wl = _read_watchlist()
+    if wl and isinstance(wl.get("symbols"), list):
+        out += [str(s) for s in wl["symbols"]]
+    return out
 
 
 def _watchlist_bars(store, wl: dict, symbols: list[str], now: datetime, deadline: datetime | None) -> tuple[dict, dict]:
@@ -299,11 +357,13 @@ def _watchlist_bars(store, wl: dict, symbols: list[str], now: datetime, deadline
 
     pending = [sym for sym in symbols if sym not in bars]
     report: dict = {}
+    einfo: dict = {}
     if pending:
         extra, einfo = _fetch(store, pending, SCAN_LOOKBACK, deadline)
         bars.update(extra)
         report = einfo.get("report") or {}
-    info = {"requested": len(symbols), "loaded": len(bars), "seconds": round(time.time() - t0), "budget_s": 0,
+    info = {"requested": len(symbols), "loaded": len(bars), "seconds": round(time.time() - t0),
+            "budget_s": (einfo.get("budget_s", 0) if pending else 0),
             "via": via, "report": report, "quote_note": quote_note}
     logger.info(f"📥 Watchlist ready: {len(bars)}/{len(symbols)} stocks via {'live quotes' if via == 'quotes' else 'candles'} "
                 f"in {info['seconds']}s")
@@ -323,6 +383,8 @@ def fetch_phase(store, modes: list[str], test_limit, source: str, now: datetime)
     else:
         symbols = _load_universe(test_limit)
         kind = "universe"
+        if not test_limit:
+            symbols = _priority_order(symbols, _must_have_symbols())      # a run cut short still has the stocks that matter most
         if live_btst:
             logger.info("No usable BTST watchlist - scanning the whole market with a 2:25 PM stop")
     deadline = _btst_deadline(now, source) if live_btst else None
@@ -332,7 +394,7 @@ def fetch_phase(store, modes: list[str], test_limit, source: str, now: datetime)
     else:
         bars, info = _fetch(store, symbols, SCAN_LOOKBACK, deadline)
     ctx = {"kind": kind, "watchlist": wl, "bars": bars, "track_bars": bars, "fetch": info,
-           "benchmark_df": pd.DataFrame(), "benchmark_is_index": False, "snapshot": {}, "sector_map": {}}
+           "benchmark_df": pd.DataFrame(), "benchmark_is_index": False, "benchmark_source": "", "snapshot": {}, "sector_map": {}}
     if not bars:
         return ctx
 
@@ -348,7 +410,7 @@ def fetch_phase(store, modes: list[str], test_limit, source: str, now: datetime)
         except Exception:  # noqa: BLE001
             logger.warning("Could not fetch prices for tracked trades outside the universe", exc_info=True)
 
-    ctx["benchmark_df"], ctx["benchmark_is_index"] = _fetch_benchmark(store, SCAN_LOOKBACK)
+    ctx["benchmark_df"], ctx["benchmark_is_index"], ctx["benchmark_source"] = _fetch_benchmark(store, SCAN_LOOKBACK, prefer_yahoo=live_btst)
     ctx["snapshot"] = _global_snapshot()
     ctx["sector_map"] = _sector_map()
     return ctx
@@ -357,6 +419,34 @@ def fetch_phase(store, modes: list[str], test_limit, source: str, now: datetime)
 # --------------------------------------------------------------------------- #
 # One scan: analyse -> track -> write -> message
 # --------------------------------------------------------------------------- #
+def _write_fetch_report(scan_mode: str, ctx: dict, now: datetime, result) -> None:
+    """
+    reports/output/fetch_report_<scan>.json - what this run's data fetch did, in numbers (route, stocks asked for and loaded,
+    seconds, cool-downs, the broker's replies, how the calls were paced). Committed with the run, so a slow or partial scan
+    can be explained without digging through the run log.
+    """
+    try:
+        f = ctx["fetch"]
+        doc = {
+            "scan": scan_mode,
+            "at": now.astimezone(session.IST).strftime("%Y-%m-%d %H:%M IST"),
+            "kind": ctx["kind"],
+            "route": f.get("via"),
+            "requested": f.get("requested"), "loaded": f.get("loaded"),
+            "seconds": f.get("seconds"), "budget_s": f.get("budget_s"),
+            "quote_note": f.get("quote_note", ""),
+            "market_line_source": ctx.get("benchmark_source") or "none",
+            "scored": (result.funnel or {}).get("scored") if result is not None else None,
+            "store": f.get("report") or {},
+        }
+        os.makedirs("reports/output", exist_ok=True)
+        with open(f"reports/output/fetch_report_{scan_mode}.json", "w", encoding="utf-8") as fh:
+            json.dump(doc, fh, indent=1, sort_keys=True, default=str)
+            fh.write("\n")
+    except Exception:  # noqa: BLE001 - diagnostics must never break a scan
+        logger.warning("Could not write the fetch report", exc_info=True)
+
+
 def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     """Returns a process exit code (0 = fine, 1 = no data at all)."""
     _ensure_report_directories()
@@ -369,6 +459,8 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
         source_txt = "live quotes" if fetch.get("via") == "quotes" else "live prices"
         run_notes.append(f"Fast afternoon check: the {len(bars)} stocks on last evening's watchlist ({wl['as_of']}), re-scored with "
                          f"{source_txt} against the whole market's yardstick; market breadth is as of that close")
+        if fetch.get("via") != "quotes" and fetch.get("quote_note"):
+            run_notes.append(f"Live quotes were not used ({fetch['quote_note']}), so the candles were fetched stock by stock")
     if fetch.get("requested") and fetch["loaded"] < 0.9 * fetch["requested"]:
         run_notes.append(_partial_note(fetch))
 
@@ -434,6 +526,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
         logger.exception("Scoreboard: could not log the new picks")
 
     market_line = _market_line(ctx)
+    _write_fetch_report(scan_mode, ctx, now, result)
     try:
         summary.write_scan_outputs(scan_mode, result, now, market_line=market_line, tracked_text=tracked_block,
                                    scoreboard_line=scoreboard_line, notes=run_notes)
@@ -585,7 +678,7 @@ def cmd_backtest(scan_mode: str = "swing", test_days: int = 250) -> int:
     from backtest.engine import run_backtest, summarize_backtest, write_backtest_report
     store = _get_store()
     universe = _load_universe()
-    bars, info = _fetch(store, universe, 700, None)
+    bars, info = _fetch(store, universe, 700, None, cap_seconds=5400)
     if not bars:
         logger.error("No price data was loaded - nothing to backtest")
         return 1

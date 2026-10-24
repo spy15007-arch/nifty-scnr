@@ -421,12 +421,14 @@ class E2EHarness:
         os.chdir(self.cwd)
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def _make_store(self, bars, quotes=None):
-        """Stub broker: candles for any stock in `bars`; live quotes only if `quotes` (a function, or an Exception to raise) is given."""
+    def _make_store(self, bars, quotes=None, report=None):
+        """Stub broker: candles for any stock in `bars`; live quotes only if `quotes` (a function, or an Exception to raise) is given.
+        `report` overrides parts of the fetch report the store hands back (e.g. why it stopped)."""
         class Store:
             def get_universe_bars(s, symbols, lookback_days, max_duration_seconds=5400):
                 s.symbols = list(symbols)
-                s.last_report = {"requested": len(symbols), "loaded": sum(1 for k in symbols if k in bars), "stopped": "", "errors": []}
+                s.last_report = {"requested": len(symbols), "loaded": sum(1 for k in symbols if k in bars), "stopped": "", "errors": [],
+                                 **(report or {})}
                 return {k: bars[k].tail(lookback_days).copy() for k in symbols if k in bars}
 
             def get_bars(s, symbol, lookback_days):
@@ -444,9 +446,10 @@ class E2EHarness:
             store.get_quotes = get_quotes
         return store
 
-    def _run(self, argv, now, source="manual", bars=None, quotes=None):
+    def _run(self, argv, now, source="manual", bars=None, quotes=None, universe=None, report=None):
         bars = self.bars if bars is None else bars
-        store = self._make_store(bars, quotes)
+        store = self._make_store(bars, quotes, report)
+        universe = list(bars) if universe is None else list(universe)       # the stocks the scan ASKS for (may be more than the broker returns)
 
         def post(url, json=None, timeout=None, **kw):
             self.sent.append(json["text"])
@@ -454,9 +457,10 @@ class E2EHarness:
 
         os.environ["TRADING_RUN_SOURCE"] = source
         with mock.patch.object(self.M, "_get_store", lambda: store), \
-                mock.patch.object(self.M, "_load_universe", lambda test_limit=None: list(bars)), \
+                mock.patch.object(self.M, "_load_universe", lambda test_limit=None: list(universe)), \
                 mock.patch.object(self.M, "_global_snapshot", lambda: {}), \
                 mock.patch.object(self.M, "_sector_map", lambda: {}), \
+                mock.patch("scanner.market_direction._fetch_yahoo_history", lambda *a, **k: None), \
                 mock.patch.object(nse_eod, "update_cache", lambda *a, **k: {}), \
                 mock.patch.object(config, "TELEGRAM_BOT_TOKEN", "123456:TESTTOKENVALUE"), \
                 mock.patch.object(config, "TELEGRAM_CHAT_ID", "1"), \
@@ -548,6 +552,89 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue(any("No price data" in m for m in self.sent))
 
+    def test_every_run_leaves_a_fetch_report_behind(self):
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        doc = _load_json("reports/output/fetch_report_swing.json")
+        self.assertEqual((doc["scan"], doc["kind"], doc["route"], doc["requested"], doc["loaded"]), ("swing", "universe", "candles", len(self.bars), len(self.bars)))
+        self.assertEqual(doc["at"], "2026-10-13 17:00 IST")
+        self.assertIn("stopped", doc["store"])
+
+    def test_a_full_run_fetches_tracked_trades_and_last_evenings_watchlist_first(self):
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        head = [s for s in dict.fromkeys(self.M._must_have_symbols()) if s in self.bars]
+        self.assertTrue(len(head) >= 5, head)
+        self.sent.clear()
+        _, store = self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual")
+        self.assertEqual(store.symbols[:len(head)], head)                              # a run cut short by the time limit still has them
+        self.assertEqual(sorted(store.symbols), sorted(self.bars))                      # and nothing was added or dropped
+
+    def test_a_run_cut_short_says_so_in_plain_words_and_does_not_block_the_next_one(self):
+        asked = list(self.bars) + [f"GONE{i}" for i in range(60)]                        # 60 more stocks asked for than the broker returns
+        report = {"stopped": "time budget", "not_reached": 59, "not_found": ["GONE0"], "not_found_n": 1,
+                  "errors": [("Access denied because of exceeding access rate", 4)]}
+        code, _ = self._run(["scan_swing"], at(2026, 10, 13, 17, 0), universe=asked, report=report)
+        self.assertEqual(code, 0)
+        msg = "\n".join(self.sent)
+        self.assertIn(f"Partial scan: {len(self.bars)} of {len(asked)} stocks were loaded - the 45-minute time limit ran out "
+                      f"before the last 59 were fetched, so the list may miss some names", msg)
+        self.assertIn("Not in the broker's stock list: GONE0", msg)
+        self.assertIn("The broker said: Access denied because of exceeding access rate (x4)", msg)
+        self.assertNotIn("&#x27;", msg)                                                   # no stray quote characters
+        doc = _load_json("reports/output/fetch_report_swing.json")
+        self.assertEqual((doc["requested"], doc["loaded"], doc["store"]["stopped"], doc["store"]["not_reached"]),
+                         (len(asked), len(self.bars), "time budget", 59))
+        self.assertTrue(_load_json("data_cache/run_markers.json")["swing"]["ok"])      # 77% loaded still counts as a run
+
+    def test_priority_order_only_reorders(self):
+        order = self.M._priority_order(["A", "B", "C", "D", "E"], ["D", "ZZ", "B", "D"])
+        self.assertEqual(order, ["D", "B", "A", "C", "E"])
+        self.assertEqual(self.M._priority_order(["A", "B"], []), ["A", "B"])
+
+    def test_partial_scan_wording(self):
+        base = {"loaded": 448, "requested": 501, "budget_s": 2700}
+        note = self.M._partial_note({**base, "report": {
+            "stopped": "time budget", "not_reached": 51, "not_found": ["HFCL"], "not_found_n": 1,
+            "errors": [("Access denied because of exceeding access rate", 4)]}})
+        self.assertEqual(note, "Partial scan: 448 of 501 stocks were loaded - the 45-minute time limit ran out before the last 51 were fetched, "
+                               "so the list may miss some names. Not in the broker's stock list: HFCL. "
+                               "The broker said: Access denied because of exceeding access rate (x4)")
+        for bad in ("#", "''", '""'):
+            self.assertNotIn(bad, note)
+        many = self.M._partial_note({**base, "report": {"stopped": "", "not_found": list("ABCDEFGH"), "not_found_n": 11}})
+        self.assertIn("the broker returned no data for the rest", many)
+        self.assertIn("A, B, C, D and 7 more", many)
+        self.assertEqual(self.M._partial_note({"loaded": 0, "requested": 501, "report": {"stopped": "the broker kept refusing requests"}}),
+                         "None of the 501 stocks could be loaded - the broker kept refusing requests")
+
+    def test_the_market_line_has_a_second_source_for_the_index(self):
+        frame = next(iter(self.bars.values())).tail(120)
+        store = self._make_store(self.bars)
+
+        def broker_ok(symbol, lookback_days):
+            return frame
+        # broker first after the close ...
+        store.get_bars = broker_ok
+        with mock.patch("scanner.market_direction._fetch_yahoo_history", lambda t, *a, **k: self.fail("Yahoo should not be asked")):
+            df, found, src = self.M._fetch_benchmark(store, 300)
+        self.assertEqual((found, src, len(df)), (True, config.RS_BENCHMARK, 120))
+        # ... Yahoo first in market hours, and the broker when Yahoo has nothing
+        with mock.patch("scanner.market_direction._fetch_yahoo_history", lambda t, *a, **k: frame):
+            df, found, src = self.M._fetch_benchmark(store, 300, prefer_yahoo=True)
+        self.assertEqual((found, src), (True, "^NSEI"))
+        with mock.patch("scanner.market_direction._fetch_yahoo_history", lambda t, *a, **k: None):
+            df, found, src = self.M._fetch_benchmark(store, 300, prefer_yahoo=True)
+        self.assertEqual((found, src), (True, config.RS_BENCHMARK))
+
+        def broker_down(symbol, lookback_days):
+            raise RuntimeError("Something Went Wrong, Please Try After Sometime")
+        store.get_bars = broker_down
+        with mock.patch("scanner.market_direction._fetch_yahoo_history", lambda t, *a, **k: frame):
+            df, found, src = self.M._fetch_benchmark(store, 300)                       # the broker is down: Yahoo rescues the line
+        self.assertEqual((found, src), (True, "^NSEI"))
+        with mock.patch("scanner.market_direction._fetch_yahoo_history", lambda t, *a, **k: None):
+            df, found, src = self.M._fetch_benchmark(store, 300)
+        self.assertEqual((found, src, len(df)), (False, "", 0))
+
 
 # --------------------------------------------------------------------------- #
 class QuoteRoute(E2EHarness, unittest.TestCase):
@@ -610,6 +697,9 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertEqual(len(store.quote_calls), 1)
         self.assertTrue(any("live quotes" in m for m in self.sent), self.sent[:1])
         self.assertFalse(any("Partial scan" in m for m in self.sent))
+        self.assertFalse(any("Live quotes were not used" in m for m in self.sent))
+        doc = _load_json("reports/output/fetch_report_btst.json")
+        self.assertEqual((doc["kind"], doc["route"], doc["loaded"] == doc["requested"]), ("watchlist", "quotes", True))
 
     def test_quote_failure_falls_back_to_candles(self):
         wl = self._evening()
@@ -637,6 +727,8 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(store.quote_calls, [])
         self.assertEqual(set(store.symbols), set(wl["symbols"]))
+        self.assertTrue(any("Live quotes were not used (no saved candles for this watchlist)" in m for m in self.sent), self.sent[:1])
+        self.assertEqual(_load_json("reports/output/fetch_report_btst.json")["route"], "candles")
 
     def test_partial_fetch_note_quotes_the_brokers_words(self):
         note = self.M._partial_note({"loaded": 11, "requested": 501, "report": {
@@ -644,6 +736,7 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertIn("11 of 501", note)
         self.assertIn("kept refusing", note)
         self.assertIn("Something Went Wrong", note)
+        self.assertIn("(x440)", note)
         self.assertIn("None of the 501", self.M._partial_note({"loaded": 0, "requested": 501, "report": {}}))
 
 
