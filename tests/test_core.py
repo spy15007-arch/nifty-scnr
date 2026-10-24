@@ -577,7 +577,7 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         msg = "\n".join(self.sent)
         self.assertIn(f"Partial scan: {len(self.bars)} of {len(asked)} stocks were loaded - the 45-minute time limit ran out "
                       f"before the last 59 were fetched, so the list may miss some names", msg)
-        self.assertIn("Not in the broker's stock list: GONE0", msg)
+        self.assertIn("Not available from the broker: GONE0", msg)
         self.assertIn("The broker said: Access denied because of exceeding access rate (x4)", msg)
         self.assertNotIn("&#x27;", msg)                                                   # no stray quote characters
         doc = _load_json("reports/output/fetch_report_swing.json")
@@ -596,13 +596,16 @@ class EndToEnd(E2EHarness, unittest.TestCase):
             "stopped": "time budget", "not_reached": 51, "not_found": ["HFCL"], "not_found_n": 1,
             "errors": [("Access denied because of exceeding access rate", 4)]}})
         self.assertEqual(note, "Partial scan: 448 of 501 stocks were loaded - the 45-minute time limit ran out before the last 51 were fetched, "
-                               "so the list may miss some names. Not in the broker's stock list: HFCL. "
+                               "so the list may miss some names. Not available from the broker: HFCL. "
                                "The broker said: Access denied because of exceeding access rate (x4)")
         for bad in ("#", "''", '""'):
             self.assertNotIn(bad, note)
         many = self.M._partial_note({**base, "report": {"stopped": "", "not_found": list("ABCDEFGH"), "not_found_n": 11}})
         self.assertIn("the broker returned no data for the rest", many)
         self.assertIn("A, B, C, D and 7 more", many)
+        both = self.M._partial_note({**base, "report": {"stopped": "", "not_found": ["HFCL"], "not_found_n": 1,
+                                                        "no_data": ["BIRET", "EMBASSY"], "no_data_n": 6}})
+        self.assertIn("Not available from the broker: HFCL, BIRET, EMBASSY and 4 more", both)
         self.assertEqual(self.M._partial_note({"loaded": 0, "requested": 501, "report": {"stopped": "the broker kept refusing requests"}}),
                          "None of the 501 stocks could be loaded - the broker kept refusing requests")
 

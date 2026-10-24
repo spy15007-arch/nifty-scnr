@@ -50,9 +50,9 @@ Every pick is logged and followed exactly by the plan, then judged on **closed**
 
 ## When a scan says "Partial scan"
 
-The scans get their prices from Angel One, which now and then refuses requests. Each scan therefore says plainly what it got: *"Partial scan: 448 of 501 stocks were loaded - the 45-minute time limit ran out before the last 51 were fetched ..."*, plus the stocks the broker does not list and the broker's own words when it refused. How it copes (`data/brokers/angelone_client.py`, `data/historical.py`):
+The scans get their prices from Angel One, which now and then refuses requests. Each scan therefore says plainly what it got: *"Partial scan: 448 of 501 stocks were loaded - the 45-minute time limit ran out before the last 51 were fetched ..."*, plus the stocks the broker does not list or has no data for, and the broker's own words when it refused. How it copes (`data/brokers/angelone_client.py`, `data/historical.py`):
 
-* a refused request is retried after a short pause (1 s, then 2 s; longer if the broker said "rate") and does **not** slow the calls that follow - the pace only drops while the broker is refusing *right now* (3+ refusals in a row, or a third of the last 20 calls) and is back to full speed about 20 calls after it recovers;
+* an answer of "not found" / "invalid ..." is final for that stock (no retries, no slowdown); a refused request is retried after a short pause (1 s, then 2 s; longer if the broker said "rate") and does **not** slow the calls that follow - the pace only drops while the broker is refusing *right now* (3+ refusals in a row, or a third of the last 20 calls) and is back to full speed about 20 calls after it recovers;
 * a real outage (15 refused stocks in a row) triggers a 45-second cool-down, up to three times, then the run carries on; stocks refused the first time get a second pass;
 * the fetch stops after 45 minutes and the scan runs on what it has; stocks with an open tracked trade and last evening's watchlist are fetched first, so a cut-short run still has the ones that matter;
 * the afternoon BTST needs only a few live-quote calls (not one per stock) and gets the market line from Yahoo Finance first, because the broker's candle endpoint is the unreliable one during market hours.

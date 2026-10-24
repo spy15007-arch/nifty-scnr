@@ -22,7 +22,8 @@ sys.path.insert(0, ROOT)
 
 from data import history_cache  # noqa: E402
 from data.brokers.angelone_client import (AngelOneDataClient, BrokerRefused, Pace, clean_reply,  # noqa: E402
-                                          is_rate_limit_error, is_transient_error, read_candle_reply, read_quote_record)
+                                          is_permanent_reply, is_rate_limit_error, is_transient_error, read_candle_reply,
+                                          read_quote_record)
 from data.historical import HistoricalStore, classify_failure  # noqa: E402
 
 REFUSAL = {"status": False, "message": "Something Went Wrong, Please Try After Sometime", "errorcode": "AB1004", "data": None}
@@ -211,6 +212,20 @@ class CandleCalls(NoSleep):
         self.assertGreaterEqual(self.sleeps[1], 3.0)
         self.assertGreaterEqual(self.sleeps[2], 6.0)
 
+    def test_a_not_found_answer_is_not_retried_and_is_no_throttling_signal(self):
+        self.c.client.getCandleData.return_value = {"status": False, "message": "not found", "errorcode": "", "data": None}
+        for sym in ("AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "GGG"):
+            with self.assertRaises(BrokerRefused) as cm:
+                self.c.get_historical_bars(sym, days=250)
+        self.assertEqual(cm.exception.reply, "not found")
+        self.assertIn("after 1 attempt ", str(cm.exception))
+        self.assertEqual(self.c.client.getCandleData.call_count, 7)                               # one call each, no retries
+        self.assertEqual((self.c.pace.refusals, self.c.pace.delay), (0, 0.4))                     # seven in a row did not slow it down
+        self.assertEqual(classify_failure(cm.exception), ("permanent", "not found"))
+        self.assertTrue(is_permanent_reply("Invalid Token") and is_permanent_reply("not found"))
+        self.assertFalse(is_permanent_reply("Something Went Wrong, Please Try After Sometime"))
+        self.assertFalse(is_permanent_reply("Invalid response, server error"))                    # transient wording wins
+
     def test_a_real_empty_answer_is_an_empty_frame_and_causes_no_slowdown(self):
         self.c.client.getCandleData.return_value = {"status": True, "message": "SUCCESS", "data": []}
         df = self.c.get_historical_bars("AAA", days=250)
@@ -366,6 +381,8 @@ class UniverseFetch(NoSleep):
         rep = store.last_report
         self.assertEqual((len(out), rep["cooldowns"], rep["stopped"], rep["recovered"]), (20, 0, "", 0))
         self.assertEqual(sum(store.calls.values()), 60)                                           # each tried once, none retried
+        self.assertEqual((rep["no_data_n"], rep["no_data"]), (40, [f"S{i:03d}" for i in range(8)]))   # named (the first 8), counted (all 40)
+        self.assertEqual((rep["refused_n"], rep["not_found_n"]), (0, 0))
 
     def test_stocks_the_broker_does_not_know_are_named_not_blamed_on_the_broker(self):
         def script(sym, n):

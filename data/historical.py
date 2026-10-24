@@ -86,10 +86,11 @@ class HistoricalStore:
         start = time.time()
         errors: Counter = Counter()
         examples: dict[str, str] = {}
-        not_found: list[str] = []
+        not_found: list[str] = []                 # not in the broker's instrument list at all
+        no_data: list[str] = []                   # the broker answered "not found" / "invalid ..." for them
         report = {"requested": total, "loaded": 0, "failed": 0, "stopped": "", "cooldowns": 0, "recovered": 0,
-                  "seconds": 0, "errors": [], "not_found": [], "not_found_n": 0, "refused": [], "refused_n": 0,
-                  "not_reached": 0, "pace": {}}
+                  "seconds": 0, "errors": [], "not_found": [], "not_found_n": 0, "no_data": [], "no_data_n": 0,
+                  "refused": [], "refused_n": 0, "not_reached": 0, "pace": {}}
         self.last_report = report
 
         def left() -> float:
@@ -109,6 +110,8 @@ class HistoricalStore:
                 key = _group_key(words)
                 errors[key] += 1
                 examples.setdefault(key, words)
+                if kind == "permanent" and symbol not in no_data:
+                    no_data.append(symbol)
                 return kind
             if df is not None and not df.empty:
                 results[symbol] = df
@@ -188,7 +191,8 @@ class HistoricalStore:
         still_refused = [s for s in dict.fromkeys(failed_transient) if s not in results]
         report.update(loaded=len(results), failed=total - len(results), stopped=stopped,
                       seconds=round(time.time() - start), errors=[(examples[k], n) for k, n in errors.most_common(3)],
-                      not_found=not_found[:8], not_found_n=len(not_found), refused=still_refused[:8], refused_n=len(still_refused),
+                      not_found=not_found[:8], not_found_n=len(not_found), no_data=no_data[:8], no_data_n=len(no_data),
+                      refused=still_refused[:8], refused_n=len(still_refused),
                       not_reached=max(0, total - attempted) if stopped else 0, pace=self._pace_snapshot())
         if stopped:
             logger.info(f"Universe fetch stopped ({stopped}): {len(results)}/{total} symbols succeeded, "
@@ -196,7 +200,7 @@ class HistoricalStore:
         elif len(results) < total:
             logger.info(f"Universe fetch complete: {len(results)}/{total} symbols succeeded"
                         f"{', ' + str(report['recovered']) + ' recovered in the second pass' if report['recovered'] else ''}"
-                        f"{', ' + str(len(not_found)) + ' not in the broker list' if not_found else ''}")
+                        f"{', ' + str(len(not_found) + len(no_data)) + ' with no data at the broker' if (not_found or no_data) else ''}")
         return results
 
     def save_bars(self, symbol: str, df: pd.DataFrame):

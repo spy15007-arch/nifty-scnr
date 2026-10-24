@@ -289,11 +289,11 @@ def _partial_note(f: dict) -> str:
         text = f"Partial scan: {f['loaded']} of {f['requested']} stocks were loaded - {why}, so the list may miss some names"
     else:
         text = f"None of the {f['requested']} stocks could be loaded - {why}"
-    missing = [str(s) for s in (rep.get("not_found") or [])]
-    n_missing = int(rep.get("not_found_n") or len(missing))
+    missing = [str(s) for s in (rep.get("not_found") or [])] + [str(s) for s in (rep.get("no_data") or []) if s not in (rep.get("not_found") or [])]
+    n_missing = max(len(missing), int(rep.get("not_found_n") or 0) + int(rep.get("no_data_n") or 0))
     if n_missing:
         shown = ", ".join(missing[:4]) + (f" and {n_missing - len(missing[:4])} more" if n_missing > len(missing[:4]) else "")
-        text += f". Not in the broker's stock list: {shown}"
+        text += f". Not available from the broker: {shown}"
     errs = rep.get("errors") or []
     if errs:
         text += ". The broker said: " + "; ".join(f"{m} (x{n})" for m, n in errs[:2])

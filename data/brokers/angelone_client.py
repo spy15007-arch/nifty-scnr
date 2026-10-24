@@ -45,11 +45,13 @@ _TRANSIENT = re.compile(
 )
 # the subset that says "you are calling too fast" (as opposed to "the server had a hiccup")
 _RATE = re.compile(r"\brate\b|too many|ab1021|exceeding|access denied", re.IGNORECASE)
+# replies that say this request can never succeed ("not found", "invalid ...") - the broker ANSWERED, so no retry and no slowdown
+_PERMANENT = re.compile(r"not found|invalid|does not exist|no such", re.IGNORECASE)
 
 # the SDK's message when the gateway answers with something that is not JSON (an HTML error page, plain text)
 _SDK_UNREADABLE = re.compile(r"couldn'?t parse the json response received from the server:?\s*", re.IGNORECASE)
 # our own wrapper around a broker reply, so a plain RuntimeError carrying it groups with the real thing
-_WRAPPED = re.compile(r"gave no usable answer after \d+ attempts \(last reply: (.*?)(?:; delay now [\d.]+s)?\)\s*$", re.IGNORECASE | re.DOTALL)
+_WRAPPED = re.compile(r"gave no usable answer after \d+ attempts? \(last reply: (.*?)(?:; delay now [\d.]+s)?\)\s*$", re.IGNORECASE | re.DOTALL)
 
 CANDLE_COLUMNS = ["open", "high", "low", "close", "volume"]
 
@@ -57,6 +59,12 @@ CANDLE_COLUMNS = ["open", "high", "low", "close", "volume"]
 def is_transient_error(error) -> bool:
     """True for throttling / a briefly unwell broker (worth a pause and another try), False for a permanent error."""
     return bool(_TRANSIENT.search(str(error)))
+
+
+def is_permanent_reply(error) -> bool:
+    """True when the broker's words say the request itself is the problem ('not found', 'invalid ...'): retrying cannot help."""
+    text = str(error)
+    return bool(_PERMANENT.search(text)) and not _TRANSIENT.search(text)
 
 
 def is_rate_limit_error(error) -> bool:
@@ -146,7 +154,7 @@ class BrokerRefused(RuntimeError):
 
     def __init__(self, symbol: str, attempts: int, reply: str):
         self.symbol, self.attempts, self.reply = symbol, attempts, reply
-        super().__init__(f"{symbol}: the broker gave no usable answer after {attempts} attempts (last reply: {reply})")
+        super().__init__(f"{symbol}: the broker gave no usable answer after {attempts} attempt{'' if attempts == 1 else 's'} (last reply: {reply})")
 
 
 class Pace:
@@ -328,8 +336,11 @@ class AngelOneDataClient:
                 return df.set_index("timestamp").tail(days)
 
             last_reply = clean_reply(why)                  # a refused answer is a failure, never "no candles"
-            last_was_rate = is_rate_limit_error(why)
             self._note_error(why)
+            if is_permanent_reply(why):                    # e.g. "not found": an answer about THIS stock, not throttling
+                self.pace.record(False, False, level)
+                raise BrokerRefused(tradingsymbol, attempt + 1, last_reply)
+            last_was_rate = is_rate_limit_error(why)
             self.pace.record(True, last_was_rate, level)
 
         raise BrokerRefused(tradingsymbol, self.MAX_ATTEMPTS, last_reply)
