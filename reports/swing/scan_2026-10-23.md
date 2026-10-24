@@ -1,20 +1,18 @@
-# 📈 Swing scan - Fri 23 Oct 2026, 5:36 PM IST
+# 📈 Swing scan - Sat 24 Oct 2026, 2:25 PM IST
 
 *Based on the close of Fri 23 Oct 2026*
 
-**Market:** 🧭 🔴 Bearish (score -6/6) · Nifty -0.7% today · global hostile
+**Market:** 🧭 🔴 Bearish (score -6/6) · Nifty -0.7% last session · global hostile
 
 **Breadth:** 10% of liquid stocks are above their 50-day average (weak - use half size)
 
-*Partial scan: 448 of 501 stocks were loaded (the time limit was reached), so the list may miss some names. Broker said: ''Symbol HFCL not found in Angel One instrument master'' x1; 'WHIRLPOOL: the broker gave no usable answer after # attempts (last reply: Couldn't parse the JSON response rec' x1*
-
-*Funnel: 448 stocks checked → 0 fresh breakouts + 7 about to break → 3 in the top half by quality → 0 listed, 3 already on the list*
+*Funnel: 489 stocks checked → 0 fresh breakouts + 7 about to break → 3 in the top half by quality → 0 listed, 3 already on the list*
 
 | # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
 | - | No new pick | - | - | - | - | - | - | - |
 
-Already on your list (not repeated): INDHOTEL, DRREDDY, ANANDRATHI
+Already on your list (not repeated): ANANDRATHI, DRREDDY, INDHOTEL
 
 ## Trades already on your list
 

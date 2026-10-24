@@ -1,0 +1,52 @@
+{
+ "at": "2026-10-24 14:25 IST",
+ "budget_s": 2700,
+ "kind": "universe",
+ "loaded": 489,
+ "market_line_source": "NIFTYBEES",
+ "quote_note": "",
+ "requested": 501,
+ "route": "candles",
+ "scan": "swing",
+ "scored": 479,
+ "seconds": 764,
+ "store": {
+  "cooldowns": 0,
+  "errors": [
+   [
+    "not found",
+    6
+   ],
+   [
+    "HTTPSConnectionPool(host='apiconnect.angelone.in', port=443): Read timed out. (read timeout=7)",
+    1
+   ]
+  ],
+  "failed": 12,
+  "loaded": 489,
+  "not_found": [
+   "BIRET",
+   "HFCL",
+   "EMBASSY",
+   "BAGMANE",
+   "STLTECH",
+   "DUMMYHEG"
+  ],
+  "not_found_n": 6,
+  "not_reached": 0,
+  "pace": {
+   "calls": 512,
+   "rate_limited": 0,
+   "refused": 23,
+   "slowed_calls": 34,
+   "slowest_calls": 26,
+   "wait_now_s": 0.4
+  },
+  "recovered": 1,
+  "refused": [],
+  "refused_n": 0,
+  "requested": 501,
+  "seconds": 764,
+  "stopped": ""
+ }
+}
