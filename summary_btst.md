@@ -1,4 +1,4 @@
-# 🌙 BTST scan - Sat 24 Oct 2026, 2:11 PM IST
+# 🌙 BTST scan - Sun 25 Oct 2026, 2:11 PM IST
 
 *Based on the close of Fri 23 Oct 2026*
 
@@ -12,7 +12,7 @@
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
 | - | No new pick | - | - | - | - | - | - | - |
 
-Already on your list (not repeated): DRREDDY, INDHOTEL, ANANDRATHI
+Already on your list (not repeated): ANANDRATHI, DRREDDY, INDHOTEL
 
 ## Trades already on your list
 
