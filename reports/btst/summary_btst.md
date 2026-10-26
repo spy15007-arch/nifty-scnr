@@ -1,18 +1,22 @@
-# 🌙 BTST scan - Sun 25 Oct 2026, 2:11 PM IST
+# 🌙 BTST scan - Mon 26 Oct 2026, 2:01 PM IST
 
-*Based on the close of Fri 23 Oct 2026*
+*Live prices at 2:01 PM IST (today's volume projected to a full day)*
 
-**Market:** 🧭 🔴 Bearish (score -6/6) · Nifty -0.7% last session · global hostile
+**Market:** 🧭 🔴 Bearish (score -3/6) · Nifty +0.2% today · global supportive
 
 **Breadth:** 10% of liquid stocks are above their 50-day average (weak - use half size)
 
-*Funnel: 495 stocks checked → 0 fresh breakouts + 8 about to break → 3 in the top half by quality → 0 listed, 3 already on the list*
+*Fast afternoon check: the 37 stocks on last evening's watchlist (2026-10-23), re-scored with live quotes against the whole market's yardstick; market breadth is as of that close*
+
+*Funnel: 37 stocks checked → 1 fresh breakouts + 5 about to break → 5 in the top half by quality → 3 listed, 2 already on the list*
 
 | # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
-| - | No new pick | - | - | - | - | - | - | - |
+| 1 | **LAURUSLABS** | 👀 About to break out (2.0% below the 50-day high) | 99 | Buy-stop 2,093.20 (skip if opens above 2,155.95) | 1,939.10 (-7.4%) | 14.7% | 3 | 49% |
+| 2 | **KOTAKBANK** | 👀 About to break out (2.9% below the 50-day high) | 97 | Buy-stop 454.05 (skip if opens above 467.65) | 427.35 (-5.9%) | 11.7% | 18 | 69% |
+| 3 | **COFORGE** | 👀 About to break out (2.5% below the 50-day high) | 52 | Buy-stop 2,025.25 (skip if opens above 2,086.00) | 1,849.50 (-8.7%) | 17.4% | 2 | 44% |
 
-Already on your list (not repeated): ANANDRATHI, DRREDDY, INDHOTEL
+Already on your list (not repeated): ANANDRATHI, INDHOTEL
 
 ## Trades already on your list
 
