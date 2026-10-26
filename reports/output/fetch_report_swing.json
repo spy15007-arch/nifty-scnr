@@ -1,52 +1,59 @@
 {
- "at": "2026-10-24 14:25 IST",
+ "at": "2026-10-26 16:51 IST",
  "budget_s": 2700,
  "kind": "universe",
- "loaded": 489,
+ "loaded": 444,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 479,
- "seconds": 764,
+ "scored": 436,
+ "seconds": 2702,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
-    "not found",
-    6
-   ],
-   [
-    "HTTPSConnectionPool(host='apiconnect.angelone.in', port=443): Read timed out. (read timeout=7)",
-    1
+    "Access denied because of exceeding access rate",
+    29
    ]
   ],
-  "failed": 12,
-  "loaded": 489,
+  "failed": 57,
+  "loaded": 444,
+  "no_data": [],
+  "no_data_n": 0,
   "not_found": [
    "BIRET",
-   "HFCL",
-   "EMBASSY",
    "BAGMANE",
-   "STLTECH",
-   "DUMMYHEG"
+   "EMBASSY",
+   "DUMMYHEG",
+   "HFCL",
+   "STLTECH"
   ],
   "not_found_n": 6,
-  "not_reached": 0,
+  "not_reached": 22,
   "pace": {
-   "calls": 512,
-   "rate_limited": 0,
-   "refused": 23,
-   "slowed_calls": 34,
-   "slowest_calls": 26,
-   "wait_now_s": 0.4
+   "calls": 714,
+   "rate_limited": 270,
+   "refused": 270,
+   "slowed_calls": 711,
+   "slowest_calls": 711,
+   "wait_now_s": 2.5
   },
-  "recovered": 1,
-  "refused": [],
-  "refused_n": 0,
+  "recovered": 0,
+  "refused": [
+   "SUPREMEIND",
+   "VIJAYA",
+   "GODREJPROP",
+   "SIEMENS",
+   "ABBOTINDIA",
+   "VOGL",
+   "CIEINDIA",
+   "VBL"
+  ],
+  "refused_n": 29,
   "requested": 501,
-  "seconds": 764,
-  "stopped": ""
+  "seconds": 2702,
+  "stopped": "time budget"
  }
 }

@@ -1,27 +1,30 @@
-# 📈 Swing scan - Sat 24 Oct 2026, 2:25 PM IST
+# 📈 Swing scan - Mon 26 Oct 2026, 4:51 PM IST
 
-*Based on the close of Fri 23 Oct 2026*
+*Based on the close of Mon 26 Oct 2026*
 
-**Market:** 🧭 🔴 Bearish (score -6/6) · Nifty -0.7% last session · global hostile
+**Market:** 🧭 🟡 Sideways / mixed (score -1/6) · Nifty +0.8% today · global supportive
 
-**Breadth:** 10% of liquid stocks are above their 50-day average (weak - use half size)
+**Breadth:** 13% of liquid stocks are above their 50-day average (weak - use half size)
 
-*Funnel: 489 stocks checked → 0 fresh breakouts + 7 about to break → 3 in the top half by quality → 0 listed, 3 already on the list*
+*Partial scan: 444 of 501 stocks were loaded - the 45-minute time limit ran out before the last 22 were fetched, so the list may miss some names. Not available from the broker: BIRET, BAGMANE, EMBASSY, DUMMYHEG and 2 more. The broker said: Access denied because of exceeding access rate (x29)*
+
+*Funnel: 444 stocks checked → 2 fresh breakouts + 16 about to break → 8 in the top half by quality → 1 listed, 7 already on the list*
 
 | # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
-| - | No new pick | - | - | - | - | - | - | - |
+| 1 | **TECHM** | 👀 About to break out (2.7% below the 50-day high) | 63 | Buy-stop 1,848.70 (skip if opens above 1,904.15) | 1,695.50 (-8.3%) | 16.6% | 3 | 50% |
 
-Already on your list (not repeated): ANANDRATHI, DRREDDY, INDHOTEL
+Already on your list (not repeated): ANANDRATHI, COFORGE, INDHOTEL, INDUSTOWER, KOTAKBANK, LAURUSLABS, PETRONET
 
 ## Trades already on your list
 
 Trades already on your list
-Open - current stops (2):
-INDHOTEL ₹727.86 · PVRINOX ₹1,301.35
-Waiting for their buy-stop (5): ANANDRATHI ₹2,272.95, INDUSTOWER ₹393.10, CASTROLIND ₹203.85, PETRONET ₹301.25, DRREDDY ₹1,255.35
+• DRREDDY - buy-stop filled at ₹1,260.00
+Open - current stops (3):
+INDHOTEL ₹727.86 · DRREDDY ₹1,189.87 · PVRINOX ₹1,301.35
+Waiting for their buy-stop (7): LAURUSLABS ₹2,093.20, KOTAKBANK ₹454.05, COFORGE ₹2,025.25, ANANDRATHI ₹2,272.95, INDUSTOWER ₹393.10, CASTROLIND ₹203.85, PETRONET ₹301.25
 
 ---
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and exit only through the stop, which trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-outs; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
 
-*Scoreboard since 2026-10-21: 0 closed, 2 open, 5 waiting for their buy-stop*
+*Scoreboard since 2026-10-21: 0 closed, 3 open, 7 waiting for their buy-stop*

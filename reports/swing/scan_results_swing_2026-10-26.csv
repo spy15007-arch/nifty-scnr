@@ -1,0 +1,2 @@
+symbol,setup,stage,grade,quality_pct,entry_mode,price,entry_price,max_entry,stop_loss,risk_pct,trail_pct,atr_pct,plus_1R,plus_2R,plus_3R,pivot_50d_high,ext_pct,gain_pct,vol_ratio,dist_52w_high_pct,ret_12m_pct,delivery_20d_pct,days_since_break,first_break,sector,qty,position_value,valid_sessions,signal_date,signal_time_ist,scan_mode
+TECHM,primed,About to break out (2.7% below the 50-day high),C,62.8,stop,1795.0,1848.7,1904.15,1695.5,0.0828,0.1657,0.0331,2001.9,2155.05,2308.2,1845.0,-0.0271,0.0028,0.84,-0.0318,0.2263,49.8,,True,IT,3,5546.0,5,2026-10-26,,swing

@@ -8,11 +8,11 @@
   "source": "timer"
  },
  "swing": {
-  "at": "2026-10-24 14:25 IST",
-  "key": "2026-10-23",
+  "at": "2026-10-26 16:51 IST",
+  "key": "2026-10-26",
   "live": false,
   "ok": true,
-  "picks": 0,
-  "source": "manual"
+  "picks": 1,
+  "source": "timer"
  }
 }
