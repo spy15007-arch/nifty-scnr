@@ -1,59 +1,59 @@
 {
- "at": "2026-10-26 16:51 IST",
+ "at": "2026-10-27 16:51 IST",
  "budget_s": 2700,
  "kind": "universe",
- "loaded": 444,
+ "loaded": 439,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 436,
- "seconds": 2702,
+ "scored": 431,
+ "seconds": 2705,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    29
+    22
    ]
   ],
-  "failed": 57,
-  "loaded": 444,
+  "failed": 62,
+  "loaded": 439,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "BIRET",
    "BAGMANE",
-   "EMBASSY",
-   "DUMMYHEG",
    "HFCL",
-   "STLTECH"
+   "STLTECH",
+   "DUMMYHEG",
+   "EMBASSY",
+   "BIRET"
   ],
   "not_found_n": 6,
-  "not_reached": 22,
+  "not_reached": 34,
   "pace": {
-   "calls": 714,
-   "rate_limited": 270,
+   "calls": 709,
+   "rate_limited": 267,
    "refused": 270,
-   "slowed_calls": 711,
-   "slowest_calls": 711,
+   "slowed_calls": 706,
+   "slowest_calls": 706,
    "wait_now_s": 2.5
   },
   "recovered": 0,
   "refused": [
-   "SUPREMEIND",
-   "VIJAYA",
-   "GODREJPROP",
-   "SIEMENS",
-   "ABBOTINDIA",
-   "VOGL",
-   "CIEINDIA",
-   "VBL"
+   "LAURUSLABS",
+   "ICICIBANK",
+   "BAJAJHLDNG",
+   "ATHERENERG",
+   "DEVYANI",
+   "IREDA",
+   "SUZLON",
+   "MARUTI"
   ],
-  "refused_n": 29,
+  "refused_n": 22,
   "requested": 501,
-  "seconds": 2702,
+  "seconds": 2705,
   "stopped": "time budget"
  }
 }
