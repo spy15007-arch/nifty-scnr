@@ -1,59 +1,50 @@
 {
- "at": "2026-10-27 16:51 IST",
+ "at": "2026-10-28 16:46 IST",
  "budget_s": 2700,
  "kind": "universe",
- "loaded": 439,
+ "loaded": 495,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 431,
- "seconds": 2705,
+ "scored": 486,
+ "seconds": 2396,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    22
+    7
    ]
   ],
-  "failed": 62,
-  "loaded": 439,
+  "failed": 6,
+  "loaded": 495,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "BAGMANE",
+   "EMBASSY",
+   "BIRET",
    "HFCL",
    "STLTECH",
-   "DUMMYHEG",
-   "EMBASSY",
-   "BIRET"
+   "BAGMANE",
+   "DUMMYHEG"
   ],
   "not_found_n": 6,
-  "not_reached": 34,
+  "not_reached": 0,
   "pace": {
-   "calls": 709,
-   "rate_limited": 267,
-   "refused": 270,
-   "slowed_calls": 706,
-   "slowest_calls": 706,
+   "calls": 657,
+   "rate_limited": 161,
+   "refused": 162,
+   "slowed_calls": 614,
+   "slowest_calls": 614,
    "wait_now_s": 2.5
   },
-  "recovered": 0,
-  "refused": [
-   "LAURUSLABS",
-   "ICICIBANK",
-   "BAJAJHLDNG",
-   "ATHERENERG",
-   "DEVYANI",
-   "IREDA",
-   "SUZLON",
-   "MARUTI"
-  ],
-  "refused_n": 22,
+  "recovered": 7,
+  "refused": [],
+  "refused_n": 0,
   "requested": 501,
-  "seconds": 2705,
-  "stopped": "time budget"
+  "seconds": 2396,
+  "stopped": ""
  }
 }
