@@ -1,0 +1,10 @@
+🌙 <b>BTST scan</b> · Thu 29 Oct, 2:43 PM · live prices
+🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +1.0% today · global supportive
+📊 Breadth 19% (stocks above their 50-day average) - <b>weak market: half size</b>
+
+ℹ️ Quick check of last night's 86-stock watchlist (28 Oct close) with live quotes; breadth is as of that close
+
+<b>No new pick.</b> 86 stocks checked, 21 in a breakout setup, 19 passed the quality filter - all already on your list.
+
+🧾 <i>Record since 21 Oct: no trade closed yet</i>
+ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. A ranked shortlist, not a guarantee.</i>

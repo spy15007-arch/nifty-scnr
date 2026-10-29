@@ -1,6 +1,6 @@
 {
- "at": "2026-10-29 14:01 IST",
- "budget_s": 1423,
+ "at": "2026-10-29 14:43 IST",
+ "budget_s": 229,
  "kind": "watchlist",
  "loaded": 86,
  "market_line_source": "^NSEI",
@@ -9,10 +9,15 @@
  "route": "quotes",
  "scan": "btst",
  "scored": 86,
- "seconds": 28,
+ "seconds": 93,
  "store": {
   "cooldowns": 0,
-  "errors": [],
+  "errors": [
+   [
+    "Access denied because of exceeding access rate",
+    2
+   ]
+  ],
   "failed": 0,
   "loaded": 7,
   "no_data": [],
@@ -21,18 +26,18 @@
   "not_found_n": 0,
   "not_reached": 0,
   "pace": {
-   "calls": 9,
-   "rate_limited": 2,
-   "refused": 2,
-   "slowed_calls": 1,
-   "slowest_calls": 1,
+   "calls": 19,
+   "rate_limited": 12,
+   "refused": 12,
+   "slowed_calls": 16,
+   "slowest_calls": 16,
    "wait_now_s": 2.5
   },
-  "recovered": 0,
+  "recovered": 2,
   "refused": [],
   "refused_n": 0,
   "requested": 7,
-  "seconds": 18,
+  "seconds": 84,
   "stopped": ""
  }
 }
