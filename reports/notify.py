@@ -16,6 +16,7 @@ from __future__ import annotations
 import html
 import logging
 import math
+import os
 from datetime import datetime
 
 import config
@@ -274,7 +275,8 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
 
 def notify_scan(result, scan_mode: str, bot_token: str, chat_id: str, now: datetime | None = None,
                 market_line: str = "", tracked_block: str = "", scoreboard_line: str = "",
-                notes: list[str] | None = None) -> bool:
+                notes: list[str] | None = None, save_to: str | None = None) -> bool:
+    """Build the scan message and send it. `save_to`: also keep the exact text that was sent (the run log is not always reachable)."""
     try:
         message = format_scan_message(result, scan_mode, now=now, market_line=market_line,
                                       tracked_block=tracked_block, scoreboard_line=scoreboard_line, notes=notes)
@@ -282,6 +284,13 @@ def notify_scan(result, scan_mode: str, bot_token: str, chat_id: str, now: datet
         logger.exception("Could not format the scan message")
         message = _e(f"The {scan_mode.upper()} scan finished, but its message could not be formatted. "
                      f"The picks are in summary_{scan_mode}.md in the repository.")
+    if save_to:
+        try:
+            os.makedirs(os.path.dirname(save_to) or ".", exist_ok=True)
+            with open(save_to, "w", encoding="utf-8") as fh:
+                fh.write(message + "\n")
+        except OSError:
+            logger.warning("Could not save a copy of the message", exc_info=True)
     return send_telegram_message(bot_token, chat_id, message)
 
 

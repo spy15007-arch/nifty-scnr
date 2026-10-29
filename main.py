@@ -544,7 +544,8 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
 
     sent = notify.notify_scan(result, scan_mode, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, now=now,
                               market_line=market_line, tracked_block=tracked_block,
-                              scoreboard_line=scoreboard_line, notes=run_notes)
+                              scoreboard_line=scoreboard_line, notes=run_notes,
+                              save_to=f"reports/output/last_message_{scan_mode}.txt")
     if not sent:
         logger.warning("The scan message was not delivered to Telegram (not configured, or the send failed) - the files have the full result")
 

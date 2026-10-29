@@ -634,6 +634,8 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertTrue(self.sent and any("PLANT" in m for m in self.sent))
         self.assertTrue(all(len(m) <= 4096 for m in self.sent))
         self.assertEqual(_load_json("data_cache/btst_watchlist.json")["as_of"], "2026-10-13")
+        with open("reports/output/last_message_swing.txt", encoding="utf-8") as fh:        # a copy of exactly what was sent
+            self.assertEqual(fh.read().strip(), "\n\n".join(self.sent).strip())
         for gone in ("qty", "position_value"):                                      # no share counts: they depend on money no scan knows
             self.assertNotIn(gone, csv.columns)
         self.assertFalse(any("share" in m.lower() or "lakh" in m.lower() for m in self.sent), self.sent)
