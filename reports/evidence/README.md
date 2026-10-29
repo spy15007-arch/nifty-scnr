@@ -71,7 +71,7 @@ Signs were stable between the design and validation periods, but the sizes are s
 
 ## 7. How to use this
 
-1. Treat every scan as a **shortlist** and risk at most 1% of capital per trade (the message gives the share count). In a weak market use half size - or sit out.
+1. Treat every scan as a **shortlist** and risk at most 1% of your capital per trade: shares = the money you are willing to lose ÷ (buy price − stop). The message gives no share count because it depends on the money you still have free. In a weak market use half size - or sit out. A pick that has **already spiked** in the last 5 days is flagged on its card (buy on a pull-back or in continuation, do not chase); that is a caution - the 5-day spike is a weak trait in the table above, and pull-back entries were not back-tested.
 2. Never widen a stop or add to a loser; exit only through the stop as it trails up.
 3. Expect about 6 trades in 10 to lose. Do not judge the system on 5 trades - judge it on **30+ closed trades** in the scoreboard, after costs.
 4. If after 50+ closed trades the scoreboard is clearly negative (average below about -0.2R and profit factor under 1), cut the size or pause and re-run **Backtest & Calibrate** rather than hoping. For a lumpy system even 50 trades is a small sample - 100+ is much more reliable.

@@ -47,13 +47,21 @@ Short on purpose - only what is needed to act, never a share count or an amount 
 
 BUY-STOP ORDERS (GTT / stop-limit, valid 5 sessions)
 
-1. BHARTIARTL 👀 1.1% below 50-day high · Quality 79/100
-Buy-stop 2,009.85 · skip if it opens above 2,070.10
+1. BHARTIARTL 👀 About to break out (1.1% below the 50-day high) · Quality 79/100
+Buy at 2,009.85 · skip if it opens above 2,070.10
 Stop 1,881.00 (-6.4%) · trail 12.8%
-near 52-wk high · 200-day trend up · delivery ~46%
+near 52-wk high · low volatility · delivery ~46%
+
+2. GLAND 👀 About to break out (2.1% below the 50-day high) · Quality 86/100 · Pharma
+Buy at 3,177.35 · skip if it opens above 3,272.65
+Stop 2,905.10 (-8.6%) · trail 17.1%
+near 52-wk high · very liquid · delivery ~54%
+⚠️ 200-day trend rising, but already spiked 8% in 5 days - buy on a pull-back or in continuation
 ```
 
-* A **🔥 buy-now** card (BTST, live breakout) reads *Buy near 848.15 · up 3.4% today on 2.1x volume*. A **⚠️** line is added only when something specific is going on (already more than 3% past the breakout level, a very large one-day move, a very volatile stock); the full list of strengths and weak points of every pick is in the dated write-up `reports/<mode>/scan_<date>.md`.
+* On a buy-stop card the first line says **Buy at** and the line under it is the **Stop** (the stop-loss); the heading above the cards says they are entered as buy-stop / GTT trigger orders (a plain limit order at that price would fill at once, below the trigger).
+* A **🔥 buy-now** card (BTST, live breakout) reads *Buy near 848.15 · up 3.4% today on 2.1x volume*.
+* A **⚠️** line is added only when something specific is going on. The one that tells you what to do: **"already spiked X% in 5 days - buy on a pull-back or in continuation"**, i.e. do not chase it. It appears when the gain is at least 5% **and** at least 1.28 standard deviations above the average stock's 5-day gain that day (roughly the top 10%; `SPIKE_5D_Z`, `SPIKE_5D_MIN` in `config.py`), and it begins with *"200-day trend rising, but ..."* when the 200-day average is at least 0.5% above where it was 20 sessions ago (`TREND_200D_RISING_MIN`). For a fresh breakout its own big day is the signal, not a spike, so the run-up is measured up to the previous close (*"... spiked 9% before today"*). Other warnings: already more than 3% past the breakout level, a very volatile stock. This is a caution, not a tested rule: the 5-day spike is one of the weaker traits in the research (see [reports/evidence](reports/evidence/README.md)) and pull-back entries were not back-tested. The full list of strengths and weak points of every pick is in the dated write-up `reports/<mode>/scan_<date>.md`.
 * The evening **Swing** message ends with **📒 Your list**: what filled, expired or stopped out, every open trade's current stop (↑ = raised today) and the buy-stops still waiting. The afternoon **BTST** message leaves the stop list out (stops only change after a completed session) and shows only what changed.
 * The last two lines are the live record (closed trades only) and the standing rule. The back-test numbers are in [reports/evidence](reports/evidence/README.md), the README and the dashboard, not repeated in every message.
 

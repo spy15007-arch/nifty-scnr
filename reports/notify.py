@@ -57,9 +57,14 @@ def _rows(items: list[str], per_row: int = 2) -> list[str]:
 
 # --------------------------------------------------------------------------- #
 def format_pick(p, idx: int) -> str:
-    """One compact card of 4-5 short lines (no blank lines inside, so the message splitter keeps it whole)."""
-    stage = _e(p.stage_short or p.stage_label)
-    lines = [f"<b>{idx}. {_e(p.symbol)}</b> {STAGE_EMOJI.get(p.setup, '')} {stage} · Quality {p.quality_pct:.0f}/100"]
+    """
+    One compact card of 4-6 short lines (no blank lines inside, so the message splitter keeps it whole):
+    the setup, where to buy, the stop, a few words on why, and one line per specific warning (e.g. already spiked in 5 days).
+    The buy line of a buy-stop pick just says "Buy at": the Stop line right under it is the stop-loss, and the section heading
+    above the cards says these are trigger orders.
+    """
+    sector = f" · {_e(p.sector)}" if p.sector else ""
+    lines = [f"<b>{idx}. {_e(p.symbol)}</b> {STAGE_EMOJI.get(p.setup, '')} {_e(p.stage_label)} · Quality {p.quality_pct:.0f}/100{sector}"]
 
     stats = ""
     if p.setup == "fresh":
@@ -68,14 +73,14 @@ def format_pick(p, idx: int) -> str:
         lines.append(f"Buy near <b>{fmt_price(p.entry_price)}</b>" + (f" · {stats}" if stats else ""))
         stats = ""                                                          # said on the buy line already
     else:
-        lines.append(f"Buy-stop <b>{fmt_price(p.entry_price)}</b> · skip if it opens above {fmt_price(p.max_entry)}")
+        lines.append(f"Buy at <b>{fmt_price(p.entry_price)}</b> · skip if it opens above {fmt_price(p.max_entry)}")
     lines.append(f"Stop <b>{fmt_price(p.stop)}</b> (-{_pct(p.risk_pct)}) · trail {_pct(p.trail_pct)}")
 
-    context = ([_e(p.sector)] if p.sector else []) + ([stats] if stats else []) + [_e(w) for w in p.why]
+    context = ([stats] if stats else []) + [_e(w) for w in p.why]
     if context:
         lines.append(" · ".join(context[:4]))
-    if p.watch:
-        lines.append("⚠️ " + _e("; ".join(p.watch[:2])))
+    for warning in p.watch[:2]:
+        lines.append("⚠️ " + _e(warning))
     return "\n".join(lines)
 
 

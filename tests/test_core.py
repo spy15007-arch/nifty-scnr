@@ -222,7 +222,7 @@ class SetupAndPlan(unittest.TestCase):
         self.assertGreater(p.max_entry, p.entry_price)
         for v in (p.entry_price, p.stop, p.max_entry):
             self.assertAlmostEqual(round(v / 0.05) * 0.05, v, places=6)          # tick-rounded
-        self.assertTrue(p.stage_short and p.why)                                   # the few-words versions the Telegram card shows
+        self.assertTrue(p.why)                                                     # the few-words reasons the Telegram card shows
         for gone in ("qty", "position_value", "size_note"):                         # share counts depend on money no scan can know
             self.assertFalse(hasattr(p, gone), gone)
             self.assertNotIn(gone, p.to_row())
@@ -265,6 +265,136 @@ class SetupAndPlan(unittest.TestCase):
         a = full.feats["quality_pct"].reindex(wl["symbols"])
         b = part.feats["quality_pct"].reindex(wl["symbols"])
         self.assertLess((a - b).abs().max(), 2.5)                                   # same yardstick -> same rank (up to the quantile grid)
+
+
+class SpikeWarning(unittest.TestCase):
+    """A stock that has ALREADY run up sharply is better bought on a pull-back or in continuation - the card says so."""
+    PHRASE = "buy on a pull-back or in continuation"
+    SU = {"ext_pct": -0.02, "above_pivot": False}
+    STATS = {"mean": {"ret5": 0.008}, "std": {"ret5": 0.046}}                  # the average stock's 5-day gain that day, and its spread
+
+    @staticmethod
+    def _f(ret5=0.079, sma200_chg=0.061, **kw):
+        return {"ret5": ret5, "sma200_chg": sma200_chg, "gain1d": 0.01, "atr_pct": 0.03, **kw}
+
+    @staticmethod
+    def _row(c_sma200=2.0):
+        """A scored row as the pipeline sees it: contributions to the quality score."""
+        return pd.Series({"c_ret5": -1.5, "c_sma200_chg": c_sma200, "c_dist_hi": 1.5, "c_turn20": 0.9, "c_dlv20": 0.6})
+
+    def _watch(self, setup="primed", f=None, stats=STATS, su=None, row=None, dlv=None):
+        return pl._short_why_and_watch(setup, f or self._f(), su or self.SU, self._row() if row is None else row, dlv, stats)
+
+    def test_a_spike_in_a_rising_long_term_trend_says_both_and_what_to_do(self):
+        why, watch = self._watch(dlv=54.0)
+        self.assertEqual(watch, [f"200-day trend rising, but already spiked 8% in 5 days - {self.PHRASE}"])
+        self.assertNotIn("200-day trend rising", why)                              # said once, in the warning line
+        self.assertEqual(why, ["near 52-wk high", "very liquid", "delivery ~54%"])
+
+    def test_a_spike_without_a_rising_trend_does_not_claim_one(self):
+        why, watch = self._watch(f=self._f(sma200_chg=-0.003))
+        self.assertEqual(watch, [f"Already spiked 8% in 5 days - {self.PHRASE}"])
+        self.assertNotIn("200-day trend rising", why)                              # even if the score liked its slope relative to other stocks
+
+    def test_a_rising_trend_without_a_spike_keeps_its_plain_reason(self):
+        why, watch = self._watch(f=self._f(ret5=0.03))
+        self.assertEqual(watch, [])
+        self.assertIn("200-day trend rising", why)
+        why, _ = self._watch(f=self._f(ret5=0.03, sma200_chg=0.001))                # a flat 200-day average is not "rising"
+        self.assertNotIn("200-day trend rising", why)
+
+    def test_no_warning_unless_the_gain_is_large_in_money_terms_and_against_other_stocks(self):
+        tight = {"mean": {"ret5": 0.0}, "std": {"ret5": 0.01}}                      # a very quiet day: 4.9% is 4.9 standard deviations ...
+        for label, kw in (("under the 5% floor", dict(f=self._f(ret5=0.049), stats=tight)),            # ... but still not a spike in money terms
+                          ("ordinary that day", dict(stats={"mean": {"ret5": 0.03}, "std": {"ret5": 0.05}})),   # +8% when the average stock is +3%
+                          ("no yardstick", dict(stats=None)),
+                          ("no 5-day return", dict(f=self._f(ret5=float("nan"))))):
+            self.assertEqual(self._watch(**kw)[1], [], label)
+
+    def test_a_fresh_breakouts_own_day_is_the_signal_not_a_spike(self):
+        # +7% in 5 sessions, of which +6.3% is today's breakout day: nothing had run before it
+        fresh = self._f(ret5=0.07, gain1d=0.063)
+        _, watch = self._watch("fresh", f=fresh, su={"ext_pct": 0.02, "above_pivot": True})
+        self.assertEqual(watch, [])
+        # +16% in 5 sessions with a +5% breakout day: it had already run +10.5% before it
+        ran = self._f(ret5=0.16, gain1d=0.05)
+        _, watch = self._watch("fresh", f=ran, su={"ext_pct": 0.02, "above_pivot": True})
+        self.assertEqual(watch, [f"200-day trend rising, but already spiked 10% before today - {self.PHRASE}"])
+
+    def test_the_cut_offs(self):
+        # a spike = gain >= 5% AND >= 1.28 standard deviations above the average stock's 5-day gain that day
+        self.assertTrue(fp.recent_spike(0.06, 1.30))
+        self.assertFalse(fp.recent_spike(0.06, 1.27))
+        self.assertTrue(fp.recent_spike(0.05, 3.0))
+        self.assertFalse(fp.recent_spike(0.0499, 3.0))
+        self.assertFalse(fp.recent_spike(None, 3.0))
+        self.assertFalse(fp.recent_spike(0.10, float("nan")))
+        self.assertAlmostEqual(fp.z_score(0.08, self.STATS, "ret5"), (0.08 - 0.008) / 0.046)
+        for bad in (None, {}, {"mean": {}, "std": {}}, {"mean": {"ret5": 0.0}, "std": {"ret5": 0.0}}):
+            self.assertTrue(np.isnan(fp.z_score(0.08, bad, "ret5")))
+        self.assertAlmostEqual(fp.gain_before_latest_session(0.1445, 0.05), 1.1445 / 1.05 - 1)
+        self.assertTrue(np.isnan(fp.gain_before_latest_session(float("nan"), 0.05)))
+        # "rising" = the 200-day average is at least 0.5% above its level 20 sessions ago
+        self.assertTrue(fp.trend_rising(0.005))
+        self.assertFalse(fp.trend_rising(0.004))
+        self.assertFalse(fp.trend_rising(-0.02))
+        self.assertFalse(fp.trend_rising(float("nan")))
+
+    def test_the_warning_shares_the_cards_room_with_other_cautions_and_is_listed_first(self):
+        f = self._f(atr_pct=0.06, gain1d=0.09, ret5=0.20)
+        _, watch = self._watch("fresh", f=f, su={"ext_pct": 0.04, "above_pivot": True})
+        self.assertEqual(len(watch), 2)
+        self.assertIn(self.PHRASE, watch[0])
+        self.assertEqual(watch[1], "Already 4.0% above the breakout level")        # the one-day-move note is dropped: the spike line covers it
+
+    @staticmethod
+    def _reshape_plant(growth, last_volume_x=None):
+        """The planted stock with its last bars replaced by the given day-by-day gains (a steady 12-month up-trend before them)."""
+        bars = make_market()
+        d = bars["PLANT"].copy()
+        prev = float(d["close"].iloc[-len(growth) - 1])
+        for i, g in zip(range(-len(growth), 0), growth):
+            c = prev * (1 + g)
+            o = prev * 1.001
+            d.iloc[i, d.columns.get_loc("open")] = o
+            d.iloc[i, d.columns.get_loc("close")] = c
+            d.iloc[i, d.columns.get_loc("high")] = max(o, c) * (1.004 if i == -1 else 1.002)
+            d.iloc[i, d.columns.get_loc("low")] = min(o, c) * 0.998
+            prev = c
+        if last_volume_x is not None:
+            d.iloc[-1, d.columns.get_loc("volume")] = float(d["volume"].iloc[-2]) * last_volume_x
+        bars["PLANT"] = d
+        return bars
+
+    def test_a_planted_run_up_before_a_breakout_reaches_the_card_and_the_long_write_up(self):
+        # +3%, +3%, +2%, +1% (a +9.3% run), then the +4.5% breakout day on 3x volume
+        bars = self._reshape_plant((0.03, 0.03, 0.02, 0.01, 0.045))
+        res = pl.select_picks("swing", bars, now=at(2026, 10, 13, 17, 0))
+        p = next(p for p in res.picks if p.symbol == "PLANT")
+        self.assertEqual(p.setup, "fresh")
+        self.assertEqual(p.watch[0], f"200-day trend rising, but already spiked 9% before today - {self.PHRASE}")
+        card = notify.format_pick(p, 1)
+        self.assertIn(f"\n⚠️ 200-day trend rising, but already spiked 9% before today - {self.PHRASE}", card)
+        self.assertLessEqual(len(card.split("\n")), 6)
+        spike_cautions = [c for c in p.cautions if "pull-back or in continuation" in c]
+        self.assertEqual(len(spike_cautions), 1, p.cautions)
+        self.assertTrue(spike_cautions[0].startswith("The long-term (200-day) trend is rising, but the stock has already spiked 9.3% "
+                                                     "in the sessions before the breakout day"), spike_cautions)
+        self.assertNotIn("Already spiked in the last 5 days", p.cautions)           # the specific line replaces the generic one
+
+    def test_a_planted_run_up_below_its_high_reaches_the_card(self):
+        # +3%, +3%, +2%, then two quiet days: coiled just under the high it just made, +8% in 5 sessions, no breakout volume
+        bars = self._reshape_plant((0.03, 0.03, 0.02, -0.004, 0.002), last_volume_x=1.0)
+        res = pl.select_picks("swing", bars, now=at(2026, 10, 13, 17, 0))
+        p = next(p for p in res.picks if p.symbol == "PLANT")
+        self.assertEqual(p.setup, "primed")
+        self.assertEqual(p.watch[0], f"200-day trend rising, but already spiked 8% in 5 days - {self.PHRASE}")
+        self.assertIn("Buy at <b>", notify.format_pick(p, 1))
+
+    def test_an_ordinary_planted_breakout_has_no_spike_warning(self):
+        res = pl.select_picks("swing", make_market(), now=at(2026, 10, 13, 17, 0))
+        p = next(p for p in res.picks if p.symbol == "PLANT")
+        self.assertFalse(any("pull-back" in w for w in p.watch), p.watch)
 
 
 class Scoreboard(unittest.TestCase):
@@ -430,17 +560,25 @@ class Messages(unittest.TestCase):
             for i, p in enumerate(res.picks, 1):
                 card = notify.format_pick(p, i)
                 lines = card.split("\n")
-                self.assertTrue(3 <= len(lines) <= 5, card)
-                self.assertLessEqual(len(card), 330, card)
+                warnings = [ln for ln in lines if ln.startswith("⚠️")]
+                self.assertTrue(3 <= len(lines) <= 6, card)
+                self.assertLessEqual(len(card), 330 + 110 * len(warnings), card)
                 self.assertIn(pl.fmt_price(p.entry_price), card)
                 self.assertIn(pl.fmt_price(p.stop), card)
                 self.assertIn(f"trail {p.trail_pct:.1%}", card)
+                self.assertIn(p.stage_label, lines[0])                              # the full setup line, e.g. "About to break out (2.1% below the 50-day high)"
                 if p.entry_mode == "close":
                     self.assertIn("Buy near", card)
                     self.assertIn("today on", card)                                  # the breakout facts sit on the buy line
                 else:
-                    self.assertIn(f"skip if it opens above {pl.fmt_price(p.max_entry)}", card)
+                    self.assertIn(f"Buy at <b>{pl.fmt_price(p.entry_price)}</b> · skip if it opens above {pl.fmt_price(p.max_entry)}", card)
+                    self.assertNotIn("Buy-stop", card)                               # the Stop line right below it is the stop-loss
                 self.assertNotIn("\n\n", card)                                      # the splitter keeps a card whole
+
+    def test_the_section_heading_still_says_which_cards_are_trigger_orders(self):
+        # the cards say "Buy at"; this heading is what tells a reader to enter them as buy-stop / GTT trigger orders, not as plain limit orders
+        msg = notify.format_scan_message(self._swing(), "swing", now=at(2026, 10, 13, 17, 0))
+        self.assertIn("BUY-STOP ORDERS</b> (GTT / stop-limit", msg)
 
     def test_the_message_stays_short(self):
         for res, mode, now in self._all_messages():

@@ -102,7 +102,6 @@ class Pick:
     sector: str | None
     reasons: list[str] = field(default_factory=list)      # full sentences (the detailed write-up)
     cautions: list[str] = field(default_factory=list)
-    stage_short: str = ""                                 # the setup in a few words (the Telegram card)
     why: list[str] = field(default_factory=list)          # the main reasons, a few words each
     watch: list[str] = field(default_factory=list)        # the main cautions, a few words each
 
@@ -192,39 +191,53 @@ def _stage_label(setup: str, f: dict, su: dict) -> str:
     return f"About to break out ({gap:.1%} below the 50-day high)"
 
 
-def _stage_short(setup: str, f: dict, su: dict) -> str:
-    """The setup in a few words (the Telegram card)."""
-    if setup == "fresh":
-        if f.get("first_break"):
-            return "Fresh breakout"
-        dsb = f.get("days_since_break")
-        return f"Breakout, day {int(dsb) + 1}" if dsb is not None else "Breakout continuing"
-    if su.get("above_pivot"):
-        return "At breakout level"
-    return f"{1.0 - f['close'] / f['piv_incl']:.1%} below 50-day high"
+def _run_up(setup: str, f: dict, stats: dict | None) -> tuple[float, bool]:
+    """
+    How far the stock had already run when the signal came, and whether that counts as a spike (fp.recent_spike).
+    A fresh breakout's own session IS the signal, and the card already shows it ("up 5.9% today"), so for those the run-up is
+    the gain up to the previous close; for a stock still below its high it is the full 5-day gain.
+    """
+    gain = fp.gain_before_latest_session(f.get("ret5"), f.get("gain1d")) if setup == "fresh" else f.get("ret5")
+    return gain, fp.recent_spike(gain, fp.z_score(gain, stats, "ret5"))
 
 
-def _short_why_and_watch(setup: str, f: dict, su: dict, row: pd.Series, dlv: float | None) -> tuple[list[str], list[str]]:
+def _short_why_and_watch(setup: str, f: dict, su: dict, row: pd.Series, dlv: float | None,
+                         stats: dict | None = None) -> tuple[list[str], list[str]]:
     """
     The reasons and cautions of a pick in a few words each - what the Telegram card shows (at most 3 and 2).
     A caution is shown only when something specific is going on; a weak feature of the quality score is not repeated on every
     card (it is already inside the Quality number, and the detailed write-up lists it).
+
+    The one caution that is also an instruction: a stock that has ALREADY SPIKED is better bought on a pull-back or in
+    continuation than chased. When its 200-day trend is rising that is said in the same line (it is then not repeated among
+    the reasons). `stats` = the universe means / standard deviations the quality score used (the yardstick for "a spike").
     """
-    why = fp.top_reasons(row, k=3, short=True)
+    gain, spiked = _run_up(setup, f, stats)
+    rising = fp.trend_rising(f.get("sma200_chg"))
+    why = fp.top_reasons(row, k=4, short=True)
+    watch: list[str] = []
+    if spiked:
+        lead = f"{fp.FEATURE_SHORT['sma200_chg']}, but already spiked" if rising else "Already spiked"
+        when = "before today" if setup == "fresh" else "in 5 days"
+        watch.append(f"{lead} {gain:.0%} {when} - buy on a pull-back or in continuation")
+    if spiked or not rising:
+        # "rising" is claimed only when the 200-day average really is higher than it was a month ago (the score alone is relative to
+        # the other stocks), and not twice when the caution line already says it
+        why = [w for w in why if w != fp.FEATURE_SHORT["sma200_chg"]]
     if dlv is not None and math.isfinite(dlv):
         why = [w for w in why if w != fp.FEATURE_SHORT["dlv20"]][:2] + [f"delivery ~{dlv:.0f}%"]
-    watch: list[str] = []
     if setup == "fresh" and su["ext_pct"] > 0.03:
-        watch.append(f"already {su['ext_pct']:.1%} above the breakout level")
-    if f.get("gain1d", 0) and f["gain1d"] > 0.08:
-        watch.append("very large one-day move")
+        watch.append(f"Already {su['ext_pct']:.1%} above the breakout level")
+    if f.get("gain1d", 0) and f["gain1d"] > 0.08 and not spiked:           # a spike line already says it
+        watch.append("Very large one-day move")
     if f.get("atr_pct", 0) and f["atr_pct"] > 0.05:
-        watch.append(f"volatile (daily range ~{f['atr_pct']:.1%}), wide stop")
+        watch.append(f"Volatile (daily range ~{f['atr_pct']:.1%}), wide stop")
     return why[:3], watch[:2]
 
 
 def _reasons_and_cautions(setup: str, f: dict, su: dict, row: pd.Series, dlv: float | None,
-                          live: bool, regime: str, breadth50: float | None) -> tuple[list[str], list[str]]:
+                          live: bool, regime: str, breadth50: float | None,
+                          stats: dict | None = None) -> tuple[list[str], list[str]]:
     reasons: list[str] = []
     cautions: list[str] = []
     piv, piv_incl = f["piv50"], f["piv_incl"]
@@ -240,11 +253,18 @@ def _reasons_and_cautions(setup: str, f: dict, su: dict, row: pd.Series, dlv: fl
             reasons.append(f"Sitting {su['ext_pct']:+.1%} around its 50-day high (₹{fmt_price(piv)}) - volume has not confirmed a breakout yet")
         else:
             reasons.append(f"{gap:.1%} below its 50-day high (₹{fmt_price(piv_incl)}) - coiled just under resistance")
-    reasons += [r[0].upper() + r[1:] for r in fp.top_reasons(row, k=3)]
+    gain, spiked = _run_up(setup, f, stats)
+    rising = fp.trend_rising(f.get("sma200_chg"))
+    trend_phrase, spike_phrase = fp.FEATURE_TEXT["sma200_chg"][0], fp.FEATURE_TEXT["ret5"][1]
+    reasons += [r[0].upper() + r[1:] for r in fp.top_reasons(row, k=3) if rising or r != trend_phrase]
     if dlv is not None and math.isfinite(dlv):
         reasons.append(f"20-day average delivery ~{dlv:.0f}% of traded shares")
 
-    cautions += [w[0].upper() + w[1:] for w in fp.weak_points(row, k=2)]
+    cautions += [w[0].upper() + w[1:] for w in fp.weak_points(row, k=2) if not (spiked and w == spike_phrase)]
+    if spiked:
+        lead = "The long-term (200-day) trend is rising, but the stock has" if rising else "The stock has"
+        window = "in the sessions before the breakout day" if setup == "fresh" else "in the last 5 days"
+        cautions.append(f"{lead} already spiked {gain:.1%} {window} - better bought on a pull-back or in continuation than chased")
     if setup == "fresh" and su["ext_pct"] > 0.03:
         cautions.append(f"Already {su['ext_pct']:.1%} above the breakout level - a pullback to it is common")
     if f.get("gain1d", 0) and f["gain1d"] > 0.08:
@@ -379,8 +399,8 @@ def select_picks(
         dlv = None
         if dlv20 is not None and sym in dlv20.index and pd.notna(dlv20[sym]):
             dlv = float(dlv20[sym])
-        reasons, cautions = _reasons_and_cautions(setup, f, su, row, dlv, live, regime, breadth.get("breadth50"))
-        why, watch = _short_why_and_watch(setup, f, su, row, dlv)
+        reasons, cautions = _reasons_and_cautions(setup, f, su, row, dlv, live, regime, breadth.get("breadth50"), out_stats)
+        why, watch = _short_why_and_watch(setup, f, su, row, dlv, out_stats)
         picks.append(Pick(
             symbol=sym, setup=setup, stage_label=_stage_label(setup, f, su), scan_mode=scan_mode,
             signal_date=sig_date, signal_time_ist=sig_time, live_bar=live, entry_mode=entry_mode,
@@ -393,7 +413,7 @@ def select_picks(
             close_pos=f["close_pos"], dist_hi_pct=f["dist_hi"], ret252_pct=f["ret252"], dlv20=dlv,
             days_since_break=f.get("days_since_break"), first_break=bool(f.get("first_break")),
             sector=(sector_map or {}).get(sym),
-            reasons=reasons, cautions=cautions, stage_short=_stage_short(setup, f, su), why=why, watch=watch,
+            reasons=reasons, cautions=cautions, why=why, watch=watch,
         ))
     funnel["picks"] = len(picks)
 

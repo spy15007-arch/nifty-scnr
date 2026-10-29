@@ -69,7 +69,7 @@ def _basis(result, now: datetime) -> str:
 def _entry_cell(p) -> str:
     if p.entry_mode == "close":
         return f"Buy near {fmt_price(p.entry_price)}"
-    return f"Buy-stop {fmt_price(p.entry_price)} (skip if opens above {fmt_price(p.max_entry)})"
+    return f"Buy at {fmt_price(p.entry_price)} (buy-stop order; skip if opens above {fmt_price(p.max_entry)})"
 
 
 def _table(picks: list) -> list[str]:

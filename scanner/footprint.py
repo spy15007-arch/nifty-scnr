@@ -66,7 +66,7 @@ FEATURE_TEXT: dict[str, tuple[str, str]] = {
 # The positive phrase of each feature in a few words, for the compact Telegram card (a test keeps this in step with FEATURE_TEXT)
 FEATURE_SHORT: dict[str, str] = {
     "dist_hi": "near 52-wk high",
-    "sma200_chg": "200-day trend up",
+    "sma200_chg": "200-day trend rising",
     "ret252": "strong 12-mo return",
     "atr_pct": "low volatility",
     "ema21_x": "not stretched",
@@ -350,6 +350,41 @@ def weak_points(row: pd.Series, k: int = 2) -> list[str]:
         items.append((float(v), name))
     items.sort()
     return [FEATURE_TEXT[name][1] for v, name in items[:k] if v < -0.5]
+
+
+def z_score(value, stats: dict | None, feature: str) -> float:
+    """
+    How many standard deviations `value` is above the average stock's `feature` on the day the quality score was built
+    (the means / standard deviations `score_universe` returns, which the afternoon run reuses). NaN when they are not known.
+    """
+    try:
+        mean, sd = stats["mean"][feature], stats["std"][feature]
+    except (TypeError, KeyError):
+        return float("nan")
+    if not _finite(value, mean, sd) or sd <= 0:
+        return float("nan")
+    return (value - mean) / sd
+
+
+def gain_before_latest_session(ret5, gain1d) -> float:
+    """The 5-day gain without the latest session: from the close 5 sessions ago to the previous close."""
+    if not _finite(ret5, gain1d) or gain1d <= -0.99:
+        return float("nan")
+    return (1.0 + ret5) / (1.0 + gain1d) - 1.0
+
+
+def recent_spike(gain, z) -> bool:
+    """
+    True when the stock has already run up sharply: `gain` is at least config.SPIKE_5D_MIN in absolute terms AND `z` (that gain
+    in standard deviations above the average stock's 5-day gain that day, see `z_score`) is at least config.SPIKE_5D_Z.
+    Measured against that day's stocks, so the bar follows the market: in a broad rally every stock is up and a 6% week is ordinary.
+    """
+    return _finite(gain, z) and gain >= config.SPIKE_5D_MIN and z >= config.SPIKE_5D_Z
+
+
+def trend_rising(sma200_chg) -> bool:
+    """True when the 200-day average is clearly higher than it was 20 sessions ago (config.TREND_200D_RISING_MIN)."""
+    return _finite(sma200_chg) and sma200_chg >= config.TREND_200D_RISING_MIN
 
 
 def grade_for_quality(quality_pct: float | None) -> str:
