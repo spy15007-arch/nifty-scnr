@@ -271,32 +271,26 @@ def _fetch(store, symbols: list[str], lookback: int, deadline: datetime | None =
 
 def _partial_note(f: dict) -> str:
     """
-    A plain explanation for a scan that loaded fewer stocks than it asked for: how many, why it stopped, which names the
-    broker does not know, and the broker's own words when it refused. (No quotes or '#' placeholders - the text is shown as is.)
+    A short plain explanation for a scan that loaded fewer stocks than it asked for: how many, why it stopped, and the broker's
+    own words when it refused. (No quotes or '#' placeholders - the text is shown as is. Which stocks the broker does not know
+    is in reports/output/fetch_report_<scan>.json, not in the message.)
     """
     rep = f.get("report") or {}
     stopped = rep.get("stopped") or ""
-    unreached = int(rep.get("not_reached") or 0)
     if stopped == "time budget":
         mins = round((f.get("budget_s") or 0) / 60)
-        why = (f"the {mins}-minute time limit ran out" if mins else "the time limit ran out")
-        why += f" before the last {unreached} were fetched" if unreached else ""
+        why = f"the {mins}-minute limit was reached" if mins else "the time limit was reached"
     elif stopped:
         why = stopped
     else:
         why = "the broker returned no data for the rest"
     if f["loaded"]:
-        text = f"Partial scan: {f['loaded']} of {f['requested']} stocks were loaded - {why}, so the list may miss some names"
+        text = f"Partial scan: {f['loaded']} of {f['requested']} stocks loaded - {why}, so some names may be missing"
     else:
         text = f"None of the {f['requested']} stocks could be loaded - {why}"
-    missing = [str(s) for s in (rep.get("not_found") or [])] + [str(s) for s in (rep.get("no_data") or []) if s not in (rep.get("not_found") or [])]
-    n_missing = max(len(missing), int(rep.get("not_found_n") or 0) + int(rep.get("no_data_n") or 0))
-    if n_missing:
-        shown = ", ".join(missing[:4]) + (f" and {n_missing - len(missing[:4])} more" if n_missing > len(missing[:4]) else "")
-        text += f". Not available from the broker: {shown}"
     errs = rep.get("errors") or []
     if errs:
-        text += ". The broker said: " + "; ".join(f"{m} (x{n})" for m, n in errs[:2])
+        text += f". The broker said: {errs[0][0]} (x{errs[0][1]})"
     return text
 
 
@@ -457,10 +451,14 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     if ctx["kind"] == "watchlist":
         wl = ctx["watchlist"]
         source_txt = "live quotes" if fetch.get("via") == "quotes" else "live prices"
-        run_notes.append(f"Fast afternoon check: the {len(bars)} stocks on last evening's watchlist ({wl['as_of']}), re-scored with "
-                         f"{source_txt} against the whole market's yardstick; market breadth is as of that close")
+        try:
+            as_of = date.fromisoformat(wl["as_of"]).strftime("%d %b").lstrip("0")
+        except (KeyError, ValueError):
+            as_of = str(wl.get("as_of", "last"))
+        run_notes.append(f"Quick check of last night's {len(bars)}-stock watchlist ({as_of} close) with {source_txt}; "
+                         f"breadth is as of that close")
         if fetch.get("via") != "quotes" and fetch.get("quote_note"):
-            run_notes.append(f"Live quotes were not used ({fetch['quote_note']}), so the candles were fetched stock by stock")
+            run_notes.append(f"Live quotes not used ({fetch['quote_note']}); candles were fetched one by one instead")
     if fetch.get("requested") and fetch["loaded"] < 0.9 * fetch["requested"]:
         run_notes.append(_partial_note(fetch))
 
@@ -501,8 +499,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     if dlv20 is None and result.used_delivery:
         result.used_delivery = False
     if session.session_state(now) == "open" and result.ref_date and result.ref_date < session.ist_date(now):
-        run_notes.append(f"The newest price bar is from {result.ref_date.strftime('%a %d %b')}, not today - today may be a market holiday, "
-                         f"so this list is based on that close")
+        run_notes.append(f"No price bar for today yet (market holiday?) - based on the {result.ref_date.strftime('%a %d %b')} close")
     f = result.funnel
     b50 = (result.breadth or {}).get("breadth50")
     b50_text = f"{b50:.0%}" if isinstance(b50, (int, float)) and math.isfinite(b50) else "n/a"
@@ -514,7 +511,8 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     try:
         led = outcomes.load_ledger()
         open_rows = outcomes.open_positions(led).to_dict("records")
-        tracked_block = notify.format_tracked_block(report["events"], open_rows)
+        # the stop list is the evening message's job: stops only change after a completed session, so at 2 PM it would repeat last night
+        tracked_block = notify.format_tracked_block(report["events"], open_rows, snapshot=(scan_mode == "swing"))
         scoreboard_line = outcomes.format_scoreboard_line(led)
     except Exception:  # noqa: BLE001
         logger.exception("Scoreboard: could not summarise the ledger")

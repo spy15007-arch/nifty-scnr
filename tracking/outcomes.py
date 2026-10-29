@@ -317,18 +317,25 @@ def scoreboard(df: pd.DataFrame | None = None, scan_mode: str | None = None, set
     return res
 
 
+def _short_date(iso: str) -> str:
+    try:
+        return pd.Timestamp(iso).strftime("%d %b").lstrip("0")
+    except (ValueError, TypeError):
+        return str(iso)
+
+
 def format_scoreboard_line(df: pd.DataFrame | None = None, scan_mode: str | None = None) -> str:
-    """One honest line for the message footer."""
+    """One honest line for the message footer: only closed trades count (open ones are not wins or losses yet)."""
     s = scoreboard(df, scan_mode=scan_mode)
     if s["total"] == 0:
-        return "Scoreboard: nothing tracked yet - results appear here as picks are triggered and closed"
-    parts = [f"{s['closed']} closed", f"{s['open']} open", f"{s['pending']} waiting for their buy-stop"]
-    line = "Scoreboard since " + (s["first_signal"] or "start") + ": " + ", ".join(parts)
-    if s["closed"]:
-        line += (f" | closed trades: {s['win_rate']:.0%} winners, average {s['avg_R']:+.2f}R "
-                 f"({s['avg_net']:+.1%} per trade after costs)")
-        if s["closed"] < 30:
-            line += " - too few closed trades to judge yet (need 30+)"
+        return "Record: nothing tracked yet - results appear as picks are triggered and closed"
+    since = f" since {_short_date(s['first_signal'])}" if s["first_signal"] else ""
+    if not s["closed"]:
+        return f"Record{since}: no trade closed yet"
+    line = (f"Record{since}: {s['closed']} closed, {s['win_rate']:.0%} won, average {s['avg_R']:+.2f}R "
+            f"({s['avg_net']:+.1%} per trade after costs)")
+    if s["closed"] < 30:
+        line += " - too few to judge yet (need 30+)"
     return line
 
 

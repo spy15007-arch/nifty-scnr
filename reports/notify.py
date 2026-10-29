@@ -1,9 +1,11 @@
 """
 Telegram messages (HTML parse mode; every dynamic piece is escaped).
 
-The scan message is built from `scanner.pipeline.Pick` objects: for each pick
-it says what to buy, where the stop is, how the stop trails, and how many
-shares fit a 1% risk - the whole plan, not just a ticker.
+The scan message is short on purpose. For each pick it says only what is needed to act - where to buy, where the stop is,
+how far the stop trails - plus a few words on why. It never states a share count or an amount of money to invest: that
+depends on the money the reader still has free, which no scan can know (a fixed-capital assumption gave wrong numbers as
+soon as other stocks had been bought). The standing rules are said once, in the last lines. Everything longer lives in the
+dashboard and in the Markdown files the scan commits.
 
 SECURITY: the bot token is part of Telegram's URL, so any exception text from
 the HTTP library could contain it. Everything that is logged here is passed
@@ -24,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 STAGE_EMOJI = {"fresh": "🔥", "primed": "👀"}
 MAX_CHUNK = 3900                    # Telegram's hard limit is 4096 characters per message
+MAX_STOPS_SHOWN = 24                # open trades listed with their current stop
+MAX_WAITING_SHOWN = 16              # buy-stops still waiting (names only)
+MAX_EVENTS_SHOWN = 12
 
 
 # --------------------------------------------------------------------------- #
@@ -40,92 +45,108 @@ def _e(x) -> str:
     return html.escape(str(x), quote=False)
 
 
-def _inr(x: float) -> str:
-    """Rupee amount in Indian style (lakh / crore)."""
-    if x >= 1e7:
-        return f"₹{x / 1e7:.2f} crore"
-    if x >= 1e5:
-        return f"₹{x / 1e5:.1f} lakh"
-    return f"₹{x:,.0f}"
-
-
 def _pct(x: float, signed: bool = False) -> str:
     return f"{x:+.1%}" if signed else f"{x:.1%}"
 
 
+def _rows(items: list[str], per_row: int = 2) -> list[str]:
+    """Short items laid out `per_row` to a line (each line stays narrow enough for a phone screen)."""
+    return [" · ".join(items[i:i + per_row]) for i in range(0, len(items), per_row)]
+
+
 # --------------------------------------------------------------------------- #
 def format_pick(p, idx: int) -> str:
-    """One compact card (no blank lines inside, so the message splitter keeps it whole)."""
-    sector = f" · {_e(p.sector)}" if p.sector else ""
-    lines = [f"<b>{idx}. {_e(p.symbol)}</b> {STAGE_EMOJI.get(p.setup, '')} {_e(p.stage_label)} · Quality {p.quality_pct:.0f}/100{sector}"]
+    """One compact card of 4-5 short lines (no blank lines inside, so the message splitter keeps it whole)."""
+    stage = _e(p.stage_short or p.stage_label)
+    lines = [f"<b>{idx}. {_e(p.symbol)}</b> {STAGE_EMOJI.get(p.setup, '')} {stage} · Quality {p.quality_pct:.0f}/100"]
 
+    stats = ""
+    if p.setup == "fresh":
+        stats = f"up {_pct(p.gain_pct)}{' today' if p.entry_mode == 'close' else ''} on {p.vol_ratio:.1f}x volume"
     if p.entry_mode == "close":
-        lines.append(f"💰 <b>Buy near ₹{fmt_price(p.entry_price)}</b> - up {_pct(p.gain_pct)} today on {p.vol_ratio:.1f}x volume, "
-                     f"{_pct(p.ext_pct, True)} vs its 50-day high ₹{fmt_price(p.pivot)}")
+        lines.append(f"Buy near <b>{fmt_price(p.entry_price)}</b>" + (f" · {stats}" if stats else ""))
+        stats = ""                                                          # said on the buy line already
     else:
-        lines.append(f"💰 Buy-stop <b>₹{fmt_price(p.entry_price)}</b> (valid {p.valid_sessions} sessions; skip it if it opens above ₹{fmt_price(p.max_entry)})")
-    lines.append(f"🛑 Stop <b>₹{fmt_price(p.stop)}</b> (-{_pct(p.risk_pct)}) → trail {_pct(p.trail_pct)} below the highest close, raise only, never lower")
+        lines.append(f"Buy-stop <b>{fmt_price(p.entry_price)}</b> · skip if it opens above {fmt_price(p.max_entry)}")
+    lines.append(f"Stop <b>{fmt_price(p.stop)}</b> (-{_pct(p.risk_pct)}) · trail {_pct(p.trail_pct)}")
 
-    if p.qty > 0:
-        risk_amt = p.qty * p.entry_price * p.risk_pct
-        unit = "share" if p.qty == 1 else "shares"
-        size = f"📐 {p.qty} {unit} (₹{p.position_value:,.0f}) risks ≈₹{risk_amt:,.0f} = {risk_amt / config.CAPITAL_INR:.1%} of {_inr(config.CAPITAL_INR)}"
-    else:
-        size = "📐 One share is above the position cap for this capital - skip it or size by hand"
-    if p.size_note:
-        size += f" ({_e(p.size_note)})"
-    size += f" · reference levels +1R ₹{fmt_price(p.r1)} / +2R ₹{fmt_price(p.r2)} / +3R ₹{fmt_price(p.r3)}, no fixed target"
-    lines.append(size)
-
-    # the stage label already says "about to break out / at the breakout level", so its repeat is dropped
-    reasons = p.reasons[1:] if p.setup == "primed" else p.reasons
-    if reasons:
-        lines.append("✅ " + _e("; ".join(reasons[:4])))
-    cautions = [c for c in p.cautions if not c.startswith("Weak market")]       # the header already says it
-    if cautions:
-        lines.append("⚠️ " + _e("; ".join(cautions[:3])))
+    context = ([_e(p.sector)] if p.sector else []) + ([stats] if stats else []) + [_e(w) for w in p.why]
+    if context:
+        lines.append(" · ".join(context[:4]))
+    if p.watch:
+        lines.append("⚠️ " + _e("; ".join(p.watch[:2])))
     return "\n".join(lines)
 
 
-def format_tracked_block(events: list[dict], open_rows: list[dict], max_events: int = 12) -> str:
-    """What happened to trades already on the list, and the stop levels to keep updated."""
-    lines: list[str] = []
-    for ev in events[:max_events]:
-        s = _e(ev.get("symbol", ""))
-        k = ev.get("kind")
-        if k == "filled":
-            lines.append(f"• <b>{s}</b> - buy-stop filled at ₹{fmt_price(ev.get('price'))}")
-        elif k == "closed":
-            why = {"stop": "stopped out", "trail": "trailing stop hit", "gap_stop": "gapped through the stop",
-                   "same_day_stop": "filled and stopped out the same day", "time": "60-session time limit"}.get(ev.get("reason"), "closed")
-            r, net = ev.get("R"), ev.get("net")
-            res = f" ({r:+.1f}R, {net:+.1%} after costs)" if r is not None and net is not None else ""
-            lines.append(f"• <b>{s}</b> - {why} at ₹{fmt_price(ev.get('price'))}{res}")
-        elif k == "unfilled":
-            lines.append(f"• <b>{s}</b> - buy-stop never triggered ({'gapped too far' if 'gap' in str(ev.get('reason')) else 'expired'}); no trade")
-        elif k == "trail_raised":
-            lines.append(f"• <b>{s}</b> - raise your stop ₹{fmt_price(ev.get('old'))} → <b>₹{fmt_price(ev.get('new'))}</b>")
-        elif k == "void":
-            lines.append(f"• <b>{s}</b> - price series jumped (split/demerger?) - trade dropped from the scoreboard")
-    extra = len(events) - max_events
-    if extra > 0:
-        lines.append(f"• ...and {extra} more update(s) in the dashboard")
-
+def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bool = True, max_events: int = MAX_EVENTS_SHOWN) -> str:
+    """
+    What happened to trades already on the list, and (snapshot=True, the evening scan) where every open trade's stop is now.
+    The afternoon scan leaves the snapshot out: the stops only change after a completed session, so it would repeat last night.
+    """
     holding = [r for r in open_rows if r.get("status") == "OPEN"]
     waiting = [r for r in open_rows if r.get("status") == "PENDING"]
-    if holding:
-        chunks = [f"{_e(r['symbol'])} ₹{fmt_price(r['trail'])}" for r in holding[:24]]
-        rows = [" · ".join(chunks[i:i + 3]) for i in range(0, len(chunks), 3)]
-        lines.append(f"<b>Open - current stops ({len(holding)}):</b>")
-        lines.extend(rows)
-        if len(holding) > 24:
-            lines.append(f"...and {len(holding) - 24} more")
-    if waiting:
-        names = ", ".join(f"{_e(r['symbol'])} ₹{fmt_price(r['trigger'])}" for r in waiting[:12])
-        lines.append(f"<b>Waiting for their buy-stop ({len(waiting)}):</b> {names}" + (" ..." if len(waiting) > 12 else ""))
+    raised = {ev.get("symbol"): ev.get("new") for ev in events if ev.get("kind") == "trail_raised"}
+    in_snapshot = {r["symbol"] for r in holding} if snapshot else set()
+
+    # a raised stop of an open trade is shown as an arrow in the stop list below, not as a line of its own
+    evs = [ev for ev in events if not (ev.get("kind") == "trail_raised" and ev.get("symbol") in in_snapshot)]
+    lines: list[str] = []
+    for ev in evs[:max_events]:
+        k = ev.get("kind")
+        s = _e(ev.get("symbol", ""))
+        if k == "filled":
+            lines.append(f"• <b>{s}</b> - buy-stop filled at {fmt_price(ev.get('price'))}")
+        elif k == "closed":
+            why = {"stop": "stopped out", "trail": "trailing stop hit", "gap_stop": "gapped through the stop",
+                   "same_day_stop": "bought and stopped out the same day", "time": "60-session limit reached"}.get(ev.get("reason"), "closed")
+            r, net = ev.get("R"), ev.get("net")
+            res = f" ({r:+.1f}R, {net:+.1%} after costs)" if r is not None and net is not None else ""
+            lines.append(f"• <b>{s}</b> - {why} at {fmt_price(ev.get('price'))}{res}")
+        elif k == "unfilled":
+            lines.append(f"• <b>{s}</b> - buy-stop {'skipped, it opened too far above the trigger' if 'gap' in str(ev.get('reason')) else 'expired'}; no trade")
+        elif k == "trail_raised":
+            lines.append(f"• <b>{s}</b> - raise stop {fmt_price(ev.get('old'))} → <b>{fmt_price(ev.get('new'))}</b>")
+        elif k == "void":
+            lines.append(f"• <b>{s}</b> - price series jumped (split/demerger?), dropped from the record")
+    if len(evs) > max_events:
+        lines.append(f"• ...and {len(evs) - max_events} more update(s) in the dashboard")
+
+    if snapshot and holding:
+        up = any(r["symbol"] in raised for r in holding[:MAX_STOPS_SHOWN])
+        items = [f"{_e(r['symbol'])} {fmt_price(r['trail'])}{'↑' if r['symbol'] in raised else ''}" for r in holding[:MAX_STOPS_SHOWN]]
+        lines.append(f"<b>Open - current stops ({len(holding)})</b>" + (" · ↑ = raised today" if up else ""))
+        lines.extend(_rows(items))
+        if len(holding) > MAX_STOPS_SHOWN:
+            lines.append(f"...and {len(holding) - MAX_STOPS_SHOWN} more in the dashboard")
+    if snapshot and waiting:
+        # names only: the trigger prices were in the message that issued each pick (and are in your broker's order list and the dashboard)
+        names = ", ".join(_e(r["symbol"]) for r in waiting[:MAX_WAITING_SHOWN])
+        more = f", +{len(waiting) - MAX_WAITING_SHOWN} more" if len(waiting) > MAX_WAITING_SHOWN else ""
+        lines.append(f"<b>Buy-stops still waiting ({len(waiting)}):</b> {names}{more}")
     if not lines:
         return ""
-    return "📒 <b>Trades already on your list</b>\n" + "\n".join(lines)
+    return "📒 <b>Your list</b>\n" + "\n".join(lines)
+
+
+def _breadth_line(result) -> str:
+    b50 = result.breadth.get("breadth50") if result.breadth else None
+    if not (isinstance(b50, (int, float)) and math.isfinite(b50)):
+        return ""
+    verdict = {"weak": "<b>weak market: half size</b>", "healthy": "healthy market"}.get(result.regime, "mixed market")
+    return f"📊 Breadth {b50:.0%} (stocks above their 50-day average) - {verdict}"
+
+
+def _no_pick_line(result) -> str:
+    f = result.funnel or {}
+    if f.get("loaded", 0) == 0:
+        return "No price data was loaded this run - check the broker connection in the run log."
+    setups = f.get("fresh", 0) + f.get("primed", 0)
+    passed, repeats = f.get("passed_quality", 0), f.get("repeats", 0)
+    tail = ""
+    if repeats:
+        tail = " - all already on your list" if repeats >= passed else f" - {repeats} of them already on your list"
+    return (f"<b>No new pick.</b> {f.get('loaded', 0)} stocks checked, {setups} in a breakout setup, "
+            f"{passed} passed the quality filter{tail}.")
 
 
 def format_scan_message(result, scan_mode: str, now: datetime | None = None, market_line: str = "",
@@ -134,73 +155,59 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     now = now or session.now_ist()
     t = now.astimezone(session.IST)
     title = {"btst": "🌙 <b>BTST scan</b>", "swing": "📈 <b>Swing scan</b>"}.get(scan_mode, f"<b>{_e(scan_mode)} scan</b>")
-    clock = t.strftime("%I:%M %p").lstrip("0")
-    when = t.strftime("%a %d %b") + (f", {clock} IST" if result.live else "")
     if result.live:
-        basis = f"live prices at {clock} IST (today's volume projected to a full day)"
-    elif result.ref_date:
-        basis = f"based on the close of {result.ref_date.strftime('%a %d %b')}"
+        when, basis = t.strftime("%a %d %b") + ", " + t.strftime("%I:%M %p").lstrip("0"), "live prices"
     else:
-        basis = "no price data"
-    blocks = [f"{title} - {when}\n<i>{_e(basis)}</i>"]
-    if market_line:
-        blocks.append(market_line)      # already Telegram-HTML, built and escaped upstream
-
-    b50 = result.breadth.get("breadth50") if result.breadth else None
-    if isinstance(b50, (int, float)) and math.isfinite(b50):
-        if result.regime == "weak":
-            blocks.append(f"📊 Breadth: only {b50:.0%} of liquid stocks are above their 50-day average - a <b>weak</b> market. "
-                          f"Breakouts fail more often now: <b>half size</b>, be pickier.")
-        elif result.regime == "healthy":
-            blocks.append(f"📊 Breadth: {b50:.0%} of liquid stocks are above their 50-day average - a healthy market.")
+        when = t.strftime("%a %d %b")
+        if not result.ref_date:
+            basis = "no price data"
+        elif result.ref_date == t.date():
+            basis = "today's close"
         else:
-            blocks.append(f"📊 Breadth: {b50:.0%} of liquid stocks are above their 50-day average - a mixed market.")
+            basis = f"close of {result.ref_date.strftime('%a %d %b')}"
+    head = [f"{title} · {when} · {basis}"]
+    if market_line:
+        head.append(market_line)                 # already Telegram-HTML, built and escaped upstream
+    breadth = _breadth_line(result)
+    if breadth:
+        head.append(breadth)
+    blocks = ["\n".join(head)]
+
+    notice = []
     if not result.used_delivery:
-        blocks.append("ℹ️ Delivery-% data was not available, so stocks were ranked on the 7 price/volume factors only.")
-    for n in (notes or []) + list(result.notes):
-        blocks.append(f"ℹ️ {_e(n)}")
+        notice.append("No delivery-% data today - stocks were ranked on price and volume only.")
+    notice += list(notes or []) + list(result.notes)
+    if notice:
+        blocks.append("\n".join(f"ℹ️ {_e(n)}" for n in notice))
 
     picks = result.picks
     buy_now = [p for p in picks if p.entry_mode == "close"]
     stops = [p for p in picks if p.entry_mode != "close"]
     n = 0
     if buy_now:
-        blocks.append("<b>BUY NOW - broke out today on volume</b> (buy near the close, only if it still holds the breakout level)")
+        blocks.append("<b>BUY NOW</b> (near the close, only if it still holds the breakout level)")
         for p in buy_now:
             n += 1
             blocks.append(format_pick(p, n))
     if stops:
-        head = ("<b>BUY-STOP ORDERS - fresh breakouts to buy on confirmation, and stocks about to break out</b>"
-                if not buy_now else "<b>BUY-STOP ORDERS - about to break out</b>")
-        blocks.append(head + "\nPlace a buy-stop (GTT / stop-limit) at the price shown; it only triggers if the stock really breaks out.")
+        blocks.append(f"<b>BUY-STOP ORDERS</b> (GTT / stop-limit, valid {stops[0].valid_sessions} sessions)")
         for p in stops:
             n += 1
             blocks.append(format_pick(p, n))
     if not picks:
-        f = result.funnel
-        why = (f"{f.get('loaded', 0)} stocks checked, {f.get('fresh', 0) + f.get('primed', 0)} in a breakout setup "
-               f"({f.get('fresh', 0)} fresh, {f.get('primed', 0)} about to break), {f.get('passed_quality', 0)} also in the top half "
-               f"by quality")
-        if f.get("repeats"):
-            why += f", {f['repeats']} already on your list"
-        if f.get("loaded", 0) == 0:
-            why = "No price data was loaded this run - check the broker connection in the run log."
-        blocks.append("No new pick: every pick must be in a breakout setup AND in the top half of stocks by quality.\n"
-                      f"<i>{_e(why)}</i>")
-    if result.repeats:
-        names = ", ".join(_e(s) for s, _ in result.repeats[:14])
-        blocks.append(f"📋 Already on your list (not repeated): {names}" + (" ..." if len(result.repeats) > 14 else ""))
+        blocks.append(_no_pick_line(result))
+    elif result.repeats:
+        blocks.append(f"+{len(result.repeats)} more qualify but are already on your list.")
 
     if tracked_block:
         blocks.append(tracked_block)
 
-    blocks.append("ℹ️ Quality = rank among today's liquid stocks (100 = best). It is a filter (top half only), not a probability and "
-                  "not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade "
-                  "(half in a weak market) and exit only through the stop, which trails up behind the price. Back-test 2019-2026: about "
-                  "4 trades in 10 won and a few big winners paid for the many small stop-outs; 2019-23 was strong, 2024-26 was about "
-                  "break-even after costs. A ranked shortlist, not a guarantee - judge it over 30+ trades.")
+    footer = (f"ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. "
+              f"Risk at most {config.RISK_PER_TRADE_PCT:g}% of your capital per trade, half in a weak market. "
+              f"A ranked shortlist, not a guarantee.</i>")
     if scoreboard_line:
-        blocks.append(f"📒 <i>{_e(scoreboard_line)}</i>")
+        footer = f"🧾 <i>{_e(scoreboard_line)}</i>\n" + footer
+    blocks.append(footer)
     return "\n\n".join(blocks)
 
 
@@ -268,8 +275,13 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
 def notify_scan(result, scan_mode: str, bot_token: str, chat_id: str, now: datetime | None = None,
                 market_line: str = "", tracked_block: str = "", scoreboard_line: str = "",
                 notes: list[str] | None = None) -> bool:
-    message = format_scan_message(result, scan_mode, now=now, market_line=market_line,
-                                  tracked_block=tracked_block, scoreboard_line=scoreboard_line, notes=notes)
+    try:
+        message = format_scan_message(result, scan_mode, now=now, market_line=market_line,
+                                      tracked_block=tracked_block, scoreboard_line=scoreboard_line, notes=notes)
+    except Exception:  # noqa: BLE001 - a formatting slip must never cost the whole message
+        logger.exception("Could not format the scan message")
+        message = _e(f"The {scan_mode.upper()} scan finished, but its message could not be formatted. "
+                     f"The picks are in summary_{scan_mode}.md in the repository.")
     return send_telegram_message(bot_token, chat_id, message)
 
 

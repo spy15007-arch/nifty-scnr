@@ -20,7 +20,6 @@ from datetime import datetime
 
 import pandas as pd
 
-import config
 from scanner import session
 from scanner.pipeline import fmt_price
 
@@ -30,7 +29,7 @@ ROW_COLUMNS = [
     "symbol", "setup", "stage", "grade", "quality_pct", "entry_mode", "price", "entry_price", "max_entry",
     "stop_loss", "risk_pct", "trail_pct", "atr_pct", "plus_1R", "plus_2R", "plus_3R", "pivot_50d_high",
     "ext_pct", "gain_pct", "vol_ratio", "dist_52w_high_pct", "ret_12m_pct", "delivery_20d_pct",
-    "days_since_break", "first_break", "sector", "qty", "position_value", "valid_sessions",
+    "days_since_break", "first_break", "sector", "valid_sessions",
     "signal_date", "signal_time_ist", "scan_mode",
 ]
 MASTER_PATH = "summary.md"
@@ -75,18 +74,17 @@ def _entry_cell(p) -> str:
 
 def _table(picks: list) -> list[str]:
     lines = [
-        "| # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |",
-        "| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |",
+        "| # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Delivery 20d |",
+        "| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |",
     ]
     if not picks:
-        lines.append("| - | No new pick | - | - | - | - | - | - | - |")
+        lines.append("| - | No new pick | - | - | - | - | - | - |")
         return lines
     for i, p in enumerate(picks, 1):
         dl = f"{p.dlv20:.0f}%" if p.dlv20 is not None and math.isfinite(p.dlv20) else "n/a"
         lines.append(
             f"| {i} | **{p.symbol}** | {'🔥' if p.setup == 'fresh' else '👀'} {p.stage_label} | {p.quality_pct:.0f} | "
-            f"{_entry_cell(p)} | {fmt_price(p.stop)} (-{p.risk_pct:.1%}) | {p.trail_pct:.1%} | "
-            f"{p.qty if p.qty else '-'} | {dl} |"
+            f"{_entry_cell(p)} | {fmt_price(p.stop)} (-{p.risk_pct:.1%}) | {p.trail_pct:.1%} | {dl} |"
         )
     return lines
 
@@ -120,9 +118,7 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
             out += [f"### {i}. {p.symbol} - {p.stage_label}"]
             out += [f"- **Entry:** {_entry_cell(p)}",
                     f"- **Stop:** {fmt_price(p.stop)} (-{p.risk_pct:.1%}); trail it {p.trail_pct:.1%} below the highest close, raise only, never lower",
-                    f"- **Reference levels:** +1R {fmt_price(p.r1)}, +2R {fmt_price(p.r2)}, +3R {fmt_price(p.r3)} (no fixed target)",
-                    f"- **Size:** " + (f"{p.qty} shares (₹{p.position_value:,.0f}) for ₹{config.CAPITAL_INR:,.0f} capital at {config.RISK_PER_TRADE_PCT:g}% risk"
-                                       + (f" - {p.size_note}" if p.size_note else "") if p.qty else (p.size_note or "too expensive for the position cap"))]
+                    f"- **Reference levels:** +1R {fmt_price(p.r1)}, +2R {fmt_price(p.r2)}, +3R {fmt_price(p.r3)} (no fixed target)"]
             if p.reasons:
                 out += ["- **Why:** " + "; ".join(p.reasons)]
             if p.cautions:

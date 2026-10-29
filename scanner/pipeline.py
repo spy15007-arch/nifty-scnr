@@ -17,8 +17,9 @@ reports/evidence/):
   3. Its QUALITY score (scanner.footprint) must be in the top half of the
      liquid universe that day.
   4. Ranked by quality; FRESH setups listed before PRIMED ones.
-  5. Every pick comes with a complete trade plan (entry, stop, trailing stop,
-     size at 1% risk) built on the same numbers the research tested.
+  5. Every pick comes with a complete trade plan (entry, stop, trailing stop)
+     built on the same numbers the research tested. How many shares to buy is
+     left to the reader: it depends on the money still free, which no scan knows.
 
 Entry style depends on whether the market is open when the scan runs:
   * market open  -> FRESH breakouts are "buy now near the close" (entry at the
@@ -99,11 +100,11 @@ class Pick:
     days_since_break: int | None
     first_break: bool
     sector: str | None
-    qty: int
-    position_value: float
-    size_note: str
-    reasons: list[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)      # full sentences (the detailed write-up)
     cautions: list[str] = field(default_factory=list)
+    stage_short: str = ""                                 # the setup in a few words (the Telegram card)
+    why: list[str] = field(default_factory=list)          # the main reasons, a few words each
+    watch: list[str] = field(default_factory=list)        # the main cautions, a few words each
 
     def plan(self) -> ts.TradePlan:
         return ts.TradePlan(entry_mode=self.entry_mode, trigger=self.entry_price, atr_pct=self.atr_pct,
@@ -125,7 +126,7 @@ class Pick:
             if math.isfinite(self.ret252_pct) else None,
             "delivery_20d_pct": round(self.dlv20, 1) if self.dlv20 is not None and math.isfinite(self.dlv20) else None,
             "days_since_break": self.days_since_break, "first_break": self.first_break,
-            "sector": self.sector, "qty": self.qty, "position_value": round(self.position_value, 0),
+            "sector": self.sector,
             "valid_sessions": self.valid_sessions, "signal_date": self.signal_date,
             "signal_time_ist": self.signal_time_ist, "scan_mode": self.scan_mode,
         }
@@ -191,22 +192,35 @@ def _stage_label(setup: str, f: dict, su: dict) -> str:
     return f"About to break out ({gap:.1%} below the 50-day high)"
 
 
-def _size(entry: float, risk_pct: float, size_factor: float) -> tuple[int, float, str]:
-    """Shares for CAPITAL_INR at RISK_PER_TRADE_PCT risk (x size_factor), capped at MAX_POSITION_PCT of capital."""
-    capital = config.CAPITAL_INR
-    risk_amt = capital * (config.RISK_PER_TRADE_PCT / 100.0) * size_factor
-    per_share = entry * risk_pct
-    if per_share <= 0:
-        return 0, 0.0, ""
-    qty_risk = int(risk_amt // per_share)
-    qty_cap = int((capital * config.MAX_POSITION_PCT / 100.0) // entry)
-    qty = max(0, min(qty_risk, qty_cap))
-    note = ""
-    if qty == 0:
-        note = f"one share is more than the {config.MAX_POSITION_PCT:.0f}% position cap at this capital"
-    elif qty == qty_cap and qty_cap < qty_risk:
-        note = f"capped at {config.MAX_POSITION_PCT:.0f}% of capital"
-    return qty, qty * entry, note
+def _stage_short(setup: str, f: dict, su: dict) -> str:
+    """The setup in a few words (the Telegram card)."""
+    if setup == "fresh":
+        if f.get("first_break"):
+            return "Fresh breakout"
+        dsb = f.get("days_since_break")
+        return f"Breakout, day {int(dsb) + 1}" if dsb is not None else "Breakout continuing"
+    if su.get("above_pivot"):
+        return "At breakout level"
+    return f"{1.0 - f['close'] / f['piv_incl']:.1%} below 50-day high"
+
+
+def _short_why_and_watch(setup: str, f: dict, su: dict, row: pd.Series, dlv: float | None) -> tuple[list[str], list[str]]:
+    """
+    The reasons and cautions of a pick in a few words each - what the Telegram card shows (at most 3 and 2).
+    A caution is shown only when something specific is going on; a weak feature of the quality score is not repeated on every
+    card (it is already inside the Quality number, and the detailed write-up lists it).
+    """
+    why = fp.top_reasons(row, k=3, short=True)
+    if dlv is not None and math.isfinite(dlv):
+        why = [w for w in why if w != fp.FEATURE_SHORT["dlv20"]][:2] + [f"delivery ~{dlv:.0f}%"]
+    watch: list[str] = []
+    if setup == "fresh" and su["ext_pct"] > 0.03:
+        watch.append(f"already {su['ext_pct']:.1%} above the breakout level")
+    if f.get("gain1d", 0) and f["gain1d"] > 0.08:
+        watch.append("very large one-day move")
+    if f.get("atr_pct", 0) and f["atr_pct"] > 0.05:
+        watch.append(f"volatile (daily range ~{f['atr_pct']:.1%}), wide stop")
+    return why[:3], watch[:2]
 
 
 def _reasons_and_cautions(setup: str, f: dict, su: dict, row: pd.Series, dlv: float | None,
@@ -236,7 +250,7 @@ def _reasons_and_cautions(setup: str, f: dict, su: dict, row: pd.Series, dlv: fl
     if f.get("gain1d", 0) and f["gain1d"] > 0.08:
         cautions.append("Very large one-day move - pullbacks after such days are common")
     if f.get("atr_pct", 0) and f["atr_pct"] > 0.05:
-        cautions.append(f"Volatile stock (daily range ~{f['atr_pct']:.1%}) - the stop is wide, so size is small")
+        cautions.append(f"Volatile stock (daily range ~{f['atr_pct']:.1%}) - the stop is wide, so use a smaller position")
     if live and setup == "fresh":
         cautions.append("Price is live - only buy if it still holds above the breakout level near the close")
     if regime == "weak" and breadth50 is not None and math.isfinite(breadth50):
@@ -310,7 +324,6 @@ def select_picks(
     else:
         breadth = fp.market_breadth(feats)
     regime = fp.regime_label(breadth.get("breadth50"))
-    size_factor = 0.5 if regime == "weak" else 1.0
 
     # ---- quality score ----------------------------------------------------------
     scored, out_stats = fp.score_universe(feats, dlv20, stats=stats, min_delivery_coverage=config.DELIVERY_MIN_COVERAGE)
@@ -362,14 +375,12 @@ def select_picks(
             max_entry = tick_down(entry * (1.0 + config.MAX_CHASE_PCT))
         risk = plan_probe.risk_pct
         stop = tick_down(entry * (1.0 - risk))
-        qty, value, size_note = _size(entry, risk, size_factor)
-        if size_factor < 1.0:
-            size_note = ("half size: weak market" + ("; " + size_note if size_note else ""))
         row = scored.loc[sym]
         dlv = None
         if dlv20 is not None and sym in dlv20.index and pd.notna(dlv20[sym]):
             dlv = float(dlv20[sym])
         reasons, cautions = _reasons_and_cautions(setup, f, su, row, dlv, live, regime, breadth.get("breadth50"))
+        why, watch = _short_why_and_watch(setup, f, su, row, dlv)
         picks.append(Pick(
             symbol=sym, setup=setup, stage_label=_stage_label(setup, f, su), scan_mode=scan_mode,
             signal_date=sig_date, signal_time_ist=sig_time, live_bar=live, entry_mode=entry_mode,
@@ -381,8 +392,8 @@ def select_picks(
             pivot=f["piv50"], ext_pct=su["ext_pct"], gain_pct=f["gain1d"], vol_ratio=f["rv15"],
             close_pos=f["close_pos"], dist_hi_pct=f["dist_hi"], ret252_pct=f["ret252"], dlv20=dlv,
             days_since_break=f.get("days_since_break"), first_break=bool(f.get("first_break")),
-            sector=(sector_map or {}).get(sym), qty=qty, position_value=value, size_note=size_note,
-            reasons=reasons, cautions=cautions,
+            sector=(sector_map or {}).get(sym),
+            reasons=reasons, cautions=cautions, stage_short=_stage_short(setup, f, su), why=why, watch=watch,
         ))
     funnel["picks"] = len(picks)
 
@@ -391,7 +402,7 @@ def select_picks(
     for sec, n in sectors.items():
         if n >= 3:
             notes.append(f"{n} of the {len(picks)} picks are in the same sector ({sec}) - they tend to move together, "
-                         f"so treat them as ONE position when sizing")
+                         f"so treat them as one position")
     return SelectionResult(picks, repeats, funnel, breadth, regime, out_stats, feats, notes,
                            ref_date, live, vol_fraction, used_delivery)
 

@@ -74,19 +74,19 @@ def render_scan_tab(mode: str, label: str):
     show["setup"] = show["setup"].map(lambda s: SETUP_LABEL.get(s, s))
     show["entry_mode"] = show["entry_mode"].map({"close": "Buy now", "stop": "Buy-stop"}).fillna(show["entry_mode"])
     cols = ["symbol", "setup", "quality_pct", "entry_mode", "entry_price", "max_entry", "stop_loss", "risk_pct",
-            "trail_pct", "plus_1R", "plus_2R", "plus_3R", "qty", "position_value", "delivery_20d_pct", "vol_ratio",
+            "trail_pct", "plus_1R", "plus_2R", "plus_3R", "delivery_20d_pct", "vol_ratio",
             "gain_pct", "ext_pct", "dist_52w_high_pct", "ret_12m_pct", "sector", "stage"]
     show = show[[c_ for c_ in cols if c_ in show.columns]]
 
     fmt = {"quality_pct": "{:.0f}", "entry_price": "{:,.2f}", "max_entry": "{:,.2f}", "stop_loss": "{:,.2f}",
            "risk_pct": "{:.1%}", "trail_pct": "{:.1%}", "plus_1R": "{:,.2f}", "plus_2R": "{:,.2f}", "plus_3R": "{:,.2f}",
-           "position_value": "{:,.0f}", "delivery_20d_pct": "{:.0f}%", "vol_ratio": "{:.1f}x", "gain_pct": "{:+.1%}",
+           "delivery_20d_pct": "{:.0f}%", "vol_ratio": "{:.1f}x", "gain_pct": "{:+.1%}",
            "ext_pct": "{:+.1%}", "dist_52w_high_pct": "{:+.1%}", "ret_12m_pct": "{:+.0%}"}
     styled = show.style.format({k: v for k, v in fmt.items() if k in show.columns}, na_rep="–")
     _df(styled, height=min(620, 80 + 36 * len(show)))
     st.caption("Quality = rank among today's liquid stocks (100 = best): a filter (top half only), not a probability and not a ladder. Stop trails up behind the highest close "
-               "(trail_pct); there is no fixed target - +1R/+2R/+3R are reference levels. Share counts assume the capital set in the "
-               "workflow (TRADING_CAPITAL_INR, default ₹1 lakh) and 1% risk per trade (half in a weak market).")
+               "(trail_pct); there is no fixed target - +1R/+2R/+3R are reference levels. Position size is yours to set: risk at most 1% of your "
+               "capital per trade (half in a weak market), i.e. shares = the money you are willing to lose / (entry - stop).")
     st.download_button(f"Download {label} CSV", df.to_csv(index=False), file_name=f"scan_results_{mode}.csv")
 
 

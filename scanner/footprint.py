@@ -63,6 +63,18 @@ FEATURE_TEXT: dict[str, tuple[str, str]] = {
     "dlv20": ("high delivery % (investors, not churn)", "low delivery % (mostly intraday churn)"),
 }
 
+# The positive phrase of each feature in a few words, for the compact Telegram card (a test keeps this in step with FEATURE_TEXT)
+FEATURE_SHORT: dict[str, str] = {
+    "dist_hi": "near 52-wk high",
+    "sma200_chg": "200-day trend up",
+    "ret252": "strong 12-mo return",
+    "atr_pct": "low volatility",
+    "ema21_x": "not stretched",
+    "ret5": "no recent spike",
+    "turn20": "very liquid",
+    "dlv20": "high delivery %",
+}
+
 MIN_BARS_FOR_FEATURES = 60      # below this the stock is skipped outright
 WINSOR = 3.0                    # z-scores are limited to +/- 3
 ALLOW_MISSING_FEATURES = 1      # a score needs at least n-1 of its n features
@@ -312,10 +324,10 @@ def score_universe(
     return frame, out_stats
 
 
-def top_reasons(row: pd.Series, k: int = 3) -> list[str]:
-    """Plain-English list of the features that pushed this stock's score up the most."""
+def top_reasons(row: pd.Series, k: int = 3, short: bool = False) -> list[str]:
+    """Plain-English list of the features that pushed this stock's score up the most (`short`: a few words each)."""
     items: list[tuple[float, str]] = []
-    for name, (pos, neg) in FEATURE_TEXT.items():
+    for name in FEATURE_TEXT:
         v = row.get(f"c_{name}")
         if v is None or not (isinstance(v, (int, float, np.floating)) and math.isfinite(v)):
             continue
@@ -324,7 +336,7 @@ def top_reasons(row: pd.Series, k: int = 3) -> list[str]:
     out = []
     for v, name in items[:k]:
         if v > 0.25:
-            out.append(FEATURE_TEXT[name][0])
+            out.append(FEATURE_SHORT[name] if short else FEATURE_TEXT[name][0])
     return out
 
 

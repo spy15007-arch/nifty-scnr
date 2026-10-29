@@ -52,7 +52,6 @@ jobs:
         env:
           TRADING_RUN_SOURCE: manual
           TRADING_TEST_LIMIT: ${{ inputs.test_limit }}
-          TRADING_CAPITAL_INR: ${{ vars.TRADING_CAPITAL_INR }}
           ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}

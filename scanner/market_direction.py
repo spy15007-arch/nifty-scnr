@@ -374,8 +374,6 @@ def _global_word(md: MarketDirection) -> str | None:
 def format_direction_line(md: MarketDirection) -> str:
     """One compact line - the header on the scheduled BTST/Swing messages."""
     parts = [f"{md.emoji} <b>{html.escape(md.label)}</b>"]
-    if md.n_factors >= 3:
-        parts[0] += f" (score {md.score:+d}/{md.n_factors})"
     n = md.nifty
     if n is not None and n.day_change is not None:
         parts.append(f"Nifty {_pct(n.day_change)} {'today' if n.as_of == md.today else 'last session'}")

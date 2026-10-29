@@ -6,6 +6,7 @@ parts where a silent mistake would cost money: the trade simulator, the session 
 and plan arithmetic, the scoreboard (including re-runs and split gaps), the message splitter and the full
 `main.py scan_*` flow with a stub broker.
 """
+import dataclasses
 import json
 import logging
 import os
@@ -221,8 +222,10 @@ class SetupAndPlan(unittest.TestCase):
         self.assertGreater(p.max_entry, p.entry_price)
         for v in (p.entry_price, p.stop, p.max_entry):
             self.assertAlmostEqual(round(v / 0.05) * 0.05, v, places=6)          # tick-rounded
-        self.assertGreater(p.qty, 0)
-        self.assertLessEqual(p.position_value, config.CAPITAL_INR * config.MAX_POSITION_PCT / 100 + p.entry_price)
+        self.assertTrue(p.stage_short and p.why)                                   # the few-words versions the Telegram card shows
+        for gone in ("qty", "position_value", "size_note"):                         # share counts depend on money no scan can know
+            self.assertFalse(hasattr(p, gone), gone)
+            self.assertNotIn(gone, p.to_row())
         fresh_idx = [i for i, q in enumerate(res.picks) if q.setup == "fresh"]
         primed_idx = [i for i, q in enumerate(res.picks) if q.setup == "primed"]
         if fresh_idx and primed_idx:
@@ -399,6 +402,152 @@ class Messages(unittest.TestCase):
     def test_scrub_masks_secrets(self):
         self.assertEqual(notify.scrub("url https://x/botABC123SECRET/send", "ABC123SECRET"), "url https://x/bot***/send")
 
+    # ---- the compact message: short, to the point, and no money amounts the scan cannot know -------------------------
+    @staticmethod
+    def _swing():
+        return pl.select_picks("swing", make_market(), now=at(2026, 10, 13, 17, 0), max_picks=15)
+
+    @staticmethod
+    def _live():
+        live = {s: d.copy() for s, d in make_market().items()}
+        d = live["PLANT"]
+        d.iloc[-1, d.columns.get_loc("volume")] *= 0.64                             # 2:00 PM: 64% of the day's volume so far
+        return pl.select_picks("btst", live, now=at(2026, 10, 13, 14, 0))
+
+    def _all_messages(self):
+        return [(self._swing(), "swing", at(2026, 10, 13, 17, 0)), (self._live(), "btst", at(2026, 10, 13, 14, 0))]
+
+    def test_no_share_counts_or_money_amounts_anywhere(self):
+        for res, mode, now in self._all_messages():
+            self.assertTrue(res.picks)
+            msg = notify.format_scan_message(res, mode, now=now, scoreboard_line="Record: nothing tracked yet")
+            low = msg.lower()
+            for bad in ("share", "lakh", "crore", "₹", "position cap", "reference level", "risks ≈", "capital of"):
+                self.assertNotIn(bad, low, bad)
+
+    def test_a_pick_card_is_a_few_short_lines_with_the_plan_numbers(self):
+        for res, _, _ in self._all_messages():
+            for i, p in enumerate(res.picks, 1):
+                card = notify.format_pick(p, i)
+                lines = card.split("\n")
+                self.assertTrue(3 <= len(lines) <= 5, card)
+                self.assertLessEqual(len(card), 330, card)
+                self.assertIn(pl.fmt_price(p.entry_price), card)
+                self.assertIn(pl.fmt_price(p.stop), card)
+                self.assertIn(f"trail {p.trail_pct:.1%}", card)
+                if p.entry_mode == "close":
+                    self.assertIn("Buy near", card)
+                    self.assertIn("today on", card)                                  # the breakout facts sit on the buy line
+                else:
+                    self.assertIn(f"skip if it opens above {pl.fmt_price(p.max_entry)}", card)
+                self.assertNotIn("\n\n", card)                                      # the splitter keeps a card whole
+
+    def test_the_message_stays_short(self):
+        for res, mode, now in self._all_messages():
+            msg = notify.format_scan_message(res, mode, now=now)
+            self.assertLessEqual(len(msg), 1100 + 300 * len(res.picks), len(msg))
+            self.assertEqual(len(notify.split_message(msg)), 1)
+
+    def test_no_new_pick_is_one_short_line_that_says_why(self):
+        base = self._swing()
+        none = dataclasses.replace(base, picks=[], repeats=[])
+        msg = notify.format_scan_message(none, "swing", now=at(2026, 10, 13, 17, 0))
+        self.assertIn("No new pick.", msg)
+        self.assertLessEqual(len(msg), 900, msg)
+        again = dataclasses.replace(base, picks=[], repeats=[("A", "primed")] * 3,
+                                    funnel={**base.funnel, "passed_quality": 3, "repeats": 3})
+        self.assertIn("all already on your list", notify.format_scan_message(again, "swing", now=at(2026, 10, 13, 17, 0)))
+        empty = dataclasses.replace(none, funnel={**base.funnel, "loaded": 0})
+        self.assertIn("No price data was loaded", notify.format_scan_message(empty, "swing", now=at(2026, 10, 13, 17, 0)))
+
+    def test_title_says_what_the_prices_are_based_on(self):
+        swing = notify.format_scan_message(self._swing(), "swing", now=at(2026, 10, 13, 17, 0)).split("\n")[0]
+        self.assertEqual(swing, "📈 <b>Swing scan</b> · Tue 13 Oct · today's close")
+        later = notify.format_scan_message(self._swing(), "swing", now=at(2026, 10, 17, 11, 0)).split("\n")[0]
+        self.assertEqual(later, "📈 <b>Swing scan</b> · Sat 17 Oct · close of Tue 13 Oct")
+        live = notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 1)).split("\n")[0]
+        self.assertEqual(live, "🌙 <b>BTST scan</b> · Tue 13 Oct, 2:01 PM · live prices")
+
+    def test_the_weak_market_rule_is_stated_once_in_relative_terms(self):
+        res = dataclasses.replace(self._swing(), regime="weak", breadth={"breadth50": 0.18, "n": 400})
+        msg = notify.format_scan_message(res, "swing", now=at(2026, 10, 13, 17, 0))
+        self.assertEqual(msg.count("half size"), 1)
+        self.assertIn("Breadth 18%", msg)
+        self.assertIn("half in a weak market", msg)                                  # the footer says it as a rule
+
+    def test_tracked_block_lists_stops_only_in_the_evening_message(self):
+        events = [{"kind": "trail_raised", "symbol": "AAA", "old": 100.0, "new": 105.0},
+                  {"kind": "filled", "symbol": "BBB", "price": 50.0},
+                  {"kind": "closed", "symbol": "CCC", "reason": "stop", "price": 90.0, "R": -1.0, "net": -0.06},
+                  {"kind": "unfilled", "symbol": "DDD", "reason": "expired"}]
+        rows = [{"symbol": "AAA", "status": "OPEN", "trail": 105.0}, {"symbol": "BBB", "status": "OPEN", "trail": 45.5},
+                {"symbol": "EEE", "status": "PENDING", "trigger": 200.0}]
+        evening = notify.format_tracked_block(events, rows, snapshot=True)
+        self.assertIn("Open - current stops (2)", evening)
+        self.assertIn("AAA 105.00↑", evening)
+        self.assertIn("BBB 45.50", evening)
+        self.assertNotIn("BBB 45.50↑", evening)
+        self.assertNotIn("raise stop", evening)                                      # the arrow replaces the separate line
+        self.assertIn("Buy-stops still waiting (1):</b> EEE", evening)
+        self.assertNotIn("200.00", evening)                                          # names only
+        self.assertIn("BBB</b> - buy-stop filled at 50.00", evening)
+        self.assertIn("CCC</b> - stopped out at 90.00 (-1.0R, -6.0% after costs)", evening)
+        self.assertIn("DDD</b> - buy-stop expired; no trade", evening)
+        afternoon = notify.format_tracked_block(events, rows, snapshot=False)
+        self.assertNotIn("current stops", afternoon)
+        self.assertNotIn("waiting", afternoon)
+        self.assertIn("AAA</b> - raise stop 100.00 → <b>105.00</b>", afternoon)      # nothing is lost when there is no list to carry the arrow
+        self.assertEqual(notify.format_tracked_block([], rows, snapshot=False), "")
+        self.assertEqual(notify.format_tracked_block([], [], snapshot=True), "")
+        for block in (evening, afternoon):
+            chk = self._Check()
+            chk.feed(block)
+            self.assertEqual((chk.err, chk.stack), ([], []))
+
+    def test_a_long_list_is_capped_not_dumped(self):
+        rows = [{"symbol": f"S{i:02d}", "status": "OPEN", "trail": 10.0 + i} for i in range(30)]
+        rows += [{"symbol": f"W{i:02d}", "status": "PENDING", "trigger": 5.0} for i in range(20)]
+        block = notify.format_tracked_block([], rows, snapshot=True)
+        self.assertIn("Open - current stops (30)", block)
+        self.assertIn("...and 6 more in the dashboard", block)
+        self.assertIn("Buy-stops still waiting (20)", block)
+        self.assertIn(", +4 more", block)
+
+    def test_a_formatting_slip_still_sends_a_plain_notice(self):
+        sent = []
+
+        def post(url, json=None, timeout=None, **kw):
+            sent.append(json["text"])
+            return mock.Mock(ok=True, status_code=200, text="ok")
+
+        with mock.patch.object(notify, "format_scan_message", side_effect=RuntimeError("boom")), mock.patch("requests.post", post):
+            logging.disable(logging.CRITICAL)
+            try:
+                ok = notify.notify_scan(self._swing(), "swing", "123456:TESTTOKENVALUE", "1", now=at(2026, 10, 13, 17, 0))
+            finally:
+                logging.disable(logging.NOTSET)
+        self.assertTrue(ok)
+        self.assertEqual(len(sent), 1)
+        self.assertIn("SWING scan finished, but its message could not be formatted", sent[0])
+        self.assertNotIn("boom", sent[0])
+
+    def test_short_phrases_cover_every_feature(self):
+        self.assertEqual(set(fp.FEATURE_SHORT), set(fp.FEATURE_TEXT))
+        for name, phrase in fp.FEATURE_SHORT.items():
+            self.assertTrue(0 < len(phrase) <= 26, name)
+
+    def test_scoreboard_line_is_one_short_honest_line(self):
+        cols = ["status", "net", "R", "signal_date", "scan_mode", "setup", "exit_n", "fill_n"]
+        self.assertTrue(outcomes.format_scoreboard_line(pd.DataFrame(columns=cols)).startswith("Record: nothing tracked"))
+        waiting = pd.DataFrame({"status": ["OPEN", "PENDING"], "net": [np.nan] * 2, "R": [np.nan] * 2, "signal_date": ["2026-10-21"] * 2,
+                                "scan_mode": ["swing"] * 2, "setup": ["primed"] * 2, "exit_n": [-1, -1], "fill_n": [1, -1]})
+        self.assertEqual(outcomes.format_scoreboard_line(waiting), "Record since 21 Oct: no trade closed yet")
+        two = pd.DataFrame({"status": ["CLOSED", "CLOSED", "OPEN"], "net": [0.10, -0.05, np.nan], "R": [2.0, -1.0, np.nan],
+                            "signal_date": ["2026-10-21"] * 3, "scan_mode": ["swing"] * 3, "setup": ["primed"] * 3,
+                            "exit_n": [10, 5, -1], "fill_n": [1, 1, 1]})
+        line = outcomes.format_scoreboard_line(two)
+        self.assertEqual(line, "Record since 21 Oct: 2 closed, 50% won, average +0.50R (+2.5% per trade after costs) - too few to judge yet (need 30+)")
+
 
 # --------------------------------------------------------------------------- #
 class E2EHarness:
@@ -485,6 +634,26 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertTrue(self.sent and any("PLANT" in m for m in self.sent))
         self.assertTrue(all(len(m) <= 4096 for m in self.sent))
         self.assertEqual(_load_json("data_cache/btst_watchlist.json")["as_of"], "2026-10-13")
+        for gone in ("qty", "position_value"):                                      # no share counts: they depend on money no scan knows
+            self.assertNotIn(gone, csv.columns)
+        self.assertFalse(any("share" in m.lower() or "lakh" in m.lower() for m in self.sent), self.sent)
+        with open("summary_swing.md", encoding="utf-8") as fh:
+            self.assertNotIn("Shares", fh.read())
+
+    def test_the_evening_message_carries_the_stop_list_and_the_afternoon_one_does_not(self):
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))                          # PLANT is logged as a waiting buy-stop
+        nxt = self._next_session()
+        self.sent.clear()
+        self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=nxt)
+        evening = "\n".join(self.sent)
+        self.assertIn("Your list", evening)
+        self.assertRegex(evening, r"Buy-stops still waiting \(\d+\):</b> .*PLANT")
+        self.sent.clear()
+        self._run(["scan_btst"], at(2026, 10, 15, 14, 0), source="manual", bars=nxt)
+        afternoon = "\n".join(self.sent)
+        self.assertTrue(afternoon)
+        self.assertNotIn("current stops", afternoon)                                 # stops only change after a completed session
+        self.assertNotIn("still waiting", afternoon)
 
     def test_afternoon_btst_fetches_only_the_watchlist_and_a_late_cron_is_skipped(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
@@ -575,10 +744,10 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         code, _ = self._run(["scan_swing"], at(2026, 10, 13, 17, 0), universe=asked, report=report)
         self.assertEqual(code, 0)
         msg = "\n".join(self.sent)
-        self.assertIn(f"Partial scan: {len(self.bars)} of {len(asked)} stocks were loaded - the 45-minute time limit ran out "
-                      f"before the last 59 were fetched, so the list may miss some names", msg)
-        self.assertIn("Not available from the broker: GONE0", msg)
+        self.assertIn(f"Partial scan: {len(self.bars)} of {len(asked)} stocks loaded - the 45-minute limit was reached, "
+                      f"so some names may be missing", msg)
         self.assertIn("The broker said: Access denied because of exceeding access rate (x4)", msg)
+        self.assertNotIn("GONE0", msg)                                                    # which stocks the broker lacks is in the fetch report
         self.assertNotIn("&#x27;", msg)                                                   # no stray quote characters
         doc = _load_json("reports/output/fetch_report_swing.json")
         self.assertEqual((doc["requested"], doc["loaded"], doc["store"]["stopped"], doc["store"]["not_reached"]),
@@ -595,17 +764,13 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         note = self.M._partial_note({**base, "report": {
             "stopped": "time budget", "not_reached": 51, "not_found": ["HFCL"], "not_found_n": 1,
             "errors": [("Access denied because of exceeding access rate", 4)]}})
-        self.assertEqual(note, "Partial scan: 448 of 501 stocks were loaded - the 45-minute time limit ran out before the last 51 were fetched, "
-                               "so the list may miss some names. Not available from the broker: HFCL. "
+        self.assertEqual(note, "Partial scan: 448 of 501 stocks loaded - the 45-minute limit was reached, so some names may be missing. "
                                "The broker said: Access denied because of exceeding access rate (x4)")
-        for bad in ("#", "''", '""'):
+        for bad in ("#", "''", '""', "HFCL"):
             self.assertNotIn(bad, note)
         many = self.M._partial_note({**base, "report": {"stopped": "", "not_found": list("ABCDEFGH"), "not_found_n": 11}})
         self.assertIn("the broker returned no data for the rest", many)
-        self.assertIn("A, B, C, D and 7 more", many)
-        both = self.M._partial_note({**base, "report": {"stopped": "", "not_found": ["HFCL"], "not_found_n": 1,
-                                                        "no_data": ["BIRET", "EMBASSY"], "no_data_n": 6}})
-        self.assertIn("Not available from the broker: HFCL, BIRET, EMBASSY and 4 more", both)
+        self.assertNotIn("A, B", many)                                                    # the names are in the fetch report, not the message
         self.assertEqual(self.M._partial_note({"loaded": 0, "requested": 501, "report": {"stopped": "the broker kept refusing requests"}}),
                          "None of the 501 stocks could be loaded - the broker kept refusing requests")
 
@@ -700,7 +865,8 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertEqual(len(store.quote_calls), 1)
         self.assertTrue(any("live quotes" in m for m in self.sent), self.sent[:1])
         self.assertFalse(any("Partial scan" in m for m in self.sent))
-        self.assertFalse(any("Live quotes were not used" in m for m in self.sent))
+        self.assertFalse(any("Live quotes not used" in m for m in self.sent))
+        self.assertFalse(any("current stops" in m or "still waiting" in m for m in self.sent))   # the afternoon message has no stop list
         doc = _load_json("reports/output/fetch_report_btst.json")
         self.assertEqual((doc["kind"], doc["route"], doc["loaded"] == doc["requested"]), ("watchlist", "quotes", True))
 
@@ -730,7 +896,7 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(store.quote_calls, [])
         self.assertEqual(set(store.symbols), set(wl["symbols"]))
-        self.assertTrue(any("Live quotes were not used (no saved candles for this watchlist)" in m for m in self.sent), self.sent[:1])
+        self.assertTrue(any("Live quotes not used (no saved candles for this watchlist)" in m for m in self.sent), self.sent[:1])
         self.assertEqual(_load_json("reports/output/fetch_report_btst.json")["route"], "candles")
 
     def test_partial_fetch_note_quotes_the_brokers_words(self):

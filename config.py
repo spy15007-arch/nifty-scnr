@@ -76,9 +76,9 @@ MAX_HOLD_SESSIONS = 60               # time stop
 ENTRY_VALID_SESSIONS = 5             # a buy-stop order stays valid this many sessions
 MAX_CHASE_PCT = 0.03                 # skip if the stock gaps more than 3% past the trigger
 ROUND_TRIP_COST = 0.0035             # 0.35%: STT, stamp duty, exchange/DP charges, brokerage and slippage
-RISK_PER_TRADE_PCT = 1.0             # sizing guidance only: % of capital risked to the stop (halved in a weak market)
-MAX_POSITION_PCT = 20.0              # sizing guidance only: no single position above this % of capital
-CAPITAL_INR = _env_float("TRADING_CAPITAL_INR", 100000)  # only used to show example share counts in messages
+# Position size is deliberately NOT computed: it depends on the money the reader still has free, which no scan can know
+# (a fixed capital assumption gave wrong share counts as soon as other stocks were bought). The messages state the rule instead.
+RISK_PER_TRADE_PCT = 1.0             # guidance in the message footer: risk at most this % of YOUR capital to the stop on one trade (half in a weak market)
 WEAK_BREADTH = 0.40                  # share of stocks above their 50-day average below which the market is "weak"
 HEALTHY_BREADTH = 0.60
 COOLDOWN_SESSIONS = 15               # a stock that was picked is not picked again for this many sessions

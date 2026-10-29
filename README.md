@@ -1,6 +1,6 @@
 # NIFTY Scanner
 
-An automated NSE stock scanner. Twice a day it reads end-of-day and live prices from Angel One, picks the stocks that are **about to break out of a 50-day high, or just did so on heavy volume** - and only the good-quality ones - and sends each pick to Telegram with a complete plan: where to buy, where the stop is, how the stop trails, and how many shares fit a 1% risk.
+An automated NSE stock scanner. Twice a day it reads end-of-day and live prices from Angel One, picks the stocks that are **about to break out of a 50-day high, or just did so on heavy volume** - and only the good-quality ones - and sends each pick to Telegram as a short card with the plan: where to buy, where the stop is, and how far the stop trails.
 
 It is a **ranked shortlist, not a guarantee.** Replayed on seven years of real NSE data the rule won about 4 trades in 10 and its profit came from a few big winners; the edge was **strong in 2019-2023 and about break-even after costs in 2024-2026**, and it is weakest when the market is weak (details and numbers in [reports/evidence](reports/evidence/README.md)). Judge it over 30+ closed trades - the scoreboard does that for you.
 
@@ -9,7 +9,7 @@ It is a **ranked shortlist, not a guarantee.** Replayed on seven years of real N
 | Scan | When | What it is |
 | :-- | :-- | :-- |
 | 🌙 **BTST** | about 2:00 PM IST, before the close | Fresh breakouts to **buy now, near the close**, plus stocks about to break out (buy-stop orders). Re-checks last evening's watchlist (up to 150 stocks) with live prices: the evening run saves their candles, so the afternoon run needs only a few live-quote calls and finishes in minutes. |
-| 📈 **Swing** | about 4:05 PM IST, after the close | The full-market scan on the day's final candles: buy-stop orders for tomorrow. Also builds tomorrow's BTST watchlist (and saves its candles) and refreshes the delivery-% data. It fetches about 500 stocks one by one at the broker's pace: roughly 10 minutes on a normal day. |
+| 📈 **Swing** | about 4:05 PM IST, after the close | The full-market scan on the day's final candles: buy-stop orders for tomorrow. Also builds tomorrow's BTST watchlist (and saves its candles) and refreshes the delivery-% data. It fetches about 500 stocks one by one at the broker's pace: roughly 10 minutes on a quiet day, up to 40 when the broker is busy and refuses many requests. |
 | 🧭 **Market direction** | button | Which way Nifty/Bank Nifty and global cues lean (also a one-line header on both scans). |
 
 Index-option strike alerts are not part of the automatic run (the strike has moved by the time a scan reports). `python main.py options` still exists for manual use.
@@ -29,12 +29,33 @@ There is **no price cap.** Liquidity is the filter (20-day average turnover of a
 
 * **Entry** - *Buy now* near the close (live fresh breakouts), or a **buy-stop** just above the breakout level, valid 5 sessions (skip it if the stock opens more than 3% above the trigger).
 * **Stop** - 2.5 × ATR below the entry. **Trailing stop** - 5 × ATR below the highest close, raised daily, never lowered. **No fixed target**: in the history, small targets and partial profit-taking made results worse; the money came from the minority of trades that ran for weeks.
-* **Time limit** - 60 sessions. **Size** - risk 1% of capital (half in a weak market, when under 40% of stocks are above their 50-day average), no position above 20% of capital.
+* **Time limit** - 60 sessions. **Size** - deliberately not computed: how many shares you can buy depends on the money you still have free, which no scan knows. The rule is to risk at most 1% of *your* capital to the stop (half that in a weak market, when under 40% of stocks are above their 50-day average), so shares = the money you are willing to lose ÷ (entry − stop).
 * **Costs** - the scoreboard deducts 0.35% round trip.
 
 ## The scoreboard (`tracking/trades.csv`)
 
 Every pick is logged and followed exactly by the plan, then judged on **closed** trades after costs, in R (a −1R trade lost the amount risked, +3R gained three times it). A buy-stop that never triggered is neither a win nor a loss. The ledger is replayed from each signal date over completed sessions only, so updating is safe to repeat and a half-finished day can never corrupt it. The old v1 ledgers are kept as `tracking/legacy_v1_*.csv`.
+
+## What the Telegram message looks like
+
+Short on purpose - only what is needed to act, never a share count or an amount to invest (that depends on the money you still have free):
+
+```
+📈 Swing scan · Tue 27 Oct · today's close
+🧭 Market: 🔴 Bearish · Nifty -0.2% today · global neutral
+📊 Breadth 18% (stocks above their 50-day average) - weak market: half size
+
+BUY-STOP ORDERS (GTT / stop-limit, valid 5 sessions)
+
+1. BHARTIARTL 👀 1.1% below 50-day high · Quality 79/100
+Buy-stop 2,009.85 · skip if it opens above 2,070.10
+Stop 1,881.00 (-6.4%) · trail 12.8%
+near 52-wk high · 200-day trend up · delivery ~46%
+```
+
+* A **🔥 buy-now** card (BTST, live breakout) reads *Buy near 848.15 · up 3.4% today on 2.1x volume*. A **⚠️** line is added only when something specific is going on (already more than 3% past the breakout level, a very large one-day move, a very volatile stock); the full list of strengths and weak points of every pick is in the dated write-up `reports/<mode>/scan_<date>.md`.
+* The evening **Swing** message ends with **📒 Your list**: what filled, expired or stopped out, every open trade's current stop (↑ = raised today) and the buy-stops still waiting. The afternoon **BTST** message leaves the stop list out (stops only change after a completed session) and shows only what changed.
+* The last two lines are the live record (closed trades only) and the standing rule. The back-test numbers are in [reports/evidence](reports/evidence/README.md), the README and the dashboard, not repeated in every message.
 
 ## Files and dashboard
 
@@ -50,7 +71,7 @@ Every pick is logged and followed exactly by the plan, then judged on **closed**
 
 ## When a scan says "Partial scan"
 
-The scans get their prices from Angel One, which now and then refuses requests. Each scan therefore says plainly what it got: *"Partial scan: 448 of 501 stocks were loaded - the 45-minute time limit ran out before the last 51 were fetched ..."*, plus the stocks the broker does not list or has no data for, and the broker's own words when it refused. How it copes (`data/brokers/angelone_client.py`, `data/historical.py`):
+The scans get their prices from Angel One, which now and then refuses requests. Each scan therefore says plainly what it got: *"Partial scan: 448 of 501 stocks loaded - the 45-minute limit was reached, so some names may be missing"*, plus the broker's own words when it refused (which stocks the broker does not list is in the fetch report, not the message). How it copes (`data/brokers/angelone_client.py`, `data/historical.py`):
 
 * an answer of "not found" / "invalid ..." is final for that stock (no retries, no slowdown); a refused request is retried after a short pause (1 s, then 2 s; longer if the broker said "rate") and does **not** slow the calls that follow - the pace only drops while the broker is refusing *right now* (3+ refusals in a row, or a third of the last 20 calls) and is back to full speed about 20 calls after it recovers;
 * a real outage (15 refused stocks in a row) triggers a 45-second cool-down, up to three times, then the run carries on; stocks refused the first time get a second pass;
@@ -65,7 +86,7 @@ GitHub Actions workflows (all have a **Run workflow** button): **BTST Scan**, **
 
 **On-time scheduling:** GitHub's own cron is often hours late, so an external timer starts the scans on the dot - setup in [docs/TIMER_SETUP.md](docs/TIMER_SETUP.md). GitHub's schedule remains as a backup; the program skips a duplicate or a too-late BTST run (`scanner/runguard.py`).
 
-Repository **secrets**: `ANGEL_API_KEY`, `ANGEL_CLIENT_ID`, `ANGEL_PASSWORD`, `ANGEL_TOTP_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Never put them in code or commit them; the logs mask them. Optional repository **variable**: `TRADING_CAPITAL_INR` (the capital the share counts assume; default ₹1 lakh).
+Repository **secrets**: `ANGEL_API_KEY`, `ANGEL_CLIENT_ID`, `ANGEL_PASSWORD`, `ANGEL_TOTP_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Never put them in code or commit them; the logs mask them.
 
 Locally: `python main.py scan_swing | scan_btst | run_all | market | calibrate | backtest` (needs the same environment variables). `python -m unittest discover tests` runs the self-contained tests (no network, no broker).
 
