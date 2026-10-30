@@ -1,18 +1,36 @@
-📈 <b>Swing scan</b> · Fri 30 Oct · close of Thu 29 Oct
-🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +0.9% last session · global hostile
-📊 Breadth 20% (stocks above their 50-day average) - <b>weak market: half size</b>
+📈 <b>Swing scan</b> · Fri 30 Oct · today's close
+🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +0.4% today · global hostile
+📊 Breadth 19% (stocks above their 50-day average) - <b>weak market: half size</b>
 
-<b>No new pick.</b> 495 stocks checked, 32 in a breakout setup, 19 passed the quality filter - all already on your list.
+<b>BUY-STOP ORDERS</b> (GTT / stop-limit, valid 5 sessions)
+
+<b>1. HCLTECH</b> 👀 About to break out (2.7% below the 50-day high) · Quality 58/100 · IT
+Buy at <b>1,470.45</b> · skip if it opens above 1,514.55
+Stop <b>1,355.65</b> (-7.8%) · trail 15.6%
+very liquid · low volatility · delivery ~50%
+
+<b>2. MANKIND</b> 👀 About to break out (2.6% below the 50-day high) · Quality 55/100 · Pharma
+Buy at <b>2,564.15</b> · skip if it opens above 2,641.05
+Stop <b>2,359.40</b> (-8.0%) · trail 16.0%
+near 52-wk high · very liquid · delivery ~55%
+⚠️ Already spiked 13% in 5 days - buy on a pull-back or in continuation
+
++21 more qualify but are already on your list.
 
 📒 <b>Your list</b>
-<b>Open - current stops (12)</b>
-ADANIPORTS 1,741.30 · SONACOMS 776.26
-GESHIP 1,466.43 · NYKAA 321.82
-ACUTAAS 3,501.93 · DLF 649.84
-LAURUSLABS 1,939.14 · KOTAKBANK 427.39
+• <b>COFORGE</b> - buy-stop filled at 2,025.25
+• <b>DIVISLAB</b> - buy-stop filled at 9,759.50
+• <b>ETERNAL</b> - buy-stop filled at 345.10
+<b>Open - current stops (16)</b> · ↑ = raised today
+ATHERENERG 1,566.50 · ADANIPORTS 1,741.30
+ETERNAL 317.75 · SONACOMS 776.26
+GESHIP 1,466.43 · DIVISLAB 9,102.21
+NYKAA 321.82 · ACUTAAS 3,501.93
+DLF 649.84 · LAURUSLABS 2,051.41↑
+KOTAKBANK 427.39 · COFORGE 1,849.51
 ANANDRATHI 2,145.10 · INDHOTEL 727.86
-DRREDDY 1,195.28 · PVRINOX 1,301.35
-<b>Buy-stops still waiting (10):</b> GLAND, ETERNAL, PNB, BHARTIARTL, BSE, DIVISLAB, APLAPOLLO, IPCALAB, COFORGE, TECHM
+DRREDDY 1,201.50↑ · PVRINOX 1,301.35
+<b>Buy-stops still waiting (8):</b> ZYDUSLIFE, GLAND, PNB, BHARTIARTL, BSE, APLAPOLLO, IPCALAB, TECHM
 
 🧾 <i>Record since 21 Oct: no trade closed yet</i>
 ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. A ranked shortlist, not a guarantee.</i>

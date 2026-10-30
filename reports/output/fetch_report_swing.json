@@ -1,5 +1,5 @@
 {
- "at": "2026-10-30 07:29 IST",
+ "at": "2026-10-30 16:49 IST",
  "budget_s": 2700,
  "kind": "universe",
  "loaded": 495,
@@ -8,38 +8,43 @@
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 485,
- "seconds": 597,
+ "scored": 484,
+ "seconds": 2595,
  "store": {
   "cooldowns": 0,
-  "errors": [],
+  "errors": [
+   [
+    "Access denied because of exceeding access rate",
+    13
+   ]
+  ],
   "failed": 6,
   "loaded": 495,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "BAGMANE",
-   "STLTECH",
-   "DUMMYHEG",
    "BIRET",
+   "HFCL",
    "EMBASSY",
-   "HFCL"
+   "BAGMANE",
+   "DUMMYHEG",
+   "STLTECH"
   ],
   "not_found_n": 6,
   "not_reached": 0,
   "pace": {
-   "calls": 495,
-   "rate_limited": 0,
-   "refused": 0,
-   "slowed_calls": 0,
-   "slowest_calls": 0,
-   "wait_now_s": 0.4
+   "calls": 723,
+   "rate_limited": 228,
+   "refused": 228,
+   "slowed_calls": 711,
+   "slowest_calls": 711,
+   "wait_now_s": 2.5
   },
-  "recovered": 0,
+  "recovered": 13,
   "refused": [],
   "refused_n": 0,
   "requested": 501,
-  "seconds": 597,
+  "seconds": 2595,
   "stopped": ""
  }
 }
