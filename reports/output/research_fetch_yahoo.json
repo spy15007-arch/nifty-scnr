@@ -1,0 +1,17 @@
+{
+ "source": "yahoo",
+ "asked": 501,
+ "usable": 474,
+ "no_data_n": 2,
+ "no_data": [
+  "DUMMYHEG",
+  "BAGMANE"
+ ],
+ "too_short_n": 25,
+ "seconds": 242,
+ "stopped": "",
+ "errors": [],
+ "start": "2015-06-01",
+ "first_bar": "2015-06-01",
+ "last_bar": "2026-10-30"
+}
