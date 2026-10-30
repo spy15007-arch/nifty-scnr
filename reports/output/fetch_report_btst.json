@@ -1,43 +1,45 @@
 {
- "at": "2026-10-29 14:43 IST",
- "budget_s": 229,
- "kind": "watchlist",
- "loaded": 86,
- "market_line_source": "^NSEI",
+ "at": "2026-10-30 07:29 IST",
+ "budget_s": 2700,
+ "kind": "universe",
+ "loaded": 495,
+ "market_line_source": "NIFTYBEES",
  "quote_note": "",
- "requested": 86,
- "route": "quotes",
+ "requested": 501,
+ "route": "candles",
  "scan": "btst",
- "scored": 86,
- "seconds": 93,
+ "scored": 485,
+ "seconds": 597,
  "store": {
   "cooldowns": 0,
-  "errors": [
-   [
-    "Access denied because of exceeding access rate",
-    2
-   ]
-  ],
-  "failed": 0,
-  "loaded": 7,
+  "errors": [],
+  "failed": 6,
+  "loaded": 495,
   "no_data": [],
   "no_data_n": 0,
-  "not_found": [],
-  "not_found_n": 0,
+  "not_found": [
+   "BAGMANE",
+   "STLTECH",
+   "DUMMYHEG",
+   "BIRET",
+   "EMBASSY",
+   "HFCL"
+  ],
+  "not_found_n": 6,
   "not_reached": 0,
   "pace": {
-   "calls": 19,
-   "rate_limited": 12,
-   "refused": 12,
-   "slowed_calls": 16,
-   "slowest_calls": 16,
-   "wait_now_s": 2.5
+   "calls": 495,
+   "rate_limited": 0,
+   "refused": 0,
+   "slowed_calls": 0,
+   "slowest_calls": 0,
+   "wait_now_s": 0.4
   },
-  "recovered": 2,
+  "recovered": 0,
   "refused": [],
   "refused_n": 0,
-  "requested": 7,
-  "seconds": 84,
+  "requested": 501,
+  "seconds": 597,
   "stopped": ""
  }
 }

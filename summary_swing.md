@@ -1,10 +1,10 @@
-# 📈 Swing scan - Thu 29 Oct 2026, 4:49 PM IST
+# 📈 Swing scan - Fri 30 Oct 2026, 7:29 AM IST
 
 *Based on the close of Thu 29 Oct 2026*
 
-**Market:** 🧭 🟡 Sideways / mixed · Nifty +0.9% today · global supportive
+**Market:** 🧭 🟡 Sideways / mixed · Nifty +0.9% last session · global hostile
 
-**Breadth:** 21% of liquid stocks are above their 50-day average (weak - use half size)
+**Breadth:** 20% of liquid stocks are above their 50-day average (weak - use half size)
 
 *Funnel: 495 stocks checked → 8 fresh breakouts + 24 about to break → 19 in the top half by quality → 0 listed, 19 already on the list*
 
@@ -12,24 +12,18 @@
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
 | - | No new pick | - | - | - | - | - | - |
 
-Already on your list (not repeated): ACUTAAS, ADANIPORTS, ANANDRATHI, BHARTIARTL, BSE, COFORGE, DIVISLAB, DLF, DRREDDY, ETERNAL, GESHIP, INDHOTEL, INDUSTOWER, KOTAKBANK, LAURUSLABS, NYKAA, PNB, PVRINOX, SONACOMS
+Already on your list (not repeated): ACUTAAS, ADANIPORTS, ANANDRATHI, BHARTIARTL, BSE, COFORGE, DIVISLAB, DLF, DRREDDY, ETERNAL, GESHIP, INDHOTEL, KOTAKBANK, LAURUSLABS, NYKAA, PNB, PVRINOX, SONACOMS, INDUSTOWER
 
 ## Trades already on your list
 
 Your list
-• INDUSTOWER - buy-stop expired; no trade
-• CASTROLIND - buy-stop expired; no trade
-• KOTAKBANK - buy-stop filled at 454.05
-• GESHIP - buy-stop filled at 1,586.20
-• NYKAA - buy-stop filled at 350.25
-• DLF - buy-stop filled at 692.45
-Open - current stops (12) · ↑ = raised today
+Open - current stops (12)
 ADANIPORTS 1,741.30 · SONACOMS 776.26
 GESHIP 1,466.43 · NYKAA 321.82
 ACUTAAS 3,501.93 · DLF 649.84
 LAURUSLABS 1,939.14 · KOTAKBANK 427.39
 ANANDRATHI 2,145.10 · INDHOTEL 727.86
-DRREDDY 1,195.28↑ · PVRINOX 1,301.35
+DRREDDY 1,195.28 · PVRINOX 1,301.35
 Buy-stops still waiting (10): GLAND, ETERNAL, PNB, BHARTIARTL, BSE, DIVISLAB, APLAPOLLO, IPCALAB, COFORGE, TECHM
 
 ---

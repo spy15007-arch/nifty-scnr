@@ -1,23 +1,17 @@
-📈 <b>Swing scan</b> · Thu 29 Oct · today's close
-🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +0.9% today · global supportive
-📊 Breadth 21% (stocks above their 50-day average) - <b>weak market: half size</b>
+📈 <b>Swing scan</b> · Fri 30 Oct · close of Thu 29 Oct
+🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +0.9% last session · global hostile
+📊 Breadth 20% (stocks above their 50-day average) - <b>weak market: half size</b>
 
 <b>No new pick.</b> 495 stocks checked, 32 in a breakout setup, 19 passed the quality filter - all already on your list.
 
 📒 <b>Your list</b>
-• <b>INDUSTOWER</b> - buy-stop expired; no trade
-• <b>CASTROLIND</b> - buy-stop expired; no trade
-• <b>KOTAKBANK</b> - buy-stop filled at 454.05
-• <b>GESHIP</b> - buy-stop filled at 1,586.20
-• <b>NYKAA</b> - buy-stop filled at 350.25
-• <b>DLF</b> - buy-stop filled at 692.45
-<b>Open - current stops (12)</b> · ↑ = raised today
+<b>Open - current stops (12)</b>
 ADANIPORTS 1,741.30 · SONACOMS 776.26
 GESHIP 1,466.43 · NYKAA 321.82
 ACUTAAS 3,501.93 · DLF 649.84
 LAURUSLABS 1,939.14 · KOTAKBANK 427.39
 ANANDRATHI 2,145.10 · INDHOTEL 727.86
-DRREDDY 1,195.28↑ · PVRINOX 1,301.35
+DRREDDY 1,195.28 · PVRINOX 1,301.35
 <b>Buy-stops still waiting (10):</b> GLAND, ETERNAL, PNB, BHARTIARTL, BSE, DIVISLAB, APLAPOLLO, IPCALAB, COFORGE, TECHM
 
 🧾 <i>Record since 21 Oct: no trade closed yet</i>
