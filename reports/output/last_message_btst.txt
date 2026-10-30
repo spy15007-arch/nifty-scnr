@@ -1,8 +1,26 @@
-🌙 <b>BTST scan</b> · Fri 30 Oct · close of Thu 29 Oct
-🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +0.9% last session · global hostile
+🌙 <b>BTST scan</b> · Fri 30 Oct, 2:01 PM · live prices
+🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +0.3% today · global hostile
 📊 Breadth 20% (stocks above their 50-day average) - <b>weak market: half size</b>
 
-<b>No new pick.</b> 495 stocks checked, 32 in a breakout setup, 19 passed the quality filter - all already on your list.
+ℹ️ Quick check of last night's 100-stock watchlist (29 Oct close) with live quotes; breadth is as of that close
+
+<b>BUY NOW</b> (near the close, only if it still holds the breakout level)
+
+<b>1. ATHERENERG</b> 🔥 Fresh breakout (first close above the 50-day high) · Quality 65/100
+Buy near <b>1,758.50</b> · up 5.7% today on 2.8x volume
+Stop <b>1,566.50</b> (-10.9%) · trail 21.8%
+strong 12-mo return · near 52-wk high · delivery ~36%
+⚠️ 200-day trend rising, but already spiked 21% before today - buy on a pull-back or in continuation
+
+<b>BUY-STOP ORDERS</b> (GTT / stop-limit, valid 5 sessions)
+
+<b>2. ZYDUSLIFE</b> 👀 About to break out (1.4% below the 50-day high) · Quality 67/100 · Pharma
+Buy at <b>1,251.40</b> · skip if it opens above 1,288.90
+Stop <b>1,164.30</b> (-7.0%) · trail 13.9%
+near 52-wk high · low volatility · delivery ~52%
+⚠️ 200-day trend rising, but already spiked 9% in 5 days - buy on a pull-back or in continuation
+
++19 more qualify but are already on your list.
 
 🧾 <i>Record since 21 Oct: no trade closed yet</i>
 ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. A ranked shortlist, not a guarantee.</i>
