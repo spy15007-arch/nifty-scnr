@@ -16,9 +16,27 @@ on:
         required: true
         type: choice
         options:
-          - swing  
+          - swing
           - btst
         default: 'swing'
+      data_source:
+        description: 'backtest only: broker = Angel One daily bars (about 3 years, uses the broker, so do not run it while a scan is running); yahoo = Yahoo Finance (10+ years, split-adjusted, never touches the broker)'
+        required: false
+        type: choice
+        options:
+          - broker
+          - yahoo
+        default: 'broker'
+      test_sessions:
+        description: 'backtest only: how many of the latest sessions to replay (broker default 250; the yahoo run replays everything it has)'
+        required: false
+        type: string
+        default: ''
+      lookback_sessions:
+        description: 'backtest only, broker only: daily bars fetched per stock'
+        required: false
+        type: string
+        default: '700'
 
 jobs:
   run:
@@ -60,6 +78,9 @@ jobs:
           ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
           ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
           ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
+          TRADING_BACKTEST_SOURCE: ${{ inputs.data_source }}
+          TRADING_BACKTEST_DAYS: ${{ inputs.test_sessions }}
+          TRADING_BACKTEST_LOOKBACK: ${{ inputs.lookback_sessions }}
         run: python main.py ${{ inputs.command }} --calibrate-mode ${{ inputs.scan_mode }}
 
       - name: Sync and Commit report back to repo

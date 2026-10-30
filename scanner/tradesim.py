@@ -9,6 +9,12 @@ THE PLAN (the one validated on 7 years of real NSE data, see reports/evidence/)
                `valid_sessions` sessions. If the stock opens above the trigger
                you pay the open; if it gaps more than `max_chase` beyond the
                trigger the trade is skipped (you would be chasing).
+      "limit": RESEARCH ONLY (never used by the live scan): a buy-limit order
+               BELOW the market at `trigger` = waiting for a pull-back. It is
+               live for `valid_sessions` sessions and fills when the day's low
+               touches it (at the limit, or at the open if the stock opens
+               below it). Used by the back-test to measure whether waiting for
+               a pull-back beats buying the breakout.
   * Stop     fill x (1 - stop_mult x ATR%)                  (default 2.5 ATR)
   * Trail    highest close since entry x (1 - trail_mult x ATR%), never lowered
              (default 5 ATR). The stop in force is the higher of the two.
@@ -46,8 +52,8 @@ _NAN = float("nan")
 
 @dataclass
 class TradePlan:
-    entry_mode: str                     # "close" or "stop"
-    trigger: float                      # close-mode: the price paid; stop-mode: the buy-stop price
+    entry_mode: str                     # "close", "stop" or (research only) "limit"
+    trigger: float                      # close-mode: the price paid; stop-mode: the buy-stop price; limit-mode: the buy-limit price
     atr_pct: float                      # ATR(14) / close on the signal bar, as a fraction (0.03 = 3%)
     stop_mult: float = config.STOP_ATR_MULT
     trail_mult: float = config.TRAIL_ATR_MULT
@@ -96,7 +102,7 @@ def new_state(plan: TradePlan) -> TradeState:
         st = TradeState(status=OPEN, sessions=0, fill_n=0)
         _arm(plan, st, plan.trigger, plan.trigger)
         return st
-    if plan.entry_mode == "stop":
+    if plan.entry_mode in ("stop", "limit"):
         return TradeState(status=PENDING)
     raise ValueError(f"unknown entry_mode {plan.entry_mode!r}")
 
@@ -117,6 +123,21 @@ def step(plan: TradePlan, st: TradeState, o: float, h: float, l: float, c: float
     if st.status in (CLOSED, UNFILLED):
         return st
     st.sessions += 1
+
+    # ---- waiting for the buy-limit (a pull-back) to be touched: research only ----
+    if st.status == PENDING and plan.entry_mode == "limit":
+        if l <= plan.trigger:
+            px = o if o <= plan.trigger else plan.trigger     # opened below the limit: you pay the (better) open
+            st.status = OPEN
+            st.fill_n = st.sessions
+            _arm(plan, st, px, c)
+            if l <= st.init_stop:       # pessimistic: filled and stopped out the same day
+                return _close(st, st.init_stop, "same_day_stop")
+            return st
+        if st.sessions >= plan.valid_sessions:
+            st.status = UNFILLED
+            st.exit_reason = "expired"
+        return st
 
     # ---- waiting for the buy-stop to trigger ---------------------------------
     if st.status == PENDING:

@@ -669,21 +669,44 @@ def cmd_calibrate(scan_mode: str = "swing") -> int:
     return 0
 
 
-def cmd_backtest(scan_mode: str = "swing", test_days: int = 250) -> int:
+def cmd_backtest(scan_mode: str = "swing", test_days: int | None = None) -> int:
     """
-    Replays today's selection rule over the recent past on the bars Angel One returns, with the same trade
-    simulator the live scoreboard uses. (Price-only quality score: delivery history is not available here.)
+    Replays today's selection rule over the past on daily bars, with the same trade simulator the live scoreboard uses.
+    (Price-only quality score: delivery history is not available here.)
+
+    Settings come from the environment (the Backtest & Calibrate workflow sets them):
+      TRADING_BACKTEST_SOURCE   "broker" (default: Angel One, about 3 years, not split-adjusted) or "yahoo" (Yahoo Finance, 10+ years,
+                                split-adjusted, no broker needed - it never touches the broker, so it cannot disturb a scan)
+      TRADING_BACKTEST_DAYS     how many of the latest sessions to replay (default 250; the Yahoo run replays everything it has)
+      TRADING_BACKTEST_LOOKBACK bars to fetch per stock from the broker (default 700)
     """
     from backtest.engine import run_backtest, summarize_backtest, write_backtest_report
-    store = _get_store()
+    source = (os.getenv("TRADING_BACKTEST_SOURCE") or "broker").strip().lower()
+    test_days = int(test_days or os.getenv("TRADING_BACKTEST_DAYS") or (4000 if source == "yahoo" else 250))
     universe = _load_universe()
-    bars, info = _fetch(store, universe, 700, None, cap_seconds=5400)
+    note = ""
+    if source == "yahoo":
+        from data.yahoo_bars import fetch_yahoo_bars
+        bars, rep = fetch_yahoo_bars(universe, start=os.getenv("TRADING_BACKTEST_START") or "2015-06-01")
+        _ensure_report_directories()
+        with open("reports/output/research_fetch_yahoo.json", "w", encoding="utf-8") as f:
+            json.dump(rep, f, indent=1, ensure_ascii=False)
+        note = (f"*Data: Yahoo Finance daily bars, split-adjusted, {rep.get('first_bar', '')} to {rep.get('last_bar', '')}; "
+                f"{rep.get('usable', 0)} of {rep.get('asked', 0)} NIFTY 500 stocks had usable history. The universe is TODAY's NIFTY 500, "
+                f"so stocks that left the index or were delisted are missing (past results look better than they would have at the time). "
+                f"Price-only quality score; yahoo volume may not be split-adjusted.*")
+        tag = "yahoo"
+    else:
+        lookback = int(os.getenv("TRADING_BACKTEST_LOOKBACK") or 700)
+        store = _get_store()
+        bars, info = _fetch(store, universe, lookback, None, cap_seconds=5400)
+        tag = ""
     if not bars:
         logger.error("No price data was loaded - nothing to backtest")
         return 1
     trades = run_backtest(bars, scan_mode=scan_mode, test_days=test_days)
     stats = summarize_backtest(trades)
-    path = write_backtest_report(trades, stats, scan_mode, n_stocks=len(bars))
+    path = write_backtest_report(trades, stats, scan_mode, n_stocks=len(bars), tag=tag, data_note=note)
     logger.info(f"Backtest report written to {path}")
     logger.info(f"Summary: {stats}")
     return 0

@@ -33,11 +33,14 @@ import pandas as pd
 import config
 from scanner import footprint as fp
 from scanner import tradesim as ts
-from scanner.pipeline import MAX_RISK_PCT, tick_up
+from scanner.pipeline import MAX_RISK_PCT, tick_down, tick_up
 
 logger = logging.getLogger(__name__)
 
 VOID_GAP = 0.35
+# RESEARCH: pull-back entries tried for EVERY signal next to the real buy-stop entry, to measure whether waiting for a dip beats buying
+# the breakout. (column prefix, ATRs below the trigger the buy-limit sits, sessions the order stays live). They change nothing else.
+PULLBACKS = (("pb1", 1.0, 5), ("pb2", 2.0, 10))
 _NEED = ["close", "high", "turn20", "piv50", "piv_incl", "gain1d", "close_pos", "rv15", "dist_hi", "sma200_chg",
          "ret252", "atr_pct", "ema21_x", "ret5", "sma50", "sma200"]
 
@@ -85,6 +88,28 @@ def _simulate(plan: ts.TradePlan, d: pd.DataFrame, pos: int):
     oc = ts.outcome(plan, st, mark_px=last_close)
     exit_pos = pos + st.exit_n if st.status == ts.CLOSED else None
     return st, oc, exit_pos, False
+
+
+def _research_columns(feats: pd.DataFrame, sym: str, su: dict, stats_t: dict, breadth: dict) -> dict:
+    """
+    What the stock had done BEFORE the signal, recorded with every trade so the result can be sliced afterwards (research only; nothing
+    here changes a trade). `run_up` is the gain over the 5 sessions before the signal session for a fresh breakout (its own session IS
+    the signal) and the full 5-session gain otherwise - exactly what the card's "already spiked" warning measures; `z_run_up` is that
+    gain in standard deviations above the average stock's 5-day gain on the signal day.
+    """
+    def val(col: str) -> float:
+        v = feats.at[sym, col]
+        return float(v) if pd.notna(v) else float("nan")
+
+    ret5, gain1d = val("ret5"), val("gain1d")
+    run_up = fp.gain_before_latest_session(ret5, gain1d) if su["setup"] == "fresh" else ret5
+    b50 = breadth.get("breadth50") if breadth else None
+    out = {
+        "ret5": ret5, "gain1d": gain1d, "run_up": run_up, "z_run_up": fp.z_score(run_up, stats_t, "ret5"),
+        "sma200_chg": val("sma200_chg"), "ret252": val("ret252"), "dist_hi": val("dist_hi"), "ema21_x": val("ema21_x"),
+        "rv15": val("rv15"), "ext_pct": float(su["ext_pct"]), "breadth50": float(b50) if b50 is not None and math.isfinite(b50) else float("nan"),
+    }
+    return {k: (round(v, 5) if isinstance(v, float) and math.isfinite(v) else v) for k, v in out.items()}
 
 
 def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, cooldown: int | None = None,
@@ -139,12 +164,14 @@ def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, coo
         if ok.sum() < 50:
             continue
         js = np.nonzero(ok)[0]
+        if int(np.isfinite(M["ret252"][ti][js]).sum()) < 50:
+            continue                    # too early in the data: the score's 12-month look-back is not there yet (a long Yahoo history starts here)
         if top_n_liquid and len(js) > top_n_liquid:
             js = js[np.argsort(-M["turn20"][ti][js], kind="stable")[:top_n_liquid]]
             js.sort()
         feats = pd.DataFrame({k: M[k][ti][js] for k in _NEED}, index=[syms[j] for j in js])
         dl_t = pd.Series(DL[ti][js], index=feats.index) if np.isfinite(DL[ti][js]).any() else None
-        scored, _ = fp.score_universe(feats, dl_t, min_delivery_coverage=config.DELIVERY_MIN_COVERAGE)
+        scored, stats_t = fp.score_universe(feats, dl_t, min_delivery_coverage=config.DELIVERY_MIN_COVERAGE)
         breadth = fp.market_breadth(feats)
         regime = fp.regime_label(breadth.get("breadth50"))
         near = (feats["close"] >= (1.0 - config.PRIMED_NEAR_PCT) * feats["piv_incl"]).to_numpy()
@@ -196,6 +223,12 @@ def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, coo
             if oc is not None and not void:
                 rec["net"], rec["R"] = oc["net"], oc["R"]
                 rec["peak_R"] = ts.peak_r(plan, st)
+            rec.update(_research_columns(feats, sym, su, stats_t, breadth))
+            for name, atrs, valid in PULLBACKS:
+                pb = ts.TradePlan("limit", tick_down(plan.trigger * (1.0 - atrs * atr)), atr, valid_sessions=valid)
+                pst, poc, _, pvoid = _simulate(pb, d, pos)
+                rec[f"{name}_status"] = "VOID" if pvoid else pst.status
+                rec[f"{name}_net"], rec[f"{name}_R"] = (poc["net"], poc["R"]) if (poc is not None and not pvoid) else (np.nan, np.nan)
             # block the symbol while the trade is unfinished (the live scan does the same)
             if void:
                 busy_until[sym] = ti
@@ -266,14 +299,103 @@ def _table(title: str, groups: dict) -> list[str]:
     return lines + [""]
 
 
+def _pullback_table(df: pd.DataFrame) -> list[str]:
+    """
+    Buy-stop at the trigger (what the cards say) versus waiting for a pull-back, for the SAME signals: only signals that are finished
+    in every entry style (the trade closed, or the order expired / was skipped) are counted, so no style carries unfinished trades or
+    a head start. The last column is the average result per signal, counting an order that never filled as 0.
+    """
+    variants = [("", "Buy-stop at the trigger (what the cards say)")] + [
+        (name, f"Buy-limit {atrs:g} ATR below the trigger, live {valid} sessions") for name, atrs, valid in PULLBACKS]
+
+    def col(prefix: str, name: str) -> str:
+        return f"{prefix}_{name}" if prefix else name
+
+    status_cols = [col(p, "status") for p, _ in variants]
+    if df.empty or any(c not in df.columns for c in status_cols):
+        return []
+    sub = df[df[status_cols].isin(["CLOSED", "UNFILLED"]).all(axis=1)]
+    n_sig = int(len(sub))
+    if n_sig == 0:
+        return []
+    lines = ["| Entry | Signals | Filled | Avg after costs (filled) | Avg R | Profit factor | Per signal (unfilled = 0) |",
+             "| :-- | --: | --: | --: | --: | --: | --: |"]
+    for prefix, label in variants:
+        closed = sub[col(prefix, "status")] == "CLOSED"
+        net, rr = sub.loc[closed, col(prefix, "net")].to_numpy(float), sub.loc[closed, col(prefix, "R")].to_numpy(float)
+        s = _group_stats(net, rr)
+        if not s.get("n"):
+            lines.append(f"| {label} | {n_sig} | 0% | - | - | - | +0.00% |")
+            continue
+        pf = "inf" if math.isinf(s["profit_factor"]) else f"{s['profit_factor']:.2f}"
+        lines.append(f"| {label} | {n_sig} | {s['n'] / n_sig:.0%} | {s['avg_net']:+.2%} | {s['avg_R']:+.2f} | {pf} | {float(net.sum()) / n_sig:+.2%} |")
+    return lines + [""]
+
+
+def research_tables(trades: list[dict]) -> list[str]:
+    """
+    Extra tables for the research columns (empty when the trades do not carry them or there are too few closed trades):
+    what the stock had done before the signal, whether the 200-day trend was rising, and whether waiting for a pull-back paid.
+    """
+    df = pd.DataFrame(trades)
+    if df.empty or "z_run_up" not in df.columns:
+        return []
+    closed = df[df["status"] == "CLOSED"].copy()
+    if len(closed) < 30:
+        return []
+
+    def groups(frame: pd.DataFrame, parts: list[tuple[str, pd.Series]]) -> dict:
+        out = {}
+        for label, mask in parts:
+            sub = frame[mask.reindex(frame.index, fill_value=False)]
+            if len(sub):
+                out[label] = _group_stats(sub["net"].to_numpy(float), sub["R"].to_numpy(float))
+        return out
+
+    z, gain = closed["z_run_up"], closed["run_up"]
+    spiked_now = (z >= config.SPIKE_5D_Z) & (gain >= config.SPIKE_5D_MIN)
+    spiked_old = (z >= 1.28) & (gain >= 0.05)
+    t = closed["sma200_chg"]
+    rising = t >= config.TREND_200D_RISING_MIN
+    lines = ["## Research: does it matter what the stock did before the signal?", "",
+             "z = the stock's 5-day gain before the signal, in standard deviations above the average stock's 5-day gain that day "
+             "(a fresh breakout's own day is left out).", ""]
+    lines += _table("Run-up before the signal (z)", groups(closed, [
+        ("a) below 0 (weaker than the average stock)", z < 0), ("b) 0 to 0.5", (z >= 0) & (z < 0.5)), ("c) 0.5 to 1", (z >= 0.5) & (z < 1)),
+        ("d) 1 to 1.5", (z >= 1) & (z < 1.5)), ("e) 1.5 to 2.5", (z >= 1.5) & (z < 2.5)), ("f) 2.5 and up", z >= 2.5)]))
+    lines += _table(f"The card's warning: gain at least {config.SPIKE_5D_MIN:.0%} and z at least {config.SPIKE_5D_Z:g} (current) versus 5% and 1.28 (before)", groups(closed, [
+        ("a) flagged by the current cut-offs", spiked_now), ("b) not flagged by the current cut-offs", ~spiked_now),
+        ("c) flagged by the old cut-offs", spiked_old), ("d) not flagged by the old cut-offs", ~spiked_old)]))
+    lines += _table(f"200-day trend (change of the 200-day average over 20 sessions; 'rising' = at least {config.TREND_200D_RISING_MIN:.1%})", groups(closed, [
+        ("a) falling (below 0)", t < 0), ("b) 0 to 0.5%", (t >= 0) & (t < 0.005)), ("c) 0.5% to 1%", (t >= 0.005) & (t < 0.01)),
+        ("d) 1% to 2%", (t >= 0.01) & (t < 0.02)), ("e) 2% and up", t >= 0.02)]))
+    lines += _table("Spike and trend together", groups(closed, [
+        ("a) rising trend, not spiked", rising & ~spiked_now), ("b) rising trend, already spiked", rising & spiked_now),
+        ("c) trend not rising, not spiked", ~rising & ~spiked_now), ("d) trend not rising, already spiked", ~rising & spiked_now)]))
+    lines += _table("Fresh breakout or about to break out, spiked or not", groups(closed, [
+        ("a) fresh, not spiked", (closed["setup"] == "fresh") & ~spiked_now), ("b) fresh, already spiked", (closed["setup"] == "fresh") & spiked_now),
+        ("c) about to break, not spiked", (closed["setup"] == "primed") & ~spiked_now),
+        ("d) about to break, already spiked", (closed["setup"] == "primed") & spiked_now)]))
+    if "pb1_status" in df.columns:
+        flag_all = (df["z_run_up"] >= config.SPIKE_5D_Z) & (df["run_up"] >= config.SPIKE_5D_MIN)
+        for title, part in (("Waiting for a pull-back, for the stocks the card flags as already spiked", df[flag_all]),
+                            ("Waiting for a pull-back, for the stocks that were not flagged", df[~flag_all])):
+            table = _pullback_table(part)
+            if table:
+                lines += [f"### {title}", ""] + table
+    return lines
+
+
 def write_backtest_report(trades: list[dict], stats: dict, scan_mode: str, n_stocks: int = 0,
-                          out_dir: str = "./reports/output") -> str:
+                          out_dir: str = "./reports/output", tag: str = "", data_note: str = "") -> str:
     os.makedirs(out_dir, exist_ok=True)
     stamp = datetime.utcnow().strftime("%Y-%m-%d")
-    md_path = f"{out_dir}/backtest_{scan_mode}_{stamp}.md"
-    csv_path = f"{out_dir}/backtest_{scan_mode}_{stamp}_trades.csv"
+    name = f"backtest_{scan_mode}_{tag}_{stamp}" if tag else f"backtest_{scan_mode}_{stamp}"
+    md_path = f"{out_dir}/{name}.md"
+    csv_path = f"{out_dir}/{name}_trades.csv"
     pd.DataFrame(trades).to_csv(csv_path, index=False)
-    lines = [f"# Backtest - {scan_mode} rule, replayed on broker daily bars ({stamp})", "",
+    lines = [f"# Backtest - {scan_mode} rule, replayed on {'Yahoo' if tag == 'yahoo' else 'broker'} daily bars ({stamp})", "",
+             *([data_note, ""] if data_note else []),
              f"{n_stocks} stocks, {stats.get('signals', 0)} signals: {stats.get('closed', 0)} closed, {stats.get('open', 0)} still open, "
              f"{stats.get('pending', 0)} still waiting for the buy-stop, {stats.get('unfilled', 0)} never triggered, "
              f"{stats.get('void', 0)} dropped (suspected split/bonus gap).", "",
@@ -281,6 +403,7 @@ def write_backtest_report(trades: list[dict], stats: dict, scan_mode: str, n_sto
     for title, key in (("By setup", "by_setup"), ("By market regime on the signal day", "by_regime"),
                        ("By quality percentile", "by_quality"), ("By year", "by_year")):
         lines += _table(title, stats.get(key, {}))
+    lines += research_tables(trades)
     lines += ["---",
               "Entry is a buy-stop at the trigger (valid 5 sessions), stop 2.5 ATR below the fill, trailing stop 5 ATR below the highest close, "
               "60-session time limit, 0.35% round-trip costs. Only decisions available at the signal day's close are used. "

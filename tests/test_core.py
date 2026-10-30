@@ -13,6 +13,7 @@ import os
 import shutil
 import sys
 import tempfile
+import types
 import unittest
 from datetime import date, datetime
 from html.parser import HTMLParser
@@ -133,6 +134,244 @@ class TradeSim(unittest.TestCase):
         p2, st2 = ts.plan_from_dict(rows), ts.state_from_dict(rows)
         self.assertEqual((p2.entry_mode, p2.valid_sessions), (p.entry_mode, p.valid_sessions))
         self.assertEqual((st2.status, st2.fill_n), (st.status, st.fill_n))
+
+
+class PullbackOrder(unittest.TestCase):
+    """The research-only 'limit' entry (waiting for a pull-back): it must behave like a real buy-limit and leave the live modes alone."""
+
+    @staticmethod
+    def _plan(limit=95.0, atr=0.03, **kw):
+        return ts.TradePlan("limit", limit, atr, **kw)
+
+    def test_fills_at_the_limit_when_the_low_touches_it(self):
+        p = self._plan()
+        st = ts.replay(p, [(100.0, 101.0, 96.0, 99.0), (99.0, 99.0, 94.0, 96.0)])              # day 1 stays above, day 2 dips through 95
+        self.assertEqual((st.status, st.fill_n, st.fill_px), (ts.OPEN, 2, 95.0))
+        self.assertAlmostEqual(st.init_stop, 95.0 * (1 - p.risk_pct))
+
+    def test_an_open_below_the_limit_pays_the_better_price(self):
+        st = ts.replay(self._plan(), [(93.0, 96.0, 92.0, 95.0)])
+        self.assertEqual((st.status, st.fill_px), (ts.OPEN, 93.0))
+
+    def test_expires_when_the_price_never_comes_down(self):
+        p = self._plan(valid_sessions=3)
+        st = ts.replay(p, [(100, 102, 97, 101)] * 5)
+        self.assertEqual((st.status, st.exit_reason, st.fill_n), (ts.UNFILLED, "expired", -1))
+        self.assertIsNone(ts.outcome(p, st))                                                      # never held a position
+
+    def test_filled_and_stopped_out_the_same_day_is_booked_as_a_loss(self):
+        p = self._plan()
+        st = ts.replay(p, [(97.0, 97.0, 80.0, 82.0)])                                            # touches 95 and keeps falling through the stop
+        self.assertEqual((st.status, st.exit_reason), (ts.CLOSED, "same_day_stop"))
+        self.assertLess(ts.outcome(p, st)["net"], 0)
+
+    def test_a_gap_down_far_below_the_limit_is_still_bought_at_the_open(self):
+        """The 'skip if it gaps too far' rule belongs to buy-stops (chasing). A buy-limit simply pays the lower open."""
+        st = ts.replay(self._plan(), [(80.0, 85.0, 79.0, 84.0)])
+        self.assertEqual((st.status, st.fill_px), (ts.OPEN, 80.0))
+
+    def test_after_the_fill_it_is_managed_exactly_like_any_other_trade(self):
+        p = self._plan(max_hold=5)
+        st = ts.replay(p, [(97, 98, 94, 96)] + [(96, 97, 95.5, 96.5)] * 6)
+        self.assertEqual((st.status, st.exit_reason), (ts.CLOSED, "time"))
+        self.assertGreaterEqual(st.exit_n - st.fill_n, 5)
+
+    def test_the_live_modes_are_unchanged(self):
+        stop = ts.TradePlan("stop", 100.0, 0.03)
+        self.assertEqual(ts.replay(stop, [(99, 101, 98, 100.5)]).fill_px, 100.0)                 # a buy-stop still fills when the HIGH reaches it
+        self.assertEqual(ts.replay(stop, [(99, 99.5, 94, 95)]).status, ts.PENDING)               # ... and not when the price only falls
+        self.assertEqual(ts.new_state(ts.TradePlan("close", 100.0, 0.03)).status, ts.OPEN)
+        with self.assertRaises(ValueError):
+            ts.new_state(ts.TradePlan("market", 100.0, 0.03))
+
+
+def fake_yfinance(frames: dict, calls: list):
+    """A stand-in for the `yfinance` module: Ticker(t).history(**kw) hands back frames[t] (or raises it, when it is an Exception)."""
+    class Ticker:
+        def __init__(self, ticker):
+            self.ticker = ticker
+
+        def history(self, **kw):
+            calls.append((self.ticker, kw))
+            got = frames[self.ticker]
+            if isinstance(got, Exception):
+                raise got
+            return got
+    return types.SimpleNamespace(Ticker=Ticker)
+
+
+class YahooBars(unittest.TestCase):
+    """The research data loader (used only by the back-test): the tidy-up rules and the fetch loop, with a fake Yahoo."""
+
+    @staticmethod
+    def raw(n=5, end="2026-10-28", cols=("Open", "High", "Low", "Close", "Volume")):
+        idx = pd.bdate_range(end=end, periods=n).tz_localize("Asia/Kolkata")
+        base = np.linspace(100.0, 104.0, n)
+        data = {"Open": base, "High": base * 1.01, "Low": base * 0.99, "Close": base * 1.002, "Volume": np.full(n, 1e6)}
+        return pd.DataFrame({c: data[c] for c in cols}, index=idx)
+
+    def test_symbol_to_ticker(self):
+        from data import yahoo_bars as yb
+        self.assertEqual(yb.yahoo_ticker("reliance"), "RELIANCE.NS")
+        self.assertEqual(yb.yahoo_ticker(" M&M "), "M&M.NS")
+        self.assertEqual(yb.yahoo_ticker("BAJAJ-AUTO"), "BAJAJ-AUTO.NS")
+
+    def test_tidy_gives_lower_case_columns_oldest_first(self):
+        from data import yahoo_bars as yb
+        d = yb.tidy(self.raw().iloc[::-1], now_ist=at(2026, 10, 30, 12, 0))                      # handed over newest first
+        self.assertEqual(list(d.columns), ["open", "high", "low", "close", "volume"])
+        self.assertEqual(len(d), 5)
+        self.assertTrue(d.index.is_monotonic_increasing)
+
+    def test_tidy_drops_todays_forming_bar_until_the_evening(self):
+        from data import yahoo_bars as yb
+        raw = self.raw(end="2026-10-30")                                                         # the last row is Friday the 30th
+        self.assertEqual(len(yb.tidy(raw, now_ist=at(2026, 10, 30, 12, 0))), 4)                  # market still open: that bar is forming
+        self.assertEqual(len(yb.tidy(raw, now_ist=at(2026, 10, 30, 17, 5))), 5)                  # after the close it is a finished bar
+        self.assertEqual(len(yb.tidy(self.raw(end="2026-10-28"), now_ist=at(2026, 10, 30, 12, 0))), 5)   # an earlier day's bar stays
+
+    def test_tidy_drops_contradictory_missing_and_duplicate_rows(self):
+        from data import yahoo_bars as yb
+        raw = self.raw(n=6)
+        raw.iloc[2, raw.columns.get_loc("High")] = raw.iloc[2]["Low"] * 0.5                      # a high below the low
+        raw.iloc[3, raw.columns.get_loc("Close")] = np.nan                                       # no close
+        raw = pd.concat([raw, raw.iloc[[0]]])                                                    # the first day twice
+        d = yb.tidy(raw, now_ist=at(2026, 10, 30, 12, 0))
+        self.assertEqual(len(d), 4)
+        self.assertTrue(d.index.is_unique)
+
+    def test_tidy_gives_nothing_for_empty_or_incomplete_tables(self):
+        from data import yahoo_bars as yb
+        self.assertIsNone(yb.tidy(None))
+        self.assertIsNone(yb.tidy(pd.DataFrame()))
+        self.assertIsNone(yb.tidy(self.raw(cols=("Open", "High", "Low", "Close"))))              # no volume column
+
+    def test_fetch_loop_reports_what_it_got(self):
+        from data import yahoo_bars as yb
+        frames = {"GOOD.NS": self.raw(n=320), "SHORT.NS": self.raw(n=50), "GONE.NS": pd.DataFrame(), "BROKEN.NS": RuntimeError("yahoo is down")}
+        calls: list = []
+        with mock.patch.dict(sys.modules, {"yfinance": fake_yfinance(frames, calls)}), mock.patch.object(yb.time, "sleep", lambda s: None):
+            bars, rep = yb.fetch_yahoo_bars(["GOOD", "SHORT", "GONE", "BROKEN"], start="2016-01-01", pause=0, attempts=2)
+        self.assertEqual(list(bars), ["GOOD"])
+        self.assertEqual((rep["asked"], rep["usable"], rep["no_data_n"], rep["too_short_n"]), (4, 1, 2, 1))
+        self.assertEqual(sorted(rep["no_data"]), ["BROKEN", "GONE"])
+        self.assertTrue(any("RuntimeError" in msg for msg, _ in rep["errors"]), rep["errors"])
+        for _, kw in calls:                       # split-adjusted but not dividend-adjusted, daily, from the asked-for start
+            self.assertEqual((kw["start"], kw["interval"], kw["auto_adjust"]), ("2016-01-01", "1d", False))
+        self.assertEqual(sum(1 for t, _ in calls if t == "BROKEN.NS"), 2)                         # tried twice, then given up
+
+    def test_fetch_loop_stops_at_its_time_budget_and_says_so(self):
+        from data import yahoo_bars as yb
+        frames = {f"S{i}.NS": self.raw(n=320) for i in range(3)}
+        with mock.patch.dict(sys.modules, {"yfinance": fake_yfinance(frames, [])}), mock.patch.object(yb.time, "sleep", lambda s: None):
+            bars, rep = yb.fetch_yahoo_bars(["S0", "S1", "S2"], pause=0, max_seconds=-1)
+        self.assertEqual((len(bars), rep["stopped"]), (0, "time budget"))
+
+
+class ResearchStudy(unittest.TestCase):
+    """The extra columns and pull-back variants the back-test records for the 'already spiked' study. They must never change the real trades."""
+
+    @classmethod
+    def setUpClass(cls):
+        from backtest import engine
+        cls.engine = engine
+        cls.bars = make_market(n_stocks=100, n_bars=420, seed=3, plant=False)
+        cls.trades = engine.run_backtest(cls.bars, "swing", test_days=120)
+
+    @staticmethod
+    def _core(trades):
+        keys = ("symbol", "signal_date", "setup", "status", "fill_date", "exit_date", "exit_reason", "net", "R", "quality_pct")
+        def clean(x):
+            return "nan" if isinstance(x, float) and x != x else x
+        return [tuple(clean(t[k]) for k in keys) for t in trades]
+
+    def test_every_signal_carries_the_research_columns(self):
+        self.assertGreater(len(self.trades), 30)
+        need = {"run_up", "z_run_up", "ret5", "gain1d", "sma200_chg", "ret252", "breadth50",
+                "pb1_status", "pb1_net", "pb1_R", "pb2_status", "pb2_net", "pb2_R"}
+        for t in self.trades:
+            self.assertFalse(need - set(t), f"missing {need - set(t)} in {t}")
+
+    def test_the_extra_columns_do_not_change_the_real_trades(self):
+        with mock.patch.object(self.engine, "PULLBACKS", ()):
+            plain = self.engine.run_backtest(self.bars, "swing", test_days=120)
+        self.assertFalse(any("pb1_status" in t for t in plain))
+        self.assertEqual(self._core(plain), self._core(self.trades))
+
+    def test_run_up_is_what_the_card_measures(self):
+        """A fresh breakout leaves its own breakout day out of the run-up; a coiled stock uses its full 5-day gain."""
+        seen = set()
+        for t in self.trades:
+            if not (np.isfinite(t["ret5"]) and np.isfinite(t["gain1d"])):
+                continue
+            want = fp.gain_before_latest_session(t["ret5"], t["gain1d"]) if t["setup"] == "fresh" else t["ret5"]
+            self.assertAlmostEqual(t["run_up"], want, places=4)
+            seen.add(t["setup"])
+        self.assertTrue(seen, "no signal with a measurable run-up")
+
+    def test_the_replay_starts_only_when_a_year_of_history_exists(self):
+        """A long history's first year has no 12-month look-back; those sessions must not produce signals."""
+        everything = self.engine.run_backtest(self.bars, "swing", test_days=10_000)
+        first_full = pd.Timestamp(next(iter(self.bars.values())).index[252]).tz_localize(None).date().isoformat()
+        self.assertTrue(everything)
+        self.assertGreaterEqual(min(t["signal_date"] for t in everything), first_full)
+
+    def test_the_pullback_variants_are_scored_on_the_same_risk_as_the_real_trade(self):
+        """R = net return / initial risk, and the buy-limit plans use the signal's own ATR - so R * risk_pct must give the net return back."""
+        held = 0
+        for t in self.trades:
+            for name, _, _ in self.engine.PULLBACKS:
+                if t[f"{name}_status"] in ("CLOSED", "OPEN"):                      # an open trade is marked at the latest close
+                    held += 1
+                    self.assertAlmostEqual(t[f"{name}_R"] * t["risk_pct"], t[f"{name}_net"], delta=0.0005)
+                else:
+                    self.assertFalse(np.isfinite(t[f"{name}_net"]), t)          # an order that never held a position has no result
+        self.assertGreater(held, 10)
+
+    def test_tables_render_in_a_readable_order(self):
+        lines = self.engine.research_tables(self.trades)
+        text = "\n".join(lines)
+        for head in ("Run-up before the signal (z)", "The card's warning", "200-day trend", "Spike and trend together"):
+            self.assertIn(head, text)
+        title = next(i for i, l in enumerate(lines) if "Run-up before the signal (z)" in l)
+        labels = []
+        for l in lines[title + 4:]:                       # skip: title, blank, header, divider
+            if not l.startswith("| "):
+                break
+            labels.append(l.split("|")[1].strip()[:2])
+        self.assertEqual(labels, sorted(labels))
+        self.assertGreaterEqual(len(labels), 3)
+
+    def test_tables_stay_quiet_when_there_is_too_little_to_say(self):
+        self.assertEqual(self.engine.research_tables([]), [])
+        self.assertEqual(self.engine.research_tables(self.trades[:5]), [])
+        plain = [{k: v for k, v in t.items() if k != "z_run_up"} for t in self.trades]               # an old-style report without the columns
+        self.assertEqual(self.engine.research_tables(plain), [])
+
+    def test_the_pullback_table_compares_the_same_finished_signals(self):
+        def row(a, b, c):
+            """a, b, c = (status, net) for the buy-stop, pull-back 1 and pull-back 2."""
+            out = {}
+            for prefix, (status, net) in zip(("", "pb1_", "pb2_"), (a, b, c)):
+                out[f"{prefix}status"], out[f"{prefix}net"], out[f"{prefix}R"] = status, net, (net * 10 if net == net else np.nan)
+            return out
+        nan = float("nan")
+        df = pd.DataFrame([
+            row(("CLOSED", 0.10), ("CLOSED", 0.20), ("UNFILLED", nan)),
+            row(("UNFILLED", nan), ("UNFILLED", nan), ("CLOSED", -0.05)),
+            row(("OPEN", nan), ("CLOSED", 0.50), ("CLOSED", 0.50)),                    # not finished in every style: left out of all three
+            row(("VOID", nan), ("CLOSED", 0.50), ("CLOSED", 0.50)),                    # a suspected split gap: left out too
+        ])
+        lines = self.engine._pullback_table(df)
+        rows = {l.split("|")[1].strip(): [c.strip() for c in l.split("|")[2:-1]] for l in lines if l.startswith("| ") and "Signals" not in l and ":--" not in l}
+        self.assertEqual(len(rows), 3, lines)
+        stop, pb1, pb2 = rows["Buy-stop at the trigger (what the cards say)"], rows["Buy-limit 1 ATR below the trigger, live 5 sessions"], \
+            rows["Buy-limit 2 ATR below the trigger, live 10 sessions"]
+        self.assertEqual((stop[0], stop[1], stop[2], stop[5]), ("2", "50%", "+10.00%", "+5.00%"))     # 2 signals, 1 filled, 10% per filled, 5% per signal
+        self.assertEqual((pb1[0], pb1[1], pb1[2], pb1[5]), ("2", "50%", "+20.00%", "+10.00%"))
+        self.assertEqual((pb2[0], pb2[1], pb2[2], pb2[5]), ("2", "50%", "-5.00%", "-2.50%"))
+        self.assertEqual(self.engine._pullback_table(df.iloc[2:]), [])                   # nothing finished in every style -> no table
+        self.assertEqual(self.engine._pullback_table(pd.DataFrame()), [])
 
 
 class Session(unittest.TestCase):
@@ -1067,6 +1306,64 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertIn("Something Went Wrong", note)
         self.assertIn("(x440)", note)
         self.assertIn("None of the 501", self.M._partial_note({"loaded": 0, "requested": 501, "report": {}}))
+
+
+class ResearchRun(E2EHarness, unittest.TestCase):
+    """`main.py backtest`: the broker route is unchanged, and the Yahoo route never touches the broker."""
+
+    def _backtest(self, env):
+        with mock.patch.dict(os.environ, env), mock.patch.object(self.M, "_load_universe", lambda test_limit=None: list(self.bars)):
+            logging.disable(logging.CRITICAL)
+            try:
+                return self.M.main(["backtest", "--calibrate-mode", "swing"])
+            finally:
+                logging.disable(logging.NOTSET)
+
+    def test_yahoo_route_writes_the_report_and_never_touches_the_broker(self):
+        frames = {f"{sym}.NS": d.rename(columns=str.title) for sym, d in self.bars.items()}        # Open, High, Low, Close, Volume
+        calls: list = []
+
+        def no_broker():
+            raise AssertionError("the research run must not use the broker")
+
+        with mock.patch.dict(sys.modules, {"yfinance": fake_yfinance(frames, calls)}), \
+                mock.patch("data.yahoo_bars.time.sleep", lambda s: None), \
+                mock.patch.object(self.M, "_get_store", no_broker):
+            code = self._backtest({"TRADING_BACKTEST_SOURCE": "yahoo", "TRADING_BACKTEST_DAYS": "80"})
+        self.assertEqual(code, 0)
+        names = os.listdir("reports/output")
+        md = [n for n in names if n.startswith("backtest_swing_yahoo_") and n.endswith(".md")]
+        trades_csv = [n for n in names if n.startswith("backtest_swing_yahoo_") and n.endswith("_trades.csv")]
+        self.assertTrue(md and trades_csv, names)
+        rep = _load_json("reports/output/research_fetch_yahoo.json")
+        self.assertEqual((rep["source"], rep["asked"], rep["usable"]), ("yahoo", len(self.bars), len(self.bars)))
+        self.assertEqual(len(calls), len(self.bars))
+        self.assertTrue(all(kw["auto_adjust"] is False for _, kw in calls))
+        with open(f"reports/output/{md[0]}", encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn("Yahoo", text)
+        self.assertIn("TODAY's NIFTY 500", text)                                                   # the survivorship warning travels with the numbers
+        trades = pd.read_csv(f"reports/output/{trades_csv[0]}")
+        self.assertGreater(len(trades), 10)
+        self.assertLessEqual({"z_run_up", "run_up", "pb1_status", "pb2_status"}, set(trades.columns))
+
+    def test_the_broker_route_is_unchanged(self):
+        store = self._make_store(self.bars)
+        asked_yahoo = types.SimpleNamespace(Ticker=lambda t: (_ for _ in ()).throw(AssertionError("the broker route must not ask Yahoo")))
+        with mock.patch.object(self.M, "_get_store", lambda: store), mock.patch.dict(sys.modules, {"yfinance": asked_yahoo}):
+            code = self._backtest({"TRADING_BACKTEST_SOURCE": "", "TRADING_BACKTEST_DAYS": "60"})
+        self.assertEqual(code, 0)
+        names = os.listdir("reports/output")
+        self.assertTrue(any(n.startswith("backtest_swing_2") and n.endswith(".md") for n in names), names)
+        self.assertFalse(any("yahoo" in n for n in names), names)
+        self.assertEqual(set(store.symbols), set(self.bars))
+
+    def test_an_empty_yahoo_answer_fails_loudly_instead_of_writing_an_empty_report(self):
+        frames = {f"{sym}.NS": pd.DataFrame() for sym in self.bars}
+        with mock.patch.dict(sys.modules, {"yfinance": fake_yfinance(frames, [])}), mock.patch("data.yahoo_bars.time.sleep", lambda s: None):
+            code = self._backtest({"TRADING_BACKTEST_SOURCE": "yahoo"})
+        self.assertEqual(code, 1)
+        self.assertFalse([n for n in os.listdir("reports/output") if n.endswith(".md")])
 
 
 if __name__ == "__main__":
