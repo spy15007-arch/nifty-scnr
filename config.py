@@ -83,11 +83,12 @@ WEAK_BREADTH = 0.40                  # share of stocks above their 50-day averag
 HEALTHY_BREADTH = 0.60
 COOLDOWN_SESSIONS = 15               # a stock that was picked is not picked again for this many sessions
 
-# Warning on a pick card: "already spiked in the last 5 days - buy on a pull-back or in continuation".
+# Warning on a pick card: "already spiked X% in 5 days - buy on a pull-back or in continuation".
 # It only changes the wording of the message; the quality score already marks a 5-day spike down, and nothing is dropped.
-SPIKE_5D_Z = 1.28                    # the 5-day gain is at least this many standard deviations above the average stock's that day (about the top 10%) ...
-SPIKE_5D_MIN = 0.05                  # ... and at least this large in absolute terms (a 3% week is not a spike, even on a very quiet day)
-TREND_200D_RISING_MIN = 0.005        # "200-day trend rising": the 200-day average is at least this much (0.5%) above its level 20 sessions ago
+# Made stricter on 2026-10-30 at the user's request (weak market): the warning fires sooner and "rising" is harder to claim.
+SPIKE_5D_Z = 1.0                     # the gain is at least this many standard deviations above the average stock's 5-day gain that day (roughly the top sixth; was 1.28, the top tenth) ...
+SPIKE_5D_MIN = 0.04                  # ... and at least this large in absolute terms, so a 3% week is never a spike, even on a very quiet day (was 5%)
+TREND_200D_RISING_MIN = 0.01         # "200-day trend rising" is claimed only when the 200-day average is at least this much (1%) above its level 20 sessions ago (was 0.5%)
 
 # Delivery-% feed (end-of-day public data; only the lagged 20-day average is used)
 DELIVERY_MIN_COVERAGE = 0.60         # use delivery % in the score only if this share of the universe has it

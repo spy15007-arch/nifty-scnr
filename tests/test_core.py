@@ -271,10 +271,16 @@ class SpikeWarning(unittest.TestCase):
     """A stock that has ALREADY run up sharply is better bought on a pull-back or in continuation - the card says so."""
     PHRASE = "buy on a pull-back or in continuation"
     SU = {"ext_pct": -0.02, "above_pivot": False}
-    STATS = {"mean": {"ret5": 0.008}, "std": {"ret5": 0.046}}                  # the average stock's 5-day gain that day, and its spread
+    MEAN, STD = 0.008, 0.046                                                   # the average stock's 5-day gain that day, and its spread
+    STATS = {"mean": {"ret5": MEAN}, "std": {"ret5": STD}}
+    # Gains placed clearly on either side of the shipped cut-offs (config.SPIKE_5D_Z / SPIKE_5D_MIN), so that these tests keep
+    # passing when the cut-offs are re-tuned; the exact boundaries are checked separately in test_the_cut_offs.
+    SPIKY = max(config.SPIKE_5D_MIN, MEAN + config.SPIKE_5D_Z * STD) + 0.03    # clearly a spike
+    CALM = max(config.SPIKE_5D_MIN - 0.01, 0.0)                                # clearly not one (under the minimum gain)
+    RISING = config.TREND_200D_RISING_MIN + 0.02                               # clearly rising
 
     @staticmethod
-    def _f(ret5=0.079, sma200_chg=0.061, **kw):
+    def _f(ret5=SPIKY, sma200_chg=RISING, **kw):
         return {"ret5": ret5, "sma200_chg": sma200_chg, "gain1d": 0.01, "atr_pct": 0.03, **kw}
 
     @staticmethod
@@ -287,26 +293,32 @@ class SpikeWarning(unittest.TestCase):
 
     def test_a_spike_in_a_rising_long_term_trend_says_both_and_what_to_do(self):
         why, watch = self._watch(dlv=54.0)
-        self.assertEqual(watch, [f"200-day trend rising, but already spiked 8% in 5 days - {self.PHRASE}"])
+        self.assertEqual(watch, [f"200-day trend rising, but already spiked {self.SPIKY:.0%} in 5 days - {self.PHRASE}"])
         self.assertNotIn("200-day trend rising", why)                              # said once, in the warning line
         self.assertEqual(why, ["near 52-wk high", "very liquid", "delivery ~54%"])
 
     def test_a_spike_without_a_rising_trend_does_not_claim_one(self):
         why, watch = self._watch(f=self._f(sma200_chg=-0.003))
-        self.assertEqual(watch, [f"Already spiked 8% in 5 days - {self.PHRASE}"])
+        self.assertEqual(watch, [f"Already spiked {self.SPIKY:.0%} in 5 days - {self.PHRASE}"])
         self.assertNotIn("200-day trend rising", why)                              # even if the score liked its slope relative to other stocks
 
     def test_a_rising_trend_without_a_spike_keeps_its_plain_reason(self):
-        why, watch = self._watch(f=self._f(ret5=0.03))
+        why, watch = self._watch(f=self._f(ret5=self.CALM))
         self.assertEqual(watch, [])
         self.assertIn("200-day trend rising", why)
-        why, _ = self._watch(f=self._f(ret5=0.03, sma200_chg=0.001))                # a flat 200-day average is not "rising"
+        why, _ = self._watch(f=self._f(ret5=self.CALM, sma200_chg=0.0))             # a flat 200-day average is not "rising"
+        self.assertNotIn("200-day trend rising", why)
+        barely = config.TREND_200D_RISING_MIN - 0.001                               # ... and neither is one that is only just creeping up
+        why, _ = self._watch(f=self._f(ret5=self.CALM, sma200_chg=barely))
         self.assertNotIn("200-day trend rising", why)
 
     def test_no_warning_unless_the_gain_is_large_in_money_terms_and_against_other_stocks(self):
-        tight = {"mean": {"ret5": 0.0}, "std": {"ret5": 0.01}}                      # a very quiet day: 4.9% is 4.9 standard deviations ...
-        for label, kw in (("under the 5% floor", dict(f=self._f(ret5=0.049), stats=tight)),            # ... but still not a spike in money terms
-                          ("ordinary that day", dict(stats={"mean": {"ret5": 0.03}, "std": {"ret5": 0.05}})),   # +8% when the average stock is +3%
+        floor, z = config.SPIKE_5D_MIN, config.SPIKE_5D_Z
+        tight = {"mean": {"ret5": 0.0}, "std": {"ret5": 0.01}}                      # a very quiet day: a gain just under the floor is many standard deviations ...
+        gain = floor + 0.02                                                         # ... and a gain over the floor, in a week when the average stock was nearly as strong:
+        ordinary = {"mean": {"ret5": gain - (z - 0.4) * 0.05}, "std": {"ret5": 0.05}}   # only z - 0.4 standard deviations above its peers
+        for label, kw in (("under the minimum gain", dict(f=self._f(ret5=floor - 0.005), stats=tight)),   # ... but still not a spike in money terms
+                          ("ordinary that day", dict(f=self._f(ret5=gain), stats=ordinary)),
                           ("no yardstick", dict(stats=None)),
                           ("no 5-day return", dict(f=self._f(ret5=float("nan"))))):
             self.assertEqual(self._watch(**kw)[1], [], label)
@@ -322,23 +334,31 @@ class SpikeWarning(unittest.TestCase):
         self.assertEqual(watch, [f"200-day trend rising, but already spiked 10% before today - {self.PHRASE}"])
 
     def test_the_cut_offs(self):
-        # a spike = gain >= 5% AND >= 1.28 standard deviations above the average stock's 5-day gain that day
-        self.assertTrue(fp.recent_spike(0.06, 1.30))
-        self.assertFalse(fp.recent_spike(0.06, 1.27))
-        self.assertTrue(fp.recent_spike(0.05, 3.0))
-        self.assertFalse(fp.recent_spike(0.0499, 3.0))
-        self.assertFalse(fp.recent_spike(None, 3.0))
-        self.assertFalse(fp.recent_spike(0.10, float("nan")))
-        self.assertAlmostEqual(fp.z_score(0.08, self.STATS, "ret5"), (0.08 - 0.008) / 0.046)
+        floor, z, rising = config.SPIKE_5D_MIN, config.SPIKE_5D_Z, config.TREND_200D_RISING_MIN
+        # a spike = a gain of at least `floor` AND at least `z` standard deviations above the average stock's 5-day gain that day
+        self.assertTrue(fp.recent_spike(floor + 0.01, z + 0.02))
+        self.assertFalse(fp.recent_spike(floor + 0.01, z - 0.02))
+        self.assertTrue(fp.recent_spike(floor, z + 3.0))                            # the minimum gain itself counts
+        self.assertFalse(fp.recent_spike(floor - 0.0001, z + 3.0))
+        self.assertFalse(fp.recent_spike(None, z + 3.0))
+        self.assertFalse(fp.recent_spike(floor + 0.05, float("nan")))
+        self.assertAlmostEqual(fp.z_score(0.08, self.STATS, "ret5"), (0.08 - self.MEAN) / self.STD)
         for bad in (None, {}, {"mean": {}, "std": {}}, {"mean": {"ret5": 0.0}, "std": {"ret5": 0.0}}):
             self.assertTrue(np.isnan(fp.z_score(0.08, bad, "ret5")))
         self.assertAlmostEqual(fp.gain_before_latest_session(0.1445, 0.05), 1.1445 / 1.05 - 1)
         self.assertTrue(np.isnan(fp.gain_before_latest_session(float("nan"), 0.05)))
-        # "rising" = the 200-day average is at least 0.5% above its level 20 sessions ago
-        self.assertTrue(fp.trend_rising(0.005))
-        self.assertFalse(fp.trend_rising(0.004))
+        # "rising" = the 200-day average is at least `rising` above its level 20 sessions ago
+        self.assertTrue(fp.trend_rising(rising))
+        self.assertTrue(fp.trend_rising(rising + 0.02))
+        self.assertFalse(fp.trend_rising(rising - 0.001))
         self.assertFalse(fp.trend_rising(-0.02))
         self.assertFalse(fp.trend_rising(float("nan")))
+
+    def test_the_shipped_cut_offs_are_sane(self):
+        # guards against a slip when they are edited by hand (4 instead of 0.04, a minus sign, ...)
+        self.assertTrue(0.5 <= config.SPIKE_5D_Z <= 2.5, config.SPIKE_5D_Z)                 # standard deviations above the average stock
+        self.assertTrue(0.01 <= config.SPIKE_5D_MIN <= 0.15, config.SPIKE_5D_MIN)          # 1% - 15% in five sessions
+        self.assertTrue(0.0 <= config.TREND_200D_RISING_MIN <= 0.05, config.TREND_200D_RISING_MIN)   # 200-day average vs 20 sessions ago
 
     def test_the_warning_shares_the_cards_room_with_other_cautions_and_is_listed_first(self):
         f = self._f(atr_pct=0.06, gain1d=0.09, ret5=0.20)
