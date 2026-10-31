@@ -1,14 +1,45 @@
 {
- "at": "2026-10-30 14:01 IST",
- "budget_s": 0,
- "kind": "watchlist",
- "loaded": 100,
- "market_line_source": "^NSEI",
+ "at": "2026-10-31 14:12 IST",
+ "budget_s": 2700,
+ "kind": "universe",
+ "loaded": 495,
+ "market_line_source": "NIFTYBEES",
  "quote_note": "",
- "requested": 100,
- "route": "quotes",
+ "requested": 501,
+ "route": "candles",
  "scan": "btst",
- "scored": 100,
- "seconds": 9,
- "store": {}
+ "scored": 484,
+ "seconds": 676,
+ "store": {
+  "cooldowns": 0,
+  "errors": [],
+  "failed": 6,
+  "loaded": 495,
+  "no_data": [],
+  "no_data_n": 0,
+  "not_found": [
+   "DUMMYHEG",
+   "HFCL",
+   "STLTECH",
+   "EMBASSY",
+   "BIRET",
+   "BAGMANE"
+  ],
+  "not_found_n": 6,
+  "not_reached": 0,
+  "pace": {
+   "calls": 495,
+   "rate_limited": 0,
+   "refused": 0,
+   "slowed_calls": 0,
+   "slowest_calls": 0,
+   "wait_now_s": 0.4
+  },
+  "recovered": 0,
+  "refused": [],
+  "refused_n": 0,
+  "requested": 501,
+  "seconds": 676,
+  "stopped": ""
+ }
 }
