@@ -86,7 +86,9 @@ COOLDOWN_SESSIONS = 15               # a stock that was picked is not picked aga
 # Warning on a pick card: "already spiked X% in 5 days - buy on a pull-back or in continuation".
 # It only changes the wording of the message; the quality score already marks a 5-day spike down, and nothing is dropped.
 # Made stricter on 2026-10-30 at the user's request (weak market): the warning fires sooner and "rising" is harder to claim.
-SPIKE_5D_Z = 1.0                     # the gain is at least this many standard deviations above the average stock's 5-day gain that day (roughly the top sixth; was 1.28, the top tenth) ...
+# The 10-year replay of 2026-10-30 (reports/evidence/README.md, section 7) found NO profit difference between stricter and looser: picks flagged
+# as "already spiked" did not do worse after costs at any cut-off tried, so these numbers only decide how often the line appears. They stay stricter.
+SPIKE_5D_Z = 1.0                    # the gain is at least this many standard deviations above the average stock's 5-day gain that day (roughly the top sixth; was 1.28, the top tenth) ...
 SPIKE_5D_MIN = 0.04                  # ... and at least this large in absolute terms, so a 3% week is never a spike, even on a very quiet day (was 5%)
 TREND_200D_RISING_MIN = 0.01         # "200-day trend rising" is claimed only when the 200-day average is at least this much (1%) above its level 20 sessions ago (was 0.5%)
 

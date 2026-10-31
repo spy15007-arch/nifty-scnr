@@ -348,6 +348,60 @@ class ResearchStudy(unittest.TestCase):
         plain = [{k: v for k, v in t.items() if k != "z_run_up"} for t in self.trades]               # an old-style report without the columns
         self.assertEqual(self.engine.research_tables(plain), [])
 
+    def test_the_study_arithmetic_on_a_tiny_known_example(self):
+        """Six identical months of 4 signals: group 1 = +10% and -5% (both filled), group 0 = +2% and one order that never filled."""
+        from backtest import spike_study as sp
+        rows = []
+        for m in range(1, 7):
+            for status, net, R, grp in (("CLOSED", 0.10, 1.0, 1), ("CLOSED", -0.05, -0.5, 1), ("UNFILLED", np.nan, np.nan, 0), ("CLOSED", 0.02, 0.2, 0)):
+                rows.append({"signal_date": f"2026-{m:02d}-10", "status": status, "net": net, "R": R, "grp": grp})
+        df = pd.DataFrame(rows)
+        for c in ("z_run_up", "run_up", "sma200_chg", "breadth50", "atr_pct"):
+            df[c] = 0.0
+        df["setup"], df["regime"] = "primed", "mixed"
+        df["signal_date"] = pd.to_datetime(df["signal_date"])
+        df["year"] = df["signal_date"].dt.year
+        months = df["signal_date"].dt.to_period("M")
+        df["mi"] = months.map({m: i for i, m in enumerate(sorted(months.unique()))}).astype(int)
+        st = sp.Study(df, reps=300)
+        g1, g0 = (df["grp"] == 1).to_numpy(), (df["grp"] == 0).to_numpy()
+        point, lo, hi, n = st.mean(g1, "filled")
+        self.assertEqual(n, 12)
+        self.assertAlmostEqual(point, 0.025)                                             # (0.10 - 0.05) / 2 per filled trade
+        self.assertAlmostEqual(st.mean(g1, "signal")[0], 0.025)                          # every signal of group 1 filled
+        self.assertAlmostEqual(st.mean(g0, "filled")[0], 0.02)
+        self.assertAlmostEqual(st.mean(g0, "signal")[0], 0.01)                           # the order that never filled counts as 0
+        self.assertEqual(st.mean(g0, "signal")[3], 12)
+        d, lo, hi, p = st.diff(g1, g0, "signal")
+        self.assertAlmostEqual(d, 0.015)
+        self.assertGreater(p, 0.99)                                                      # identical months: no resample can flip the sign
+        self.assertAlmostEqual(lo, hi)                                                   # ... and the range collapses onto the point
+        self.assertAlmostEqual(st.paired(st.net, 0 * st.net, g1)[0], 0.025)
+        self.assertAlmostEqual(st.paired(st.net, 0.5 * st.net, g1)[0], 0.0125)
+
+    def test_the_study_script_runs_and_writes_its_report(self):
+        from backtest import spike_study as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            csv, out = os.path.join(tmp, "trades.csv"), os.path.join(tmp, "study.md")
+            pd.DataFrame(self.trades).to_csv(csv, index=False)
+            text = "\n".join(sp.analyse(sp.load(csv), reps=200))
+            for head in ("== 1. THE QUESTION", "== 2. Gradient", "== 3. Swings", "== 4. 200-day trend", "== 5. Spike and trend",
+                         "== 6. WAITING FOR A PULL-BACK", "== 7. Level and lumpiness"):
+                self.assertIn(head, text)
+            self.assertIn(f"Signals {len(self.trades)}", text)
+            with mock.patch("builtins.print"):
+                self.assertEqual(sp.main([csv, "--write", out]), 0)
+            with open(out, encoding="utf-8") as fh:
+                self.assertIn("How to read it", fh.read())
+
+    def test_the_study_script_refuses_a_trades_file_without_the_research_columns(self):
+        from backtest import spike_study as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            csv = os.path.join(tmp, "old.csv")
+            pd.DataFrame([{k: v for k, v in t.items() if k != "z_run_up"} for t in self.trades]).to_csv(csv, index=False)
+            with self.assertRaises(SystemExit):
+                sp.load(csv)
+
     def test_the_pullback_table_compares_the_same_finished_signals(self):
         def row(a, b, c):
             """a, b, c = (status, net) for the buy-stop, pull-back 1 and pull-back 2."""

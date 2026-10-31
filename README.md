@@ -61,7 +61,7 @@ near 52-wk high · very liquid · delivery ~54%
 
 * On a buy-stop card the first line says **Buy at** and the line under it is the **Stop** (the stop-loss); the heading above the cards says they are entered as buy-stop / GTT trigger orders (a plain limit order at that price would fill at once, below the trigger).
 * A **🔥 buy-now** card (BTST, live breakout) reads *Buy near 848.15 · up 3.4% today on 2.1x volume*.
-* A **⚠️** line is added only when something specific is going on. The one that tells you what to do: **"already spiked X% in 5 days - buy on a pull-back or in continuation"**, i.e. do not chase it. It appears when the gain is at least 4% **and** at least 1 standard deviation above the average stock's 5-day gain that day (roughly the top sixth - about a 5-6% gain in a normal week; `SPIKE_5D_Z`, `SPIKE_5D_MIN` in `config.py`), and it begins with *"200-day trend rising, but ..."* only when the 200-day average is at least 1% above where it was 20 sessions ago (`TREND_200D_RISING_MIN`). These were made stricter on 30 Oct 2026 (the weak market): before, the gain had to be 5% and 1.28 standard deviations (the top tenth) and "rising" meant 0.5%. For a fresh breakout its own big day is the signal, not a spike, so the run-up is measured up to the previous close (*"... spiked 9% before today"*). Other warnings: already more than 3% past the breakout level, a very volatile stock. This is a caution, not a tested rule: the 5-day spike is one of the weaker traits in the research (see [reports/evidence](reports/evidence/README.md)) and pull-back entries were not back-tested. The full list of strengths and weak points of every pick is in the dated write-up `reports/<mode>/scan_<date>.md`.
+* A **⚠️** line is added only when something specific is going on. The one that tells you what to do: **"already spiked X% in 5 days - buy on a pull-back or in continuation"**, i.e. do not chase it. It appears when the gain is at least 4% **and** at least 1 standard deviation above the average stock's 5-day gain that day (roughly the top sixth - about a 5-6% gain in a normal week; `SPIKE_5D_Z`, `SPIKE_5D_MIN` in `config.py`), and it begins with *"200-day trend rising, but ..."* only when the 200-day average is at least 1% above where it was 20 sessions ago (`TREND_200D_RISING_MIN`). These were made stricter on 30 Oct 2026 (the weak market): before, the gain had to be 5% and 1.28 standard deviations (the top tenth) and "rising" meant 0.5%. For a fresh breakout its own big day is the signal, not a spike, so the run-up is measured up to the previous close (*"... spiked 9% before today"*). Other warnings: already more than 3% past the breakout level, a very volatile stock. This is a caution, not a profit tip, and the cut-offs only decide how often the line appears: a 10-year replay (30 Oct 2026, [reports/evidence](reports/evidence/README.md) section 7) found that picks flagged this way did **not** do worse after costs than the rest at any cut-off tried (they do swing more), and that waiting for a dip did not beat buying at the **Buy at** price. The full list of strengths and weak points of every pick is in the dated write-up `reports/<mode>/scan_<date>.md`.
 * The evening **Swing** message ends with **📒 Your list**: what filled, expired or stopped out, every open trade's current stop (↑ = raised today) and the buy-stops still waiting. The afternoon **BTST** message leaves the stop list out (stops only change after a completed session) and shows only what changed.
 * The last two lines are the live record (closed trades only) and the standing rule. The back-test numbers are in [reports/evidence](reports/evidence/README.md), the README and the dashboard, not repeated in every message.
 
@@ -90,7 +90,7 @@ Every run also commits `reports/output/fetch_report_<scan>.json` - route used (`
 
 ## Running it
 
-GitHub Actions workflows (all have a **Run workflow** button): **BTST Scan**, **Swing Scan**, **Run All Scans Manual Override**, **Market Direction (Manual)**, **Backtest & Calibrate**.
+GitHub Actions workflows (all have a **Run workflow** button): **BTST Scan**, **Swing Scan**, **Run All Scans Manual Override**, **Market Direction (Manual)**, **Backtest & Calibrate**. In *Backtest & Calibrate* choose `data_source`: **broker** (about 3 years of Angel One candles; uses the broker, so do not start it while a scan is running) or **yahoo** (10+ years, split-adjusted, about 4 minutes, never touches the broker, safe at any time). The Yahoo run writes `reports/output/backtest_swing_yahoo_<date>.md` and `..._trades.csv`; `python -m backtest.spike_study <that trades file>` turns the csv into the study in `reports/evidence/`.
 
 **On-time scheduling:** GitHub's own cron is often hours late, so an external timer starts the scans on the dot - setup in [docs/TIMER_SETUP.md](docs/TIMER_SETUP.md). GitHub's schedule remains as a backup; the program skips a duplicate or a too-late BTST run (`scanner/runguard.py`).
 
@@ -112,7 +112,9 @@ scanner/
   market_direction.py, global_cues.py, sectors.py
 data/                     Angel One client, universe (NIFTY 500), NSE delivery-% feed
 tracking/outcomes.py      the scoreboard
-backtest/engine.py        replays the rule on broker data; live-scoreboard report
+backtest/engine.py        replays the rule on broker or Yahoo data; live-scoreboard report
+backtest/spike_study.py   offline study of a Yahoo back-test (spiked or not, 200-day trend, pull-back vs buy-stop)
+data/yahoo_bars.py        split-adjusted 10-year daily bars from Yahoo Finance - back-test only, the scans never use it
 reports/                  Telegram formatter, file writers, evidence
 app.py                    Streamlit dashboard
 docs/TIMER_SETUP.md       on-time timer setup
