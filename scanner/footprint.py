@@ -387,6 +387,22 @@ def trend_rising(sma200_chg) -> bool:
     return _finite(sma200_chg) and sma200_chg >= config.TREND_200D_RISING_MIN
 
 
+def trend_strong(sma200_chg) -> bool:
+    """
+    True when the 200-day average is up at least config.STRONG_TREND_200D_MIN (5%) on its level 20 sessions ago: a strongly rising stock.
+    Always a subset of `trend_rising` (the 5% bar sits above the 1% one). The card tags these "💪 strong uptrend" and lists them first.
+    """
+    return bool(_finite(sma200_chg) and sma200_chg >= max(config.STRONG_TREND_200D_MIN, config.TREND_200D_RISING_MIN))
+
+
+STRONG_TREND_TAG = "💪 strong uptrend"
+
+
+def strong_trend_legend() -> str:
+    """What the tag means in plain words, with the live cut-off (shown once under the picks when any of them carries the tag)."""
+    return f"{STRONG_TREND_TAG} = the 200-day average is up {config.STRONG_TREND_200D_MIN * 100:g}%+ in a month; these are listed first"
+
+
 def grade_for_quality(quality_pct: float | None) -> str:
     """Cosmetic letter for the quality percentile. It is a RANK, not a probability of profit."""
     if quality_pct is None or not math.isfinite(quality_pct):

@@ -415,6 +415,44 @@ def write_backtest_report(trades: list[dict], stats: dict, scan_mode: str, n_sto
 
 
 # --------------------------------------------------------------------------- #
+def _signal_tables(closed: pd.DataFrame) -> list[str]:
+    """
+    The "strong uptrend" tag and the "already spiked" warning judged on REAL closed trades. Picks logged since 2026-10-31 carry them; older
+    ones have the columns blank ("not recorded") and are left out, never counted as "no". Both started as hints from the 10-year replay, so
+    this is where they get confirmed or rejected: a group of fewer than 30 closed trades is too small to say anything.
+    """
+    if not {"strong_trend", "spiked"} <= set(closed.columns):
+        return []
+    strong = pd.to_numeric(closed["strong_trend"], errors="coerce")
+    spiked = pd.to_numeric(closed["spiked"], errors="coerce")
+    if not (strong.notna().any() or spiked.notna().any()):
+        return []
+
+    def groups(flag: pd.Series, parts: list[tuple[str, bool]]) -> dict:
+        out = {}
+        for label, want in parts:
+            sub = closed[flag == (1 if want else 0)]
+            if len(sub):
+                out[label] = _group_stats(sub["net"].to_numpy(float), sub["R"].to_numpy(float))
+        return out
+
+    lines = ["## Do the card's new hints hold up on real trades?", ""]
+    by_trend = groups(strong, [("a) 💪 strong uptrend (200-day average up 5%+ in 20 sessions)", True), ("b) all other picks", False)])
+    by_spike = groups(spiked, [("a) warned: already spiked", True), ("b) not warned", False)])
+    lines += _table("By 200-day trend when the pick was made", by_trend)
+    lines += _table("By run-up before the signal", by_spike)
+    missing = int((strong.isna() & spiked.isna()).sum())
+    if missing:
+        lines += [f"*{missing} of the {len(closed)} closed trades were logged before these were recorded and are left out of the two tables above.*", ""]
+    small = [k for g in (by_trend, by_spike) for k, s in g.items() if s["n"] < 30]
+    if small:
+        lines += ["*A group with fewer than 30 closed trades is too small to judge, so read these as noise for now. Until then the only evidence is the "
+                  "10-year replay of 30 Oct 2026 (reports/evidence/README.md, section 7): strong-uptrend stocks made +3.95% per card after costs against "
+                  "+1.29% for the rest, but the 5% line was chosen after seeing the data and the gap was smaller in 2022-26. Spiked stocks did not do "
+                  "measurably worse or better there.*", ""]
+    return lines
+
+
 def live_scoreboard_report(ledger: pd.DataFrame, scan_mode: str | None = None,
                            out_dir: str = "./reports/output") -> tuple[str, str]:
     """What the tracked picks actually did, split by quality bucket / setup / mode / market regime."""
@@ -438,6 +476,7 @@ def live_scoreboard_report(ledger: pd.DataFrame, scan_mode: str | None = None,
                            ("By scan", "scan_mode"), ("By market regime on the signal day", "regime")):
             groups = {str(k): _group_stats(g["net"].to_numpy(), g["R"].to_numpy()) for k, g in closed.groupby(col) if str(k)}
             lines += _table(title, groups)
+        lines += _signal_tables(closed)
     else:
         lines += ["No trade has closed yet - results appear here as the tracked trades are stopped out or reach the time limit.", ""]
     open_rows = df[df["status"] == "OPEN"]

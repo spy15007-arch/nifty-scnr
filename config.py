@@ -83,14 +83,24 @@ WEAK_BREADTH = 0.40                  # share of stocks above their 50-day averag
 HEALTHY_BREADTH = 0.60
 COOLDOWN_SESSIONS = 15               # a stock that was picked is not picked again for this many sessions
 
-# Warning on a pick card: "already spiked X% in 5 days - buy on a pull-back or in continuation".
+# Warning on a pick card: "already spiked X% in 5 days - buy in continuation, not on a dip".
 # It only changes the wording of the message; the quality score already marks a 5-day spike down, and nothing is dropped.
 # Made stricter on 2026-10-30 at the user's request (weak market): the warning fires sooner and "rising" is harder to claim.
 # The 10-year replay of 2026-10-30 (reports/evidence/README.md, section 7) found NO profit difference between stricter and looser: picks flagged
 # as "already spiked" did not do worse after costs at any cut-off tried, so these numbers only decide how often the line appears. They stay stricter.
+# The same replay found that waiting for a dip did NOT beat buying at the "Buy at" price (a 1-ATR dip: about the same; a 2-ATR dip: clearly worse),
+# which is why the line says "buy in continuation, not on a dip" (changed from "on a pull-back or in continuation" on 2026-10-31).
 SPIKE_5D_Z = 1.0                    # the gain is at least this many standard deviations above the average stock's 5-day gain that day (roughly the top sixth; was 1.28, the top tenth) ...
 SPIKE_5D_MIN = 0.04                  # ... and at least this large in absolute terms, so a 3% week is never a spike, even on a very quiet day (was 5%)
 TREND_200D_RISING_MIN = 0.01         # "200-day trend rising" is claimed only when the 200-day average is at least this much (1%) above its level 20 sessions ago (was 0.5%)
+
+# A STRONG uptrend (added 2026-10-31): the 200-day average is at least this much above its level 20 sessions ago. These picks get a "💪 strong uptrend"
+# tag on the card and are listed first. It never drops or adds a pick; it only orders them and labels them.
+# Evidence (10-year Yahoo replay of 2026-10-30, reports/evidence/README.md section 7): about 1 signal in 5 qualified, and those made +3.95% per card after
+# costs against +1.29% for the rest (difference +2.66%, 95% range +1.02..+4.41), positive in all three periods, but only +1.54% (range -0.69..+4.03) in 2022-26,
+# unproven in a weak market (114 signals), from swing signals only (BTST is not replayed), and the 5% was picked AFTER seeing the data, so the true
+# gain is probably smaller. It is a ranking hint, not a promise: the live scoreboard now records it so real trades can confirm or reject it.
+STRONG_TREND_200D_MIN = 0.05
 
 # Delivery-% feed (end-of-day public data; only the lagged 20-day average is used)
 DELIVERY_MIN_COVERAGE = 0.60         # use delivery % in the score only if this share of the universe has it

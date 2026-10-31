@@ -58,7 +58,12 @@ PLAN_COLS = ["entry_mode", "trigger", "atr_pct", "stop_mult", "trail_mult", "val
 STATE_COLS = ["status", "sessions", "fill_n", "fill_px", "init_stop", "trail", "hc", "exit_n",
               "exit_px", "exit_reason"]
 RESULT_COLS = ["fill_date", "exit_date", "net", "R", "peak_R", "last_close", "last_checked_date"]
-COLUMNS = META_COLS + PLAN_COLS + STATE_COLS + RESULT_COLS
+# What the stock had done before the signal (added 2026-10-31, appended so an older ledger file keeps its column order; picks logged earlier
+# have these blank = "not recorded", never "no"). trend200 = the 200-day average vs 20 sessions earlier (0.062 = up 6.2%), run_up = the gain the
+# "already spiked" warning measures, z_run_up = that gain in standard deviations above the average stock's; strong_trend / spiked are the 1/0 flags
+# the card showed. The raw numbers are kept so the cut-offs can be re-cut later on real trades.
+SIGNAL_COLS = ["trend200", "run_up", "z_run_up", "strong_trend", "spiked"]
+COLUMNS = META_COLS + PLAN_COLS + STATE_COLS + RESULT_COLS + SIGNAL_COLS
 
 _TEXT_COLS = {"trade_id", "symbol", "scan_mode", "setup", "signal_date", "signal_time_ist", "grade", "sector",
               "regime", "entry_mode", "status", "exit_reason", "fill_date", "exit_date", "last_checked_date"}
@@ -133,6 +138,26 @@ def active_symbols(df: pd.DataFrame | None = None, today: date | None = None,
     return out
 
 
+def _signal_columns(p) -> dict:
+    """
+    The SIGNAL_COLS of a pick. A number the pick does not know stays blank (not recorded), and so does a flag that rests on it: a blank is
+    never turned into a "no".
+    """
+    def num(name):
+        v = getattr(p, name, None)
+        try:
+            return v if v is not None and math.isfinite(float(v)) else None
+        except (TypeError, ValueError):
+            return None
+
+    trend, run_up, z = num("trend200_pct"), num("run_up_pct"), num("z_run_up")
+    return {
+        "trend200": trend, "run_up": run_up, "z_run_up": z,
+        "strong_trend": int(bool(getattr(p, "strong_trend", False))) if trend is not None else None,
+        "spiked": int(bool(getattr(p, "spiked", False))) if z is not None else None,
+    }
+
+
 def log_new_picks(picks: list, now=None, regime: str = "", path: str = LEDGER_PATH) -> int:
     """
     Append the picks (scanner.pipeline.Pick objects) as new trades: PENDING for
@@ -156,6 +181,7 @@ def log_new_picks(picks: list, now=None, regime: str = "", path: str = LEDGER_PA
             **ts.plan_to_dict(plan), **ts.state_to_dict(st),
             "fill_date": p.signal_date if st.status == ts.OPEN else "",
             "last_close": p.price, "last_checked_date": p.signal_date,
+            **_signal_columns(p),
         })
         # a freshly opened buy-now trade is flat (before costs) at the entry price
         if st.status == ts.OPEN:

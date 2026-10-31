@@ -16,7 +16,8 @@ reports/evidence/):
         PRIMED - within 3% below that high
   3. Its QUALITY score (scanner.footprint) must be in the top half of the
      liquid universe that day.
-  4. Ranked by quality; FRESH setups listed before PRIMED ones.
+  4. Ranked: stocks in a STRONG uptrend (200-day average up 5%+ in 20 sessions) first, then FRESH setups before PRIMED ones,
+     then by quality. The order also decides which picks stay when more qualify than the message can carry.
   5. Every pick comes with a complete trade plan (entry, stop, trailing stop)
      built on the same numbers the research tested. How many shares to buy is
      left to the reader: it depends on the money still free, which no scan knows.
@@ -47,6 +48,7 @@ logger = logging.getLogger(__name__)
 
 TICK = 0.05
 MAX_RISK_PCT = 0.30          # a stop further than 30% away means a pathological stock: never picked
+BUY_IN_CONTINUATION = "buy in continuation, not on a dip"     # what the "already spiked" warning tells the reader to do
 
 
 def tick_up(x: float, tick: float = TICK) -> float:
@@ -61,6 +63,15 @@ def fmt_price(x: float | None) -> str:
     if x is None or not math.isfinite(x):
         return "-"
     return f"{x:,.2f}"                    # always the exact 0.05-tick price the plan uses (no silent rounding of a stop or trigger)
+
+
+def _num(x, digits: int) -> float | None:
+    """A rounded float for the CSV, or None when the value is missing or not finite."""
+    try:
+        x = float(x)
+    except (TypeError, ValueError):
+        return None
+    return round(x, digits) if math.isfinite(x) else None
 
 
 # --------------------------------------------------------------------------- #
@@ -104,6 +115,13 @@ class Pick:
     cautions: list[str] = field(default_factory=list)
     why: list[str] = field(default_factory=list)          # the main reasons, a few words each
     watch: list[str] = field(default_factory=list)        # the main cautions, a few words each
+    # What the stock had done before the signal. Recorded on every pick (card, scan CSV and the live scoreboard) so that the
+    # "strong uptrend" tag and the "already spiked" warning can be judged on real trades and their cut-offs re-cut later.
+    trend200_pct: float | None = None                     # the 200-day average vs its level 20 sessions ago (0.062 = up 6.2%)
+    run_up_pct: float | None = None                       # the gain the spike warning looks at (a fresh breakout: up to the previous close)
+    z_run_up: float | None = None                         # that gain in standard deviations above the average stock's 5-day gain that day
+    strong_trend: bool = False                            # trend200_pct >= config.STRONG_TREND_200D_MIN: tagged "strong uptrend", listed first
+    spiked: bool = False                                  # the "already spiked" warning applies
 
     def plan(self) -> ts.TradePlan:
         return ts.TradePlan(entry_mode=self.entry_mode, trigger=self.entry_price, atr_pct=self.atr_pct,
@@ -126,6 +144,8 @@ class Pick:
             "delivery_20d_pct": round(self.dlv20, 1) if self.dlv20 is not None and math.isfinite(self.dlv20) else None,
             "days_since_break": self.days_since_break, "first_break": self.first_break,
             "sector": self.sector,
+            "trend_200d_chg": _num(self.trend200_pct, 4), "run_up_5d": _num(self.run_up_pct, 4), "z_run_up": _num(self.z_run_up, 2),
+            "strong_trend": bool(self.strong_trend), "spiked": bool(self.spiked),
             "valid_sessions": self.valid_sessions, "signal_date": self.signal_date,
             "signal_time_ist": self.signal_time_ist, "scan_mode": self.scan_mode,
         }
@@ -191,14 +211,16 @@ def _stage_label(setup: str, f: dict, su: dict) -> str:
     return f"About to break out ({gap:.1%} below the 50-day high)"
 
 
-def _run_up(setup: str, f: dict, stats: dict | None) -> tuple[float, bool]:
+def _run_up(setup: str, f: dict, stats: dict | None) -> tuple[float, float, bool]:
     """
-    How far the stock had already run when the signal came, and whether that counts as a spike (fp.recent_spike).
+    How far the stock had already run when the signal came, that gain in standard deviations above the average stock's (z, NaN when
+    the yardstick is not known), and whether that counts as a spike (fp.recent_spike).
     A fresh breakout's own session IS the signal, and the card already shows it ("up 5.9% today"), so for those the run-up is
     the gain up to the previous close; for a stock still below its high it is the full 5-day gain.
     """
     gain = fp.gain_before_latest_session(f.get("ret5"), f.get("gain1d")) if setup == "fresh" else f.get("ret5")
-    return gain, fp.recent_spike(gain, fp.z_score(gain, stats, "ret5"))
+    z = fp.z_score(gain, stats, "ret5")
+    return gain, z, fp.recent_spike(gain, z)
 
 
 def _short_why_and_watch(setup: str, f: dict, su: dict, row: pd.Series, dlv: float | None,
@@ -208,21 +230,24 @@ def _short_why_and_watch(setup: str, f: dict, su: dict, row: pd.Series, dlv: flo
     A caution is shown only when something specific is going on; a weak feature of the quality score is not repeated on every
     card (it is already inside the Quality number, and the detailed write-up lists it).
 
-    The one caution that is also an instruction: a stock that has ALREADY SPIKED is better bought on a pull-back or in
-    continuation than chased. When its 200-day trend is rising that is said in the same line (it is then not repeated among
-    the reasons). `stats` = the universe means / standard deviations the quality score used (the yardstick for "a spike").
+    The one caution that is also an instruction: a stock that has ALREADY SPIKED is better bought in continuation (at the
+    "Buy at" price, which only fills if it keeps rising) than on a dip - the 10-year replay found waiting for a dip did not beat that.
+    When its 200-day trend is rising that is said in the same line (it is then not repeated among the reasons); a STRONG uptrend is
+    already said by the "strong uptrend" tag on the card, so the line then starts with just "Already spiked".
+    `stats` = the universe means / standard deviations the quality score used (the yardstick for "a spike").
     """
-    gain, spiked = _run_up(setup, f, stats)
+    gain, _, spiked = _run_up(setup, f, stats)
     rising = fp.trend_rising(f.get("sma200_chg"))
+    strong = fp.trend_strong(f.get("sma200_chg"))
     why = fp.top_reasons(row, k=4, short=True)
     watch: list[str] = []
     if spiked:
-        lead = f"{fp.FEATURE_SHORT['sma200_chg']}, but already spiked" if rising else "Already spiked"
+        lead = f"{fp.FEATURE_SHORT['sma200_chg']}, but already spiked" if rising and not strong else "Already spiked"
         when = "before today" if setup == "fresh" else "in 5 days"
-        watch.append(f"{lead} {gain:.0%} {when} - buy on a pull-back or in continuation")
-    if spiked or not rising:
+        watch.append(f"{lead} {gain:.0%} {when} - {BUY_IN_CONTINUATION}")
+    if spiked or not rising or strong:
         # "rising" is claimed only when the 200-day average really is higher than it was a month ago (the score alone is relative to
-        # the other stocks), and not twice when the caution line already says it
+        # the other stocks), and not twice when the caution line or the "strong uptrend" tag already says it
         why = [w for w in why if w != fp.FEATURE_SHORT["sma200_chg"]]
     if dlv is not None and math.isfinite(dlv):
         why = [w for w in why if w != fp.FEATURE_SHORT["dlv20"]][:2] + [f"delivery ~{dlv:.0f}%"]
@@ -253,10 +278,15 @@ def _reasons_and_cautions(setup: str, f: dict, su: dict, row: pd.Series, dlv: fl
             reasons.append(f"Sitting {su['ext_pct']:+.1%} around its 50-day high (₹{fmt_price(piv)}) - volume has not confirmed a breakout yet")
         else:
             reasons.append(f"{gap:.1%} below its 50-day high (₹{fmt_price(piv_incl)}) - coiled just under resistance")
-    gain, spiked = _run_up(setup, f, stats)
+    gain, _, spiked = _run_up(setup, f, stats)
     rising = fp.trend_rising(f.get("sma200_chg"))
     trend_phrase, spike_phrase = fp.FEATURE_TEXT["sma200_chg"][0], fp.FEATURE_TEXT["ret5"][1]
-    reasons += [r[0].upper() + r[1:] for r in fp.top_reasons(row, k=3) if rising or r != trend_phrase]
+    if fp.trend_strong(f.get("sma200_chg")):
+        reasons.append(f"Strong uptrend: the 200-day average is up {f['sma200_chg']:.1%} in the last 20 sessions (listed first; in the 10-year "
+                       f"replay such stocks did better on average, but less so in 2022-26)")
+        reasons += [r[0].upper() + r[1:] for r in fp.top_reasons(row, k=3) if r != trend_phrase]      # said above, not twice
+    else:
+        reasons += [r[0].upper() + r[1:] for r in fp.top_reasons(row, k=3) if rising or r != trend_phrase]
     if dlv is not None and math.isfinite(dlv):
         reasons.append(f"20-day average delivery ~{dlv:.0f}% of traded shares")
 
@@ -264,7 +294,7 @@ def _reasons_and_cautions(setup: str, f: dict, su: dict, row: pd.Series, dlv: fl
     if spiked:
         lead = "The long-term (200-day) trend is rising, but the stock has" if rising else "The stock has"
         window = "in the sessions before the breakout day" if setup == "fresh" else "in the last 5 days"
-        cautions.append(f"{lead} already spiked {gain:.1%} {window} - better bought on a pull-back or in continuation than chased")
+        cautions.append(f"{lead} already spiked {gain:.1%} {window} - {BUY_IN_CONTINUATION} (in the 10-year replay, waiting for a dip did not beat buying at the Buy-at price)")
     if setup == "fresh" and su["ext_pct"] > 0.03:
         cautions.append(f"Already {su['ext_pct']:.1%} above the breakout level - a pullback to it is common")
     if f.get("gain1d", 0) and f["gain1d"] > 0.08:
@@ -370,8 +400,11 @@ def select_picks(
             continue
         candidates.append((q, sym, setup, su))
 
-    # FRESH before PRIMED, then best quality first
-    candidates.sort(key=lambda t: (0 if t[2] == "fresh" else 1, -t[0], t[1]))
+    # STRONG uptrends first (200-day average up 5%+ in 20 sessions), then FRESH before PRIMED, then best quality first.
+    # The strong ones lead because they did clearly better in the 10-year replay (reports/evidence/README.md, section 7); the rest of the
+    # order is as before. The order only matters for which picks stay when more stocks qualify than max_picks (rare), and for how the list reads.
+    candidates.sort(key=lambda t: (0 if fp.trend_strong(rows[t[1]].get("sma200_chg")) else 1,
+                                   0 if t[2] == "fresh" else 1, -t[0], t[1]))
 
     sig_date = ref_date.isoformat() if ref_date else ""
     sig_time = now.astimezone(session.IST).strftime("%H:%M") if live else ""
@@ -401,6 +434,7 @@ def select_picks(
             dlv = float(dlv20[sym])
         reasons, cautions = _reasons_and_cautions(setup, f, su, row, dlv, live, regime, breadth.get("breadth50"), out_stats)
         why, watch = _short_why_and_watch(setup, f, su, row, dlv, out_stats)
+        run_up, z_run_up, spiked = _run_up(setup, f, out_stats)
         picks.append(Pick(
             symbol=sym, setup=setup, stage_label=_stage_label(setup, f, su), scan_mode=scan_mode,
             signal_date=sig_date, signal_time_ist=sig_time, live_bar=live, entry_mode=entry_mode,
@@ -414,6 +448,8 @@ def select_picks(
             days_since_break=f.get("days_since_break"), first_break=bool(f.get("first_break")),
             sector=(sector_map or {}).get(sym),
             reasons=reasons, cautions=cautions, why=why, watch=watch,
+            trend200_pct=_num(f.get("sma200_chg"), 6), run_up_pct=_num(run_up, 6), z_run_up=_num(z_run_up, 4),
+            strong_trend=bool(fp.trend_strong(f.get("sma200_chg"))), spiked=bool(spiked),
         ))
     funnel["picks"] = len(picks)
 

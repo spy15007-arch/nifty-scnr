@@ -519,10 +519,8 @@ class SetupAndPlan(unittest.TestCase):
         for gone in ("qty", "position_value", "size_note"):                         # share counts depend on money no scan can know
             self.assertFalse(hasattr(p, gone), gone)
             self.assertNotIn(gone, p.to_row())
-        fresh_idx = [i for i, q in enumerate(res.picks) if q.setup == "fresh"]
-        primed_idx = [i for i, q in enumerate(res.picks) if q.setup == "primed"]
-        if fresh_idx and primed_idx:
-            self.assertLess(max(fresh_idx), min(primed_idx))                       # fresh listed before primed
+        order = [(0 if q.strong_trend else 1, 0 if q.setup == "fresh" else 1) for q in res.picks]
+        self.assertEqual(order, sorted(order))                                     # strong uptrends first, then fresh before primed
 
     def test_live_fresh_is_buy_now_and_partial_volume_is_projected(self):
         live = {s: d.copy() for s, d in self.bars.items()}
@@ -561,8 +559,8 @@ class SetupAndPlan(unittest.TestCase):
 
 
 class SpikeWarning(unittest.TestCase):
-    """A stock that has ALREADY run up sharply is better bought on a pull-back or in continuation - the card says so."""
-    PHRASE = "buy on a pull-back or in continuation"
+    """A stock that has ALREADY run up sharply is better bought in continuation than on a dip - the card says so (the 10-year replay: waiting for a dip did not pay)."""
+    PHRASE = "buy in continuation, not on a dip"
     SU = {"ext_pct": -0.02, "above_pivot": False}
     MEAN, STD = 0.008, 0.046                                                   # the average stock's 5-day gain that day, and its spread
     STATS = {"mean": {"ret5": MEAN}, "std": {"ret5": STD}}
@@ -570,7 +568,8 @@ class SpikeWarning(unittest.TestCase):
     # passing when the cut-offs are re-tuned; the exact boundaries are checked separately in test_the_cut_offs.
     SPIKY = max(config.SPIKE_5D_MIN, MEAN + config.SPIKE_5D_Z * STD) + 0.03    # clearly a spike
     CALM = max(config.SPIKE_5D_MIN - 0.01, 0.0)                                # clearly not one (under the minimum gain)
-    RISING = config.TREND_200D_RISING_MIN + 0.02                               # clearly rising
+    RISING = config.TREND_200D_RISING_MIN + 0.02                               # clearly rising, but not strong (the strong bar is higher)
+    STRONG = config.STRONG_TREND_200D_MIN + 0.02                               # clearly a strong uptrend
 
     @staticmethod
     def _f(ret5=SPIKY, sma200_chg=RISING, **kw):
@@ -594,6 +593,18 @@ class SpikeWarning(unittest.TestCase):
         why, watch = self._watch(f=self._f(sma200_chg=-0.003))
         self.assertEqual(watch, [f"Already spiked {self.SPIKY:.0%} in 5 days - {self.PHRASE}"])
         self.assertNotIn("200-day trend rising", why)                              # even if the score liked its slope relative to other stocks
+
+    def test_a_spike_in_a_strong_uptrend_leaves_the_trend_to_the_tag(self):
+        # the card's "💪 strong uptrend" tag already says it, so neither the warning line nor the why line repeats it
+        why, watch = self._watch(f=self._f(sma200_chg=self.STRONG), dlv=54.0)
+        self.assertEqual(watch, [f"Already spiked {self.SPIKY:.0%} in 5 days - {self.PHRASE}"])
+        self.assertEqual(why, ["near 52-wk high", "very liquid", "delivery ~54%"])
+
+    def test_a_strong_uptrend_without_a_spike_does_not_repeat_itself_in_the_reasons(self):
+        why, watch = self._watch(f=self._f(ret5=self.CALM, sma200_chg=self.STRONG), dlv=54.0)
+        self.assertEqual(watch, [])
+        self.assertNotIn("200-day trend rising", why)                              # the tag carries it; the line keeps three other reasons
+        self.assertEqual(why, ["near 52-wk high", "very liquid", "delivery ~54%"])
 
     def test_a_rising_trend_without_a_spike_keeps_its_plain_reason(self):
         why, watch = self._watch(f=self._f(ret5=self.CALM))
@@ -627,7 +638,7 @@ class SpikeWarning(unittest.TestCase):
         self.assertEqual(watch, [f"200-day trend rising, but already spiked 10% before today - {self.PHRASE}"])
 
     def test_the_cut_offs(self):
-        floor, z, rising = config.SPIKE_5D_MIN, config.SPIKE_5D_Z, config.TREND_200D_RISING_MIN
+        floor, z, rising, strong = config.SPIKE_5D_MIN, config.SPIKE_5D_Z, config.TREND_200D_RISING_MIN, config.STRONG_TREND_200D_MIN
         # a spike = a gain of at least `floor` AND at least `z` standard deviations above the average stock's 5-day gain that day
         self.assertTrue(fp.recent_spike(floor + 0.01, z + 0.02))
         self.assertFalse(fp.recent_spike(floor + 0.01, z - 0.02))
@@ -646,12 +657,22 @@ class SpikeWarning(unittest.TestCase):
         self.assertFalse(fp.trend_rising(rising - 0.001))
         self.assertFalse(fp.trend_rising(-0.02))
         self.assertFalse(fp.trend_rising(float("nan")))
+        # "strong" = at least `strong` above it; always also "rising", and a missing number is never strong
+        self.assertTrue(fp.trend_strong(strong))
+        self.assertTrue(fp.trend_strong(strong + 0.03))
+        self.assertFalse(fp.trend_strong(strong - 0.001))
+        self.assertFalse(fp.trend_strong(rising + 0.001))                           # rising is not strong
+        self.assertFalse(fp.trend_strong(None))
+        self.assertFalse(fp.trend_strong(float("nan")))
+        for v in (-0.05, 0.0, rising, strong - 0.001, strong, 0.2):
+            self.assertTrue(fp.trend_rising(v) or not fp.trend_strong(v), v)
 
     def test_the_shipped_cut_offs_are_sane(self):
         # guards against a slip when they are edited by hand (4 instead of 0.04, a minus sign, ...)
         self.assertTrue(0.5 <= config.SPIKE_5D_Z <= 2.5, config.SPIKE_5D_Z)                 # standard deviations above the average stock
         self.assertTrue(0.01 <= config.SPIKE_5D_MIN <= 0.15, config.SPIKE_5D_MIN)          # 1% - 15% in five sessions
         self.assertTrue(0.0 <= config.TREND_200D_RISING_MIN <= 0.05, config.TREND_200D_RISING_MIN)   # 200-day average vs 20 sessions ago
+        self.assertTrue(config.TREND_200D_RISING_MIN <= config.STRONG_TREND_200D_MIN <= 0.15, config.STRONG_TREND_200D_MIN)   # strong sits above rising
 
     def test_the_warning_shares_the_cards_room_with_other_cautions_and_is_listed_first(self):
         f = self._f(atr_pct=0.06, gain1d=0.09, ret5=0.20)
@@ -689,10 +710,12 @@ class SpikeWarning(unittest.TestCase):
         card = notify.format_pick(p, 1)
         self.assertIn(f"\n⚠️ 200-day trend rising, but already spiked 9% before today - {self.PHRASE}", card)
         self.assertLessEqual(len(card.split("\n")), 6)
-        spike_cautions = [c for c in p.cautions if "pull-back or in continuation" in c]
+        spike_cautions = [c for c in p.cautions if self.PHRASE in c]
         self.assertEqual(len(spike_cautions), 1, p.cautions)
         self.assertTrue(spike_cautions[0].startswith("The long-term (200-day) trend is rising, but the stock has already spiked 9.3% "
                                                      "in the sessions before the breakout day"), spike_cautions)
+        self.assertTrue(spike_cautions[0].endswith("(in the 10-year replay, waiting for a dip did not beat buying at the Buy-at price)"), spike_cautions)
+        self.assertFalse(any("pull-back" in c for c in p.cautions), p.cautions)       # the old advice is gone from the write-up too
         self.assertNotIn("Already spiked in the last 5 days", p.cautions)           # the specific line replaces the generic one
 
     def test_a_planted_run_up_below_its_high_reaches_the_card(self):
@@ -707,7 +730,181 @@ class SpikeWarning(unittest.TestCase):
     def test_an_ordinary_planted_breakout_has_no_spike_warning(self):
         res = pl.select_picks("swing", make_market(), now=at(2026, 10, 13, 17, 0))
         p = next(p for p in res.picks if p.symbol == "PLANT")
-        self.assertFalse(any("pull-back" in w for w in p.watch), p.watch)
+        self.assertFalse(any("already spiked" in w.lower() or "continuation" in w for w in p.watch), p.watch)
+        self.assertFalse(p.spiked)
+
+
+class StrongUptrend(unittest.TestCase):
+    """
+    A stock whose 200-day average is up 5%+ in a month is tagged "💪 strong uptrend" and listed first, and the live scoreboard records it so real trades
+    can confirm the 10-year replay (those stocks did better). It labels and orders; it never adds a stock, and it drops one only when more qualify than fit.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.now = at(2026, 10, 13, 17, 0)
+        cls.res = pl.select_picks("swing", make_market(), now=cls.now, max_picks=1000)
+        cls.by = {p.symbol: p for p in cls.res.picks}
+
+    def test_strong_uptrends_come_first_then_fresh_before_primed_then_quality(self):
+        key = [(0 if p.strong_trend else 1, 0 if p.setup == "fresh" else 1, -p.quality_pct) for p in self.res.picks]
+        self.assertEqual(key, sorted(key))
+        # the premise, spelled out: a strong primed stock leads a fresh breakout of higher quality that is not strong
+        lead, plant = self.by["S001"], self.by["PLANT"]
+        self.assertTrue(lead.strong_trend and lead.setup == "primed")
+        self.assertTrue(not plant.strong_trend and plant.setup == "fresh" and plant.quality_pct > lead.quality_pct)
+        names = [p.symbol for p in self.res.picks]
+        self.assertLess(names.index("S001"), names.index("PLANT"))
+
+    def test_the_flags_follow_the_cut_offs_and_the_numbers_are_recorded(self):
+        for p in self.res.picks:
+            self.assertTrue(np.isfinite(p.trend200_pct) and np.isfinite(p.run_up_pct) and np.isfinite(p.z_run_up), p.symbol)
+            self.assertEqual(p.strong_trend, p.trend200_pct >= config.STRONG_TREND_200D_MIN, p.symbol)
+            self.assertEqual(p.spiked, fp.recent_spike(p.run_up_pct, p.z_run_up), p.symbol)
+
+    def test_it_changes_the_order_only_never_which_stocks_qualify(self):
+        with mock.patch.object(config, "STRONG_TREND_200D_MIN", 9.99):             # nobody counts as strong any more
+            plain = pl.select_picks("swing", make_market(), now=self.now, max_picks=1000)
+        self.assertFalse(any(p.strong_trend for p in plain.picks))
+        self.assertEqual({p.symbol for p in plain.picks}, {p.symbol for p in self.res.picks})
+        order = [(0 if p.setup == "fresh" else 1, -p.quality_pct) for p in plain.picks]
+        self.assertEqual(order, sorted(order))                                      # the order is then the old one: fresh first, then quality
+
+    def test_when_more_qualify_than_fit_the_strong_ones_are_kept(self):
+        res = pl.select_picks("swing", make_market(), now=self.now, max_picks=1)
+        self.assertEqual([p.symbol for p in res.picks], ["S001"])                  # not PLANT, the higher-quality fresh breakout that is not strong
+
+    def test_the_card_starts_its_why_line_with_the_tag_and_keeps_every_other_reason(self):
+        p = self.by["S001"]
+        card = notify.format_pick(p, 1).split("\n")
+        plain = notify.format_pick(dataclasses.replace(p, strong_trend=False), 1).split("\n")
+        self.assertEqual(len(card), len(plain))                                     # no extra line
+        self.assertTrue(card[3].startswith("💪 strong uptrend · "), card[3])
+        self.assertEqual(card[3].split(" · ")[1:], plain[3].split(" · "))           # the tag takes its own slot: nothing else is dropped
+        self.assertNotIn("💪", "\n".join(plain))
+        # a fresh buy-stop card also shows "up x% on y volume": the tag + the usual four items
+        line = notify.format_pick(dataclasses.replace(self.by["PLANT"], strong_trend=True), 1).split("\n")[3]
+        self.assertTrue(line.startswith("💪 strong uptrend · up "), line)
+        self.assertEqual(len(line.split(" · ")), 5, line)
+
+    def test_the_footer_explains_the_tag_only_when_a_card_carries_it(self):
+        legend = "strong uptrend = the 200-day average is up 5%+ in a month; these are listed first"
+        msg = notify.format_scan_message(self.res, "swing", now=self.now)
+        self.assertEqual(msg.count(legend), 1)
+        self.assertLess(msg.index(legend), msg.index("ℹ️ <i>Trail ="))
+        none = dataclasses.replace(self.res, picks=[dataclasses.replace(p, strong_trend=False) for p in self.res.picks])
+        self.assertNotIn("💪", notify.format_scan_message(none, "swing", now=self.now))
+
+    def test_the_scan_files_show_the_tag_and_carry_the_numbers(self):
+        from reports import summary
+        row = self.by["S001"].to_row()
+        self.assertIs(row["strong_trend"], True)
+        self.assertAlmostEqual(row["trend_200d_chg"], self.by["S001"].trend200_pct, places=4)
+        df = summary.picks_frame(self.res.picks)
+        self.assertLessEqual({"trend_200d_chg", "run_up_5d", "z_run_up", "strong_trend", "spiked"}, set(df.columns))
+        self.assertEqual(int(df["strong_trend"].sum()), sum(p.strong_trend for p in self.res.picks))
+        text = summary.render_summary("swing", self.res, self.now)
+        self.assertIn("**S001** 💪", text)
+        self.assertNotIn("**PLANT** 💪", text)
+        self.assertEqual(text.count("strong uptrend = the 200-day average"), 1)
+        self.assertIn("Strong uptrend: the 200-day average is up", summary.render_summary("swing", self.res, self.now, detail=True))
+
+
+class StrongUptrendLedger(unittest.TestCase):
+    """The live scoreboard records the trend and the run-up of every new pick; ledger files written before that stay valid ("not recorded", never "no")."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.path = os.path.join(self.tmp, "trades.csv")
+        self.now = at(2026, 10, 13, 17, 0)
+        self.res = pl.select_picks("swing", make_market(), now=self.now, max_picks=1000)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _row(self, p):
+        led = outcomes.load_ledger(self.path)
+        return led[led["trade_id"] == f"{p.symbol}_{p.signal_date}_{p.scan_mode}"].iloc[0]
+
+    def test_new_picks_record_the_numbers_and_the_flags(self):
+        outcomes.log_new_picks(self.res.picks, self.now, path=self.path)
+        seen = set()
+        for p in self.res.picks:
+            r = self._row(p)
+            self.assertAlmostEqual(r["trend200"], p.trend200_pct, places=5)
+            self.assertAlmostEqual(r["run_up"], p.run_up_pct, places=5)
+            self.assertAlmostEqual(r["z_run_up"], p.z_run_up, places=3)
+            self.assertEqual((r["strong_trend"], r["spiked"]), (float(p.strong_trend), float(p.spiked)))
+            seen.add(bool(p.strong_trend))
+        self.assertEqual(seen, {True, False})                                       # the market has both kinds, so both flags were really written
+
+    def test_a_ledger_from_before_the_columns_still_loads_and_its_trades_stay_not_recorded(self):
+        old_cols = [c for c in outcomes.COLUMNS if c not in outcomes.SIGNAL_COLS]
+        old = pd.DataFrame([{**{c: "" for c in old_cols}, "trade_id": "OLD_2026-10-01_swing", "symbol": "OLD", "scan_mode": "swing",
+                             "setup": "primed", "signal_date": "2026-10-01", "status": "CLOSED", "net": "0.05", "R": "1.2",
+                             "quality_pct": "70"}], columns=old_cols)
+        old.to_csv(self.path, index=False)
+        led = outcomes.load_ledger(self.path)
+        self.assertEqual(list(led.columns), outcomes.COLUMNS)
+        self.assertTrue(led[outcomes.SIGNAL_COLS].isna().all().all())
+        outcomes.log_new_picks(self.res.picks, self.now, path=self.path)
+        led = outcomes.load_ledger(self.path)
+        self.assertEqual(len(led), 1 + len(self.res.picks))
+        self.assertTrue(led.loc[led["symbol"] == "OLD", outcomes.SIGNAL_COLS].isna().all().all())
+        self.assertTrue(led.loc[led["symbol"] != "OLD", ["strong_trend", "spiked"]].notna().all().all())
+        with open(self.path, encoding="utf-8") as f:
+            header = f.readline().strip().split(",")
+        self.assertEqual(header[:len(old_cols)], old_cols)                          # the old columns keep their place; the new ones are appended
+
+    def test_a_pick_that_does_not_know_its_trend_is_logged_as_not_recorded_not_as_no(self):
+        p = dataclasses.replace(self.res.picks[0], trend200_pct=None, run_up_pct=None, z_run_up=None, strong_trend=False, spiked=False)
+        outcomes.log_new_picks([p], self.now, path=self.path)
+        self.assertTrue(self._row(p)[outcomes.SIGNAL_COLS].isna().all())
+
+
+class LiveScoreboardHints(unittest.TestCase):
+    """The live scoreboard report puts the strong-uptrend tag and the spike warning to the test on real closed trades."""
+
+    def setUp(self):
+        from backtest import engine
+        self.engine = engine
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _report(self, rows):
+        base = {c: "" for c in outcomes.COLUMNS}
+        frame = pd.DataFrame([{**base, "status": "CLOSED", "scan_mode": "swing", "setup": "primed", "regime": "healthy", "signal_date": "2026-11-03",
+                               "quality_pct": 70, "fill_n": 1, "exit_n": 9, **r} for r in rows], columns=outcomes.COLUMNS)
+        path = os.path.join(self.tmp, "ledger.csv")
+        frame.to_csv(path, index=False)
+        return self.engine.live_scoreboard_report(outcomes.load_ledger(path), out_dir=self.tmp)[1]
+
+    def test_it_compares_strong_uptrends_with_the_rest_and_says_when_a_group_is_too_small(self):
+        rows = [dict(net=0.10, R=2.0, strong_trend=1, spiked=0), dict(net=0.06, R=1.2, strong_trend=1, spiked=1), dict(net=-0.02, R=-0.4, strong_trend=1, spiked=0),
+                dict(net=-0.03, R=-0.6, strong_trend=0, spiked=0), dict(net=0.01, R=0.2, strong_trend=0, spiked=1),
+                dict(net=0.04, R=0.8)]                                              # logged before the flags existed: blank
+        text = self._report(rows)
+        self.assertIn("## Do the card's new hints hold up on real trades?", text)
+        self.assertRegex(text, r"\| a\) 💪 strong uptrend[^|]*\| 3 \|")
+        self.assertRegex(text, r"\| b\) all other picks \| 2 \|")
+        self.assertRegex(text, r"\| a\) warned: already spiked \| 2 \|")
+        self.assertRegex(text, r"\| b\) not warned \| 3 \|")
+        self.assertIn("1 of the 6 closed trades were logged before these were recorded", text)
+        self.assertIn("fewer than 30 closed trades is too small to judge", text)
+
+    def test_an_old_ledger_with_nothing_recorded_adds_no_such_section(self):
+        text = self._report([dict(net=0.04, R=0.8), dict(net=-0.02, R=-0.5)])
+        self.assertNotIn("new hints", text)
+        self.assertIn("All closed trades", text)
+
+    def test_no_small_sample_note_when_every_group_has_30_closed_trades(self):
+        rows = [dict(net=0.03, R=0.6, strong_trend=1, spiked=0)] * 30 + [dict(net=-0.01, R=-0.2, strong_trend=0, spiked=0)] * 30
+        text = self._report(rows)
+        self.assertRegex(text, r"\| a\) 💪 strong uptrend[^|]*\| 30 \|")
+        self.assertRegex(text, r"\| b\) all other picks \| 30 \|")
+        self.assertNotIn("too small to judge", text)
 
 
 class Scoreboard(unittest.TestCase):

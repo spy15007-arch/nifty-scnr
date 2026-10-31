@@ -20,6 +20,7 @@ from datetime import datetime
 
 import pandas as pd
 
+from scanner import footprint as fp
 from scanner import session
 from scanner.pipeline import fmt_price
 
@@ -29,8 +30,9 @@ ROW_COLUMNS = [
     "symbol", "setup", "stage", "grade", "quality_pct", "entry_mode", "price", "entry_price", "max_entry",
     "stop_loss", "risk_pct", "trail_pct", "atr_pct", "plus_1R", "plus_2R", "plus_3R", "pivot_50d_high",
     "ext_pct", "gain_pct", "vol_ratio", "dist_52w_high_pct", "ret_12m_pct", "delivery_20d_pct",
-    "days_since_break", "first_break", "sector", "valid_sessions",
-    "signal_date", "signal_time_ist", "scan_mode",
+    "days_since_break", "first_break", "sector",
+    "trend_200d_chg", "run_up_5d", "z_run_up", "strong_trend", "spiked",
+    "valid_sessions", "signal_date", "signal_time_ist", "scan_mode",
 ]
 MASTER_PATH = "summary.md"
 MASTER_MAX_SECTIONS = 24
@@ -82,8 +84,9 @@ def _table(picks: list) -> list[str]:
         return lines
     for i, p in enumerate(picks, 1):
         dl = f"{p.dlv20:.0f}%" if p.dlv20 is not None and math.isfinite(p.dlv20) else "n/a"
+        tag = " 💪" if getattr(p, "strong_trend", False) else ""
         lines.append(
-            f"| {i} | **{p.symbol}** | {'🔥' if p.setup == 'fresh' else '👀'} {p.stage_label} | {p.quality_pct:.0f} | "
+            f"| {i} | **{p.symbol}**{tag} | {'🔥' if p.setup == 'fresh' else '👀'} {p.stage_label} | {p.quality_pct:.0f} | "
             f"{_entry_cell(p)} | {fmt_price(p.stop)} (-{p.risk_pct:.1%}) | {p.trail_pct:.1%} | {dl} |"
         )
     return lines
@@ -110,6 +113,8 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
             f"{', ' + str(f['repeats']) + ' already on the list' if f.get('repeats') else ''}*", ""]
     out += _table(result.picks)
     out += [""]
+    if any(getattr(p, "strong_trend", False) for p in result.picks):
+        out += [f"*{fp.strong_trend_legend()}*", ""]
     if result.repeats:
         out += ["Already on your list (not repeated): " + ", ".join(s for s, _ in result.repeats[:20]), ""]
     if detail and result.picks:

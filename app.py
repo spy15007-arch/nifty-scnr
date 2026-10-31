@@ -44,6 +44,11 @@ def _read_csv(path: str):
     return None if df.empty else df
 
 
+def _is_yes(v) -> bool:
+    """A flag read from a CSV (True / 1 / 1.0 / 'True'); blank and NaN are not yes."""
+    return str(v).strip().lower() in ("true", "1", "1.0")
+
+
 def _mtime(path: str) -> str:
     return datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d %H:%M")
 
@@ -64,16 +69,22 @@ def render_scan_tab(mode: str, label: str):
         return
     st.caption(f"Files last updated: {_mtime(path)}")
 
-    c = st.columns(4)
+    c = st.columns(5 if "strong_trend" in df.columns else 4)
     c[0].metric("Picks", len(df))
     c[1].metric("🔥 Fresh breakouts", int((df["setup"] == "fresh").sum()))
     c[2].metric("👀 About to break out", int((df["setup"] == "primed").sum()))
     c[3].metric("Buy now / buy-stop", f"{int((df['entry_mode'] == 'close').sum())} / {int((df['entry_mode'] == 'stop').sum())}")
+    if "strong_trend" in df.columns:
+        c[4].metric("💪 Strong uptrend", int(df["strong_trend"].map(_is_yes).sum()))
 
     show = df.copy()
     show["setup"] = show["setup"].map(lambda s: SETUP_LABEL.get(s, s))
     show["entry_mode"] = show["entry_mode"].map({"close": "Buy now", "stop": "Buy-stop"}).fillna(show["entry_mode"])
-    cols = ["symbol", "setup", "quality_pct", "entry_mode", "entry_price", "max_entry", "stop_loss", "risk_pct",
+    if "strong_trend" in show.columns:
+        show["trend"] = show["strong_trend"].map(lambda v: "💪 strong" if _is_yes(v) else "")
+    if "spiked" in show.columns:
+        show["spiked"] = show["spiked"].map(lambda v: "⚠️ already spiked" if _is_yes(v) else "")
+    cols = ["symbol", "setup", "quality_pct", "trend", "spiked", "entry_mode", "entry_price", "max_entry", "stop_loss", "risk_pct",
             "trail_pct", "plus_1R", "plus_2R", "plus_3R", "delivery_20d_pct", "vol_ratio",
             "gain_pct", "ext_pct", "dist_52w_high_pct", "ret_12m_pct", "sector", "stage"]
     show = show[[c_ for c_ in cols if c_ in show.columns]]
@@ -87,6 +98,9 @@ def render_scan_tab(mode: str, label: str):
     st.caption("Quality = rank among today's liquid stocks (100 = best): a filter (top half only), not a probability and not a ladder. Stop trails up behind the highest close "
                "(trail_pct); there is no fixed target - +1R/+2R/+3R are reference levels. Position size is yours to set: risk at most 1% of your "
                "capital per trade (half in a weak market), i.e. shares = the money you are willing to lose / (entry - stop).")
+    if "strong_trend" in df.columns or "spiked" in df.columns:
+        st.caption("💪 strong = the 200-day average is up 5%+ in a month (listed first; it did better in a 10-year replay, but the live scoreboard has to confirm it). "
+                   "⚠️ already spiked = up sharply in the last 5 days: buy in continuation (at the Buy-at price), not on a dip.")
     st.download_button(f"Download {label} CSV", df.to_csv(index=False), file_name=f"scan_results_{mode}.csv")
 
 
@@ -96,7 +110,7 @@ def load_ledger():
     if df is None:
         return None
     for col in ("quality_pct", "net", "R", "peak_R", "trigger", "trail", "fill_px", "last_close", "atr_pct", "fill_n", "exit_n",
-                "sessions", "exit_px", "init_stop"):
+                "sessions", "exit_px", "init_stop", "trend200", "run_up", "z_run_up", "strong_trend", "spiked"):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
@@ -198,13 +212,24 @@ def render_scoreboard_tab(df: pd.DataFrame | None):
 
         bucket = pd.cut(closed["quality_pct"], [0, 65, 80, 90, 100.01], labels=["50-65", "65-80", "80-90", "90-100"], right=False)
         cl = closed.assign(bucket=bucket.astype(str))
-        for title, by, labels in (("By quality percentile (does a higher rank do better?)", "bucket", None),
-                                  ("By setup", "setup", SETUP_LABEL), ("By scan", "scan_mode", {"btst": "🌙 BTST", "swing": "📈 Swing"}),
-                                  ("By market regime on the signal day", "regime", None)):
+        groupings = [("By quality percentile (does a higher rank do better?)", "bucket", None),
+                     ("By setup", "setup", SETUP_LABEL), ("By scan", "scan_mode", {"btst": "🌙 BTST", "swing": "📈 Swing"}),
+                     ("By market regime on the signal day", "regime", None)]
+        # picks logged since 2026-10-31 record the 200-day trend and the run-up; older ones are blank and left out of these two tables
+        for col, name, yes, no, title in (
+                ("strong_trend", "trend_group", "💪 Strong uptrend", "Other picks", "By 200-day trend when picked (💪 = average up 5%+ in 20 sessions)"),
+                ("spiked", "spike_group", "⚠️ Already spiked", "Not spiked", "By run-up before the signal")):
+            if col in cl.columns and cl[col].notna().any():
+                cl[name] = cl[col].map(lambda v, yes=yes, no=no: yes if v == 1 else no if v == 0 else None)
+                groupings.append((title, name, None))
+        for title, by, labels in groupings:
             t = _stats_table(cl, by, labels)
             if not t.empty:
                 st.subheader(title)
                 _df(t.style.format(STATS_FMT))
+        if "trend_group" in cl.columns or "spike_group" in cl.columns:
+            st.caption("The two trend / run-up tables only include picks logged since 31 Oct 2026. They started as hints from a 10-year replay "
+                       "(strong uptrends did better; spiked picks did not do measurably worse), so a group with fewer than 30 closed trades is noise.")
 
     st.subheader("All tracked trades")
     show = df.sort_values("signal_date", ascending=False).copy()

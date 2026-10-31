@@ -20,6 +20,7 @@ import os
 from datetime import datetime
 
 import config
+from scanner import footprint as fp
 from scanner import session
 from scanner.pipeline import fmt_price
 
@@ -62,6 +63,8 @@ def format_pick(p, idx: int) -> str:
     the setup, where to buy, the stop, a few words on why, and one line per specific warning (e.g. already spiked in 5 days).
     The buy line of a buy-stop pick just says "Buy at": the Stop line right under it is the stop-loss, and the section heading
     above the cards says these are trigger orders.
+    A stock in a strong uptrend starts its "why" line with the 💪 tag (explained once in the footer); the tag takes its own slot, so the
+    line still carries the same reasons as any other card.
     """
     sector = f" · {_e(p.sector)}" if p.sector else ""
     lines = [f"<b>{idx}. {_e(p.symbol)}</b> {STAGE_EMOJI.get(p.setup, '')} {_e(p.stage_label)} · Quality {p.quality_pct:.0f}/100{sector}"]
@@ -76,9 +79,10 @@ def format_pick(p, idx: int) -> str:
         lines.append(f"Buy at <b>{fmt_price(p.entry_price)}</b> · skip if it opens above {fmt_price(p.max_entry)}")
     lines.append(f"Stop <b>{fmt_price(p.stop)}</b> (-{_pct(p.risk_pct)}) · trail {_pct(p.trail_pct)}")
 
-    context = ([stats] if stats else []) + [_e(w) for w in p.why]
+    tag = [fp.STRONG_TREND_TAG] if getattr(p, "strong_trend", False) else []
+    context = tag + ([stats] if stats else []) + [_e(w) for w in p.why]
     if context:
-        lines.append(" · ".join(context[:4]))
+        lines.append(" · ".join(context[:4 + len(tag)]))
     for warning in p.watch[:2]:
         lines.append("⚠️ " + _e(warning))
     return "\n".join(lines)
@@ -211,6 +215,8 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     footer = (f"ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. "
               f"Risk at most {config.RISK_PER_TRADE_PCT:g}% of your capital per trade, half in a weak market. "
               f"A ranked shortlist, not a guarantee.</i>")
+    if any(getattr(p, "strong_trend", False) for p in picks):
+        footer = f"<i>{_e(fp.strong_trend_legend())}</i>\n" + footer          # the tag is explained only when a card carries it
     if scoreboard_line:
         footer = f"🧾 <i>{_e(scoreboard_line)}</i>\n" + footer
     blocks.append(footer)
