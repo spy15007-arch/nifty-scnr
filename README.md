@@ -72,13 +72,13 @@ On a day when stocks picked earlier are still among the strongest, the same mess
 📈 Swing scan · Mon 2 Nov · close of Fri 30 Oct
 📊 Breadth 19% (stocks above their 50-day average) - weak market: half size
 
-⭐ EARLIER PICKS, still strong (picked before, buy-stop still waiting - no new order)
+⭐ EARLIER PICKS, still strong (picked before, order still waiting - no new order)
 GLAND 👀 💪 · Quality 94/100 · picked 29 Oct
-Buy-stop 3,177.35 · 4 sessions left
+Buy at 3,177.35 · order valid 4 more sessions
 ZYDUSLIFE 🔥 · Quality 72/100 · picked 30 Oct
-Buy-stop 1,251.40 · 5 sessions left
+Buy at 1,251.40 · order valid 5 more sessions
 BHARTIARTL 👀 · Quality 96/100 · picked 27 Oct
-Buy-stop 2,009.85 · 2 sessions left
+Buy at 2,009.85 · order valid 2 more sessions
 +5 more earlier picks also still qualify (on your list)
 
 NEW · BUY-STOP ORDERS (GTT / stop-limit, valid 5 sessions)
@@ -92,7 +92,22 @@ NEW · BUY-STOP ORDERS (GTT / stop-limit, valid 5 sessions)
 * A **🔥 buy-now** card (BTST, live breakout) reads *Buy near 848.15 · up 3.4% today on 2.1x volume*.
 * **💪 strong uptrend** starts the "why" line of a stock whose 200-day average is at least 5% above where it was 20 sessions ago (`STRONG_TREND_200D_MIN` in `config.py`; about 1 signal in 5). These are **listed first**, and the footer explains the tag - only on a day when a card carries it. What the evidence says, honestly: in the 10-year replay (30 Oct 2026, [reports/evidence](reports/evidence/README.md) section 7) such stocks made **+3.95% per card after costs against +1.29%** for the rest, ahead in all three periods. But the 5% line was chosen after looking at the data, so the true gap is probably smaller; the gap was smaller in 2022-26 (about +1.5%, not clearly different from zero); it was not shown in weak markets (only 114 signals); and it comes from swing signals (BTST cannot be replayed). It is a ranking hint, not a promise - the live scoreboard (above) is how it gets confirmed or dropped, and setting `STRONG_TREND_200D_MIN` to `9.99` turns the tag and the ordering off.
 * A **⚠️** line is added only when something specific is going on. The one that tells you what to do: **"already spiked X% in 5 days - buy in continuation, not on a dip"**, i.e. do not chase it and do not wait for a dip either: buy it at the **Buy at** price, which only fills if the stock keeps going up. In the 10-year replay waiting for a dip did **not** beat buying at that price (a dip of 1 ATR: about the same; 2 ATR: clearly worse; for strong uptrends clearly worse). It appears when the gain is at least 4% **and** at least 1 standard deviation above the average stock's 5-day gain that day (roughly the top sixth - about a 5-6% gain in a normal week; `SPIKE_5D_Z`, `SPIKE_5D_MIN` in `config.py`). The line begins with *"200-day trend rising, but ..."* when the 200-day average is at least 1% above where it was 20 sessions ago (`TREND_200D_RISING_MIN`) and it is not a 💪 strong uptrend; for a 💪 stock the tag already says it, so the line begins with just *"Already spiked ..."*. These cut-offs were made stricter on 30 Oct 2026 (the weak market): before, the gain had to be 5% and 1.28 standard deviations (the top tenth) and "rising" meant 0.5%. For a fresh breakout its own big day is the signal, not a spike, so the run-up is measured up to the previous close (*"... spiked 9% before today"*). Other warnings: already more than 3% past the breakout level, a very volatile stock. This is a caution, not a profit tip, and the cut-offs only decide how often the line appears: the same replay found that picks flagged this way did **not** do worse after costs than the rest at any cut-off tried (they do swing more). The full list of strengths and weak points of every pick is in the dated write-up `reports/<mode>/scan_<date>.md`.
-* The evening **Swing** message ends with **📒 Your list**: what filled, expired or stopped out, every open trade's current stop (↑ = raised today) and the buy-stops still waiting. The afternoon **BTST** message leaves the stop list out (stops only change after a completed session) and shows only what changed.
+* The evening **Swing** message ends with **📒 Your list**, in plain words (illustrative example):
+
+  ```
+  📒 Your list
+  • ETERNAL - bought at 301.60 (buy order triggered)
+  • TCS - sold at 3,120.00: stop-loss hit (-1.0R, -6.0% after costs)
+  • HDFCBANK - buy order expired; no trade
+  Bought, not sold yet (2) - sell if the price falls to:
+  ETERNAL 276.90 · INFY 1,566.50↑
+  ↑ = moved up today
+  Waiting to buy (4) - buy when the price rises to:
+  GLAND 3,177.35 · ZYDUSLIFE 1,251.40
+  BHARTIARTL 2,009.85 · MANKIND 2,448.10
+  ```
+
+  *Bought, not sold yet* lists each stock you hold with the price to sell at if it falls that far (its current stop-loss, which only ever moves up; ↑ marks one that moved up today). *Waiting to buy* lists each buy order that has not triggered yet with its **buy price**, so you do not have to scroll back to the message that issued the pick. An order that is skipped because the stock opened more than 3% above its buy price, or that expires, is reported once as an update ("buy order skipped ..." / "buy order expired; no trade") and then leaves the list. Each list shows 24 stocks at most, then "...and N more in the dashboard". The afternoon **BTST** message leaves both lists out (stops only change after a completed session) and shows only what changed.
 * The last two lines are the live record (closed trades only) and the standing rule. The back-test numbers are in [reports/evidence](reports/evidence/README.md), the README and the dashboard, not repeated in every message.
 
 ## Files and dashboard

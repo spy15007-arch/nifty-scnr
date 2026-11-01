@@ -118,10 +118,10 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
     if any(getattr(p, "strong_trend", False) for p in list(result.picks) + earlier):
         out += [f"*{fp.strong_trend_legend()}*", ""]
     if earlier:
-        out += ["**Earlier picks, still strong** (picked before, buy-stop still waiting - no new order):", ""]
+        out += ["**Earlier picks, still strong** (picked before, order still waiting - no new order):", ""]
         for e in earlier:
-            out += [f"- **{e.symbol}**{' 💪' if getattr(e, 'strong_trend', False) else ''} - picked {e.picked}, buy-stop {fmt_price(e.trigger)} "
-                    f"still waiting ({e.sessions_left} session{'s' if e.sessions_left != 1 else ''} left), quality {e.quality_pct:.0f}/100"]
+            out += [f"- **{e.symbol}**{' 💪' if getattr(e, 'strong_trend', False) else ''} - picked {e.picked}, buy at {fmt_price(e.trigger)} "
+                    f"(order still waiting, valid {e.sessions_left} more session{'s' if e.sessions_left != 1 else ''}), quality {e.quality_pct:.0f}/100"]
         out += [""]
     if result.repeats:
         out += ["Already on your list (not repeated): " + ", ".join(s for s, _ in result.repeats[:20]), ""]

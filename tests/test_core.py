@@ -1079,8 +1079,8 @@ class EarlierPicks(unittest.TestCase):
         msg = self._msg(res, earlier)
         self.assertTrue(msg.startswith("📈 <b>Swing scan</b>"))
         self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · BUY-STOP ORDERS</b> (GTT / stop-limit"))
-        self.assertIn("<b>S001</b> 👀 💪 · Quality 97/100 · picked 13 Oct\nBuy-stop <b>1,969.25</b> · 5 sessions left", msg)
-        self.assertIn("<b>PLANT</b> 🔥 · Quality 99/100 · picked 13 Oct\nBuy-stop <b>103.25</b> · 5 sessions left", msg)
+        self.assertIn("<b>S001</b> 👀 💪 · Quality 97/100 · picked 13 Oct\nBuy at <b>1,969.25</b> · order valid 5 more sessions", msg)
+        self.assertIn("<b>PLANT</b> 🔥 · Quality 99/100 · picked 13 Oct\nBuy at <b>103.25</b> · order valid 5 more sessions", msg)
         self.assertEqual(msg.count("NEW · "), 1)
         self.assertEqual(msg.count("<b>1. "), 1)                                    # the new cards are numbered from 1; the earlier block has no numbers
         self.assertEqual(msg.count(self.LEGEND), 1)                                # no new pick is strong: the 💪 is on the earlier block only
@@ -1097,7 +1097,7 @@ class EarlierPicks(unittest.TestCase):
         msg = self._msg(res, self._earlier(res))
         self.assertNotIn("NEW ·", msg)
         self.assertLess(msg.index("No new pick."), msg.index("EARLIER PICKS, still strong"))
-        self.assertEqual(msg.count("Buy-stop <b>"), config.EARLIER_PICKS_MAX)
+        self.assertEqual(msg.count("Buy at <b>"), config.EARLIER_PICKS_MAX)
         self.assertEqual(msg.count("💪 · Quality"), 1)
 
     def test_without_earlier_picks_the_message_is_unchanged(self):
@@ -1114,18 +1114,18 @@ class EarlierPicks(unittest.TestCase):
         e = pl.EarlierPick("ZZZ", "primed", 88.0, True, "2026-10-12", 123.4, 2)
         msg = notify.format_scan_message(live, "btst", now=at(2026, 10, 13, 14, 0), earlier=[e])
         self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · BUY NOW</b> (near the close"))
-        self.assertIn("<b>ZZZ</b> 👀 💪 · Quality 88/100 · picked 12 Oct\nBuy-stop <b>123.40</b> · 2 sessions left", msg)
+        self.assertIn("<b>ZZZ</b> 👀 💪 · Quality 88/100 · picked 12 Oct\nBuy at <b>123.40</b> · order valid 2 more sessions", msg)
 
     def test_the_block_is_capped_and_says_how_many_more_qualify(self):
         many = [pl.EarlierPick(f"E{i}", "primed", 90.0 - i, False, "2026-10-12", 100.0 + i, 3) for i in range(8)]
         cap = config.EARLIER_PICKS_MAX
         block = notify.format_earlier_block(many)
-        self.assertEqual(block.count("Buy-stop <b>"), cap)
+        self.assertEqual(block.count("Buy at <b>"), cap)
         self.assertEqual([i for i in range(8) if f"<b>E{i}</b>" in block], list(range(cap)))      # the best ones, in order
         self.assertIn(f"+{8 - cap} more earlier picks also still qualify (on your list)", block)
         with mock.patch.object(config, "EARLIER_PICKS_MAX", 2):
             block = notify.format_earlier_block(many)
-            self.assertEqual(block.count("Buy-stop <b>"), 2)
+            self.assertEqual(block.count("Buy at <b>"), 2)
             self.assertIn("+6 more earlier picks also still qualify (on your list)", block)
         with mock.patch.object(config, "EARLIER_PICKS_MAX", 7):
             self.assertIn("+1 more earlier pick also still qualifies (on your list)", notify.format_earlier_block(many))      # singular
@@ -1134,8 +1134,8 @@ class EarlierPicks(unittest.TestCase):
     def test_small_details_of_a_line(self):
         one = notify.format_earlier_block([pl.EarlierPick("ZZZ", "fresh", 70.0, False, "2026-10-09", 55.5, 1)])
         self.assertIn("<b>ZZZ</b> 🔥 · Quality 70/100 · picked 9 Oct", one)
-        self.assertIn("1 session left", one)
-        self.assertNotIn("1 sessions", one)
+        self.assertIn("order valid 1 more session", one)
+        self.assertNotIn("1 more sessions", one)
         self.assertNotIn("💪", one)
         self.assertEqual(notify.format_earlier_block([]), "")
         self.assertEqual((notify._short_iso("2026-10-03"), notify._short_iso("garbage"), notify._short_iso("")), ("3 Oct", "garbage", ""))
@@ -1169,8 +1169,8 @@ class EarlierPicks(unittest.TestCase):
         earlier = self._earlier(res)
         text = summary.render_summary("swing", res, self.now, earlier=earlier)
         self.assertIn("**Earlier picks, still strong**", text)
-        self.assertIn("- **S001** 💪 - picked 2026-10-13, buy-stop 1,969.25 still waiting (5 sessions left), quality 97/100", text)
-        self.assertIn("- **PLANT** - picked 2026-10-13, buy-stop 103.25 still waiting (5 sessions left), quality 99/100", text)
+        self.assertIn("- **S001** 💪 - picked 2026-10-13, buy at 1,969.25 (order still waiting, valid 5 more sessions), quality 97/100", text)
+        self.assertIn("- **PLANT** - picked 2026-10-13, buy at 103.25 (order still waiting, valid 5 more sessions), quality 99/100", text)
         self.assertEqual(text.count("strong uptrend = the 200-day average"), 1)
         self.assertNotIn("Earlier picks", summary.render_summary("swing", res, self.now))
         self.assertEqual(len(summary.picks_frame(res.picks)), len(res.picks))
@@ -1401,20 +1401,23 @@ class Messages(unittest.TestCase):
         rows = [{"symbol": "AAA", "status": "OPEN", "trail": 105.0}, {"symbol": "BBB", "status": "OPEN", "trail": 45.5},
                 {"symbol": "EEE", "status": "PENDING", "trigger": 200.0}]
         evening = notify.format_tracked_block(events, rows, snapshot=True)
-        self.assertIn("Open - current stops (2)", evening)
+        self.assertIn("<b>Bought, not sold yet (2) - sell if the price falls to:</b>", evening)
         self.assertIn("AAA 105.00↑", evening)
         self.assertIn("BBB 45.50", evening)
         self.assertNotIn("BBB 45.50↑", evening)
-        self.assertNotIn("raise stop", evening)                                      # the arrow replaces the separate line
-        self.assertIn("Buy-stops still waiting (1):</b> EEE", evening)
-        self.assertNotIn("200.00", evening)                                          # names only
-        self.assertIn("BBB</b> - buy-stop filled at 50.00", evening)
-        self.assertIn("CCC</b> - stopped out at 90.00 (-1.0R, -6.0% after costs)", evening)
-        self.assertIn("DDD</b> - buy-stop expired; no trade", evening)
+        self.assertIn("↑ = moved up today", evening)
+        self.assertNotIn("raise your stop-loss", evening)                            # the arrow replaces the separate line
+        self.assertIn("<b>Waiting to buy (1) - buy when the price rises to:</b>\nEEE 200.00", evening)     # each waiting stock with its buy price
+        self.assertIn("BBB</b> - bought at 50.00 (buy order triggered)", evening)
+        self.assertIn("CCC</b> - sold at 90.00: stop-loss hit (-1.0R, -6.0% after costs)", evening)
+        self.assertIn("DDD</b> - buy order expired; no trade", evening)
+        for old_words in ("Open - current stops", "Buy-stops still waiting", "buy-stop filled", "stopped out", "raise stop "):
+            self.assertNotIn(old_words, evening)                                     # the jargon the user found confusing is gone
         afternoon = notify.format_tracked_block(events, rows, snapshot=False)
-        self.assertNotIn("current stops", afternoon)
-        self.assertNotIn("waiting", afternoon)
-        self.assertIn("AAA</b> - raise stop 100.00 → <b>105.00</b>", afternoon)      # nothing is lost when there is no list to carry the arrow
+        self.assertNotIn("sell if the price falls to", afternoon)
+        self.assertNotIn("Waiting to buy", afternoon)
+        self.assertNotIn("moved up today", afternoon)
+        self.assertIn("AAA</b> - raise your stop-loss 100.00 → <b>105.00</b>", afternoon)      # nothing is lost when there is no list to carry the arrow
         self.assertEqual(notify.format_tracked_block([], rows, snapshot=False), "")
         self.assertEqual(notify.format_tracked_block([], [], snapshot=True), "")
         for block in (evening, afternoon):
@@ -1424,12 +1427,24 @@ class Messages(unittest.TestCase):
 
     def test_a_long_list_is_capped_not_dumped(self):
         rows = [{"symbol": f"S{i:02d}", "status": "OPEN", "trail": 10.0 + i} for i in range(30)]
-        rows += [{"symbol": f"W{i:02d}", "status": "PENDING", "trigger": 5.0} for i in range(20)]
+        rows += [{"symbol": f"W{i:02d}", "status": "PENDING", "trigger": 5.0 + i} for i in range(28)]
         block = notify.format_tracked_block([], rows, snapshot=True)
-        self.assertIn("Open - current stops (30)", block)
+        self.assertIn("Bought, not sold yet (30)", block)
         self.assertIn("...and 6 more in the dashboard", block)
-        self.assertIn("Buy-stops still waiting (20)", block)
-        self.assertIn(", +4 more", block)
+        self.assertIn("Waiting to buy (28)", block)
+        self.assertIn("...and 4 more in the dashboard", block)
+        self.assertIn("W00 5.00 · W01 6.00\nW02 7.00 · W03 8.00", block)                # two to a line, like the stop-loss list
+        self.assertIn("W23 28.00", block)
+        self.assertNotIn("W24", block)
+
+    def test_the_waiting_list_shows_each_buy_price_and_never_a_made_up_one(self):
+        rows = [{"symbol": "AAA", "status": "PENDING", "trigger": 1251.4}, {"symbol": "BBB", "status": "PENDING", "trigger": 98.05},
+                {"symbol": "CCC", "status": "PENDING", "trigger": float("nan")}, {"symbol": "DDD", "status": "PENDING", "trigger": None},
+                {"symbol": "EEE", "status": "PENDING", "trigger": 0.0}]
+        block = notify.format_tracked_block([], rows, snapshot=True)
+        self.assertIn("AAA 1,251.40 · BBB 98.05\nCCC · DDD\nEEE", block)             # a missing or unusable price is left out, not shown as nan / 0 / -
+        self.assertNotIn("nan", block.lower())
+        self.assertNotIn("None", block)
 
     def test_a_formatting_slip_still_sends_a_plain_notice(self):
         sent = []
@@ -1562,18 +1577,23 @@ class EndToEnd(E2EHarness, unittest.TestCase):
 
     def test_the_evening_message_carries_the_stop_list_and_the_afternoon_one_does_not(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))                          # PLANT is logged as a waiting buy-stop
+        first = pd.read_csv("tracking/trades.csv")
+        waiting_before = first[first["status"] == "PENDING"]
+        self.assertIn("PLANT", list(waiting_before["symbol"]))
         nxt = self._next_session()
         self.sent.clear()
         self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=nxt)
         evening = "\n".join(self.sent)
         self.assertIn("Your list", evening)
-        self.assertRegex(evening, r"Buy-stops still waiting \(\d+\):</b> .*PLANT")
+        self.assertRegex(evening, r"Waiting to buy \(\d+\) - buy when the price rises to:</b>\n(?:[^\n]*\n)*?[^\n]*PLANT [\d,]+\.\d{2}")
+        for r in waiting_before.itertuples():                                         # every waiting stock carries the price its order triggers at
+            self.assertIn(f"{r.symbol} {pl.fmt_price(r.trigger)}", evening)
         self.sent.clear()
         self._run(["scan_btst"], at(2026, 10, 15, 14, 0), source="manual", bars=nxt)
         afternoon = "\n".join(self.sent)
         self.assertTrue(afternoon)
-        self.assertNotIn("current stops", afternoon)                                 # stops only change after a completed session
-        self.assertNotIn("Buy-stops still waiting", afternoon)                       # (the earlier-picks block may say "buy-stop still waiting")
+        self.assertNotIn("sell if the price falls to", afternoon)                    # stops only change after a completed session
+        self.assertNotIn("Waiting to buy", afternoon)                                # (the earlier-picks block says "order still waiting")
 
     def test_afternoon_btst_fetches_only_the_watchlist_and_a_late_cron_is_skipped(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
@@ -1749,7 +1769,7 @@ class EarlierPicksEndToEnd(E2EHarness, unittest.TestCase):
         block = text[text.index("EARLIER PICKS, still strong"):].split("\n\n")[0]
         listed = [ln.split("</b>")[0].replace("<b>", "") for ln in block.split("\n")[1:] if ln.startswith("<b>")]
         self.assertTrue(listed and set(listed) <= waiting, (listed, waiting))
-        self.assertIn(f"{config.ENTRY_VALID_SESSIONS - 1} sessions left", block)       # one session has gone since they were picked
+        self.assertIn(f"order valid {config.ENTRY_VALID_SESSIONS - 1} more sessions", block)       # one session has gone since they were picked
         new = pd.read_csv("scan_results_swing.csv")
         if len(new):
             self.assertIn("NEW · ", text)
@@ -1842,7 +1862,7 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertTrue(any("live quotes" in m for m in self.sent), self.sent[:1])
         self.assertFalse(any("Partial scan" in m for m in self.sent))
         self.assertFalse(any("Live quotes not used" in m for m in self.sent))
-        self.assertFalse(any("current stops" in m or "Buy-stops still waiting" in m for m in self.sent))   # the afternoon message has no stop list
+        self.assertFalse(any("sell if the price falls to" in m or "Waiting to buy" in m for m in self.sent))   # the afternoon message has no stop list
         doc = _load_json("reports/output/fetch_report_btst.json")
         self.assertEqual((doc["kind"], doc["route"], doc["loaded"] == doc["requested"]), ("watchlist", "quotes", True))
 

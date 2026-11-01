@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 STAGE_EMOJI = {"fresh": "🔥", "primed": "👀"}
 MAX_CHUNK = 3900                    # Telegram's hard limit is 4096 characters per message
 MAX_STOPS_SHOWN = 24                # open trades listed with their current stop
-MAX_WAITING_SHOWN = 16              # buy-stops still waiting (names only)
+MAX_WAITING_SHOWN = 24              # buy orders still waiting, each with its buy price (laid out like the stop-loss list)
 MAX_EVENTS_SHOWN = 12
 
 
@@ -49,6 +49,15 @@ def _e(x) -> str:
 
 def _pct(x: float, signed: bool = False) -> str:
     return f"{x:+.1%}" if signed else f"{x:.1%}"
+
+
+def _price_or_none(x):
+    """A usable price as a float, or None (blank, NaN, zero, text)."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if math.isfinite(v) and v > 0 else None
 
 
 def _rows(items: list[str], per_row: int = 2) -> list[str]:
@@ -90,8 +99,11 @@ def format_pick(p, idx: int) -> str:
 
 def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bool = True, max_events: int = MAX_EVENTS_SHOWN) -> str:
     """
-    What happened to trades already on the list, and (snapshot=True, the evening scan) where every open trade's stop is now.
-    The afternoon scan leaves the snapshot out: the stops only change after a completed session, so it would repeat last night.
+    What happened to trades already on the list, and (snapshot=True, the evening scan) the stop-loss of every stock you have bought and not sold yet
+    and the buy orders still waiting. The afternoon scan leaves that snapshot out: the stops only change after a completed session, so it would
+    repeat last night.
+    Plain words on purpose (changed 2026-11-01 at the user's request, the old headings "Open - current stops" and "Buy-stops still waiting" were
+    confusing): "bought" / "sold" / "buy order" / "stop-loss"; the same words are used in the earlier-picks block.
     """
     holding = [r for r in open_rows if r.get("status") == "OPEN"]
     waiting = [r for r in open_rows if r.get("status") == "PENDING"]
@@ -105,17 +117,17 @@ def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bo
         k = ev.get("kind")
         s = _e(ev.get("symbol", ""))
         if k == "filled":
-            lines.append(f"• <b>{s}</b> - buy-stop filled at {fmt_price(ev.get('price'))}")
+            lines.append(f"• <b>{s}</b> - bought at {fmt_price(ev.get('price'))} (buy order triggered)")
         elif k == "closed":
-            why = {"stop": "stopped out", "trail": "trailing stop hit", "gap_stop": "gapped through the stop",
-                   "same_day_stop": "bought and stopped out the same day", "time": "60-session limit reached"}.get(ev.get("reason"), "closed")
+            why = {"stop": "stop-loss hit", "trail": "trailing stop-loss hit", "gap_stop": "it opened below the stop-loss",
+                   "same_day_stop": "bought and hit the stop-loss the same day", "time": "60-session limit reached"}.get(ev.get("reason"))
             r, net = ev.get("R"), ev.get("net")
             res = f" ({r:+.1f}R, {net:+.1%} after costs)" if r is not None and net is not None else ""
-            lines.append(f"• <b>{s}</b> - {why} at {fmt_price(ev.get('price'))}{res}")
+            lines.append(f"• <b>{s}</b> - sold at {fmt_price(ev.get('price'))}" + (f": {why}" if why else "") + res)
         elif k == "unfilled":
-            lines.append(f"• <b>{s}</b> - buy-stop {'skipped, it opened too far above the trigger' if 'gap' in str(ev.get('reason')) else 'expired'}; no trade")
+            lines.append(f"• <b>{s}</b> - buy order {'skipped, it opened too far above your buy price' if 'gap' in str(ev.get('reason')) else 'expired'}; no trade")
         elif k == "trail_raised":
-            lines.append(f"• <b>{s}</b> - raise stop {fmt_price(ev.get('old'))} → <b>{fmt_price(ev.get('new'))}</b>")
+            lines.append(f"• <b>{s}</b> - raise your stop-loss {fmt_price(ev.get('old'))} → <b>{fmt_price(ev.get('new'))}</b>")
         elif k == "void":
             lines.append(f"• <b>{s}</b> - price series jumped (split/demerger?), dropped from the record")
     if len(evs) > max_events:
@@ -124,15 +136,23 @@ def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bo
     if snapshot and holding:
         up = any(r["symbol"] in raised for r in holding[:MAX_STOPS_SHOWN])
         items = [f"{_e(r['symbol'])} {fmt_price(r['trail'])}{'↑' if r['symbol'] in raised else ''}" for r in holding[:MAX_STOPS_SHOWN]]
-        lines.append(f"<b>Open - current stops ({len(holding)})</b>" + (" · ↑ = raised today" if up else ""))
+        lines.append(f"<b>Bought, not sold yet ({len(holding)}) - sell if the price falls to:</b>")
         lines.extend(_rows(items))
+        if up:
+            lines.append("↑ = moved up today")
         if len(holding) > MAX_STOPS_SHOWN:
             lines.append(f"...and {len(holding) - MAX_STOPS_SHOWN} more in the dashboard")
     if snapshot and waiting:
-        # names only: the trigger prices were in the message that issued each pick (and are in your broker's order list and the dashboard)
-        names = ", ".join(_e(r["symbol"]) for r in waiting[:MAX_WAITING_SHOWN])
-        more = f", +{len(waiting) - MAX_WAITING_SHOWN} more" if len(waiting) > MAX_WAITING_SHOWN else ""
-        lines.append(f"<b>Buy-stops still waiting ({len(waiting)}):</b> {names}{more}")
+        # each stock with the price its buy order triggers at, laid out like the stop-loss list above (added 2026-11-01 at the user's request:
+        # nobody should have to scroll back to the message that issued the pick to find the buy price)
+        items = []
+        for r in waiting[:MAX_WAITING_SHOWN]:
+            px = _price_or_none(r.get("trigger"))
+            items.append(f"{_e(r['symbol'])} {fmt_price(px)}" if px is not None else _e(r["symbol"]))
+        lines.append(f"<b>Waiting to buy ({len(waiting)}) - buy when the price rises to:</b>")
+        lines.extend(_rows(items))
+        if len(waiting) > MAX_WAITING_SHOWN:
+            lines.append(f"...and {len(waiting) - MAX_WAITING_SHOWN} more in the dashboard")
     if not lines:
         return ""
     return "📒 <b>Your list</b>\n" + "\n".join(lines)
@@ -154,13 +174,13 @@ def format_earlier_block(earlier: list) -> str:
     if not earlier or config.EARLIER_PICKS_MAX <= 0:
         return ""
     shown = earlier[:config.EARLIER_PICKS_MAX]
-    lines = ["⭐ <b>EARLIER PICKS, still strong</b> (picked before, buy-stop still waiting - no new order)"]
+    lines = ["⭐ <b>EARLIER PICKS, still strong</b> (picked before, order still waiting - no new order)"]
     for e in shown:
         # the setup emoji is what puts a lower-quality fresh breakout above a higher-quality about-to-break stock (the order of the whole list)
         marks = " ".join(m for m in (STAGE_EMOJI.get(e.setup, ""), "💪" if getattr(e, "strong_trend", False) else "") if m)
-        left = f"{e.sessions_left} session{'s' if e.sessions_left != 1 else ''} left"
+        left = f"order valid {e.sessions_left} more session{'s' if e.sessions_left != 1 else ''}"
         lines.append(f"<b>{_e(e.symbol)}</b>{' ' + marks if marks else ''} · Quality {e.quality_pct:.0f}/100 · picked {_short_iso(e.picked)}")
-        lines.append(f"Buy-stop <b>{fmt_price(e.trigger)}</b> · {left}")
+        lines.append(f"Buy at <b>{fmt_price(e.trigger)}</b> · {left}")
     more = len(earlier) - len(shown)
     if more > 0:
         lines.append(f"+{more} more earlier pick{'s also still qualify' if more != 1 else ' also still qualifies'} (on your list)")
