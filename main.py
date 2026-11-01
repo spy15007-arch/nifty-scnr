@@ -508,6 +508,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
                 f"{f['repeats']} already on the list -> {f['picks']} picks | breadth {b50_text} ({result.regime})")
 
     # --- 4. messages and files -----------------------------------------------------------------------------
+    led = None
     try:
         led = outcomes.load_ledger()
         open_rows = outcomes.open_positions(led).to_dict("records")
@@ -518,6 +519,15 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
         logger.exception("Scoreboard: could not summarise the ledger")
         tracked_block, scoreboard_line = "", ""
 
+    # earlier picks whose buy-stop order is still waiting and that still rank above today's new picks (a reminder only: nothing is re-picked)
+    earlier: list = []
+    try:
+        earlier = pl.earlier_picks(result, led)
+        if earlier:
+            logger.info("⭐ Earlier picks still strong: " + ", ".join(f"{e.symbol} ({e.quality_pct:.0f})" for e in earlier))
+    except Exception:  # noqa: BLE001 - a reminder must never cost the scan
+        logger.exception("Could not work out which earlier picks are still strong")
+
     try:
         outcomes.log_new_picks(result.picks, now, regime=result.regime)
     except Exception:  # noqa: BLE001
@@ -527,7 +537,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     _write_fetch_report(scan_mode, ctx, now, result)
     try:
         summary.write_scan_outputs(scan_mode, result, now, market_line=market_line, tracked_text=tracked_block,
-                                   scoreboard_line=scoreboard_line, notes=run_notes)
+                                   scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier)
     except Exception:  # noqa: BLE001
         logger.exception("Could not write the report files")
 
@@ -544,7 +554,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
 
     sent = notify.notify_scan(result, scan_mode, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, now=now,
                               market_line=market_line, tracked_block=tracked_block,
-                              scoreboard_line=scoreboard_line, notes=run_notes,
+                              scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier,
                               save_to=f"reports/output/last_message_{scan_mode}.txt")
     if not sent:
         logger.warning("The scan message was not delivered to Telegram (not configured, or the send failed) - the files have the full result")

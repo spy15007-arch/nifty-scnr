@@ -93,7 +93,8 @@ def _table(picks: list) -> list[str]:
 
 
 def render_summary(scan_mode: str, result, now: datetime, market_line: str = "", tracked_text: str = "",
-                   scoreboard_line: str = "", notes: list[str] | None = None, detail: bool = False) -> str:
+                   scoreboard_line: str = "", notes: list[str] | None = None, detail: bool = False,
+                   earlier: list | None = None) -> str:
     t = now.astimezone(session.IST)
     out = [f"# {_title(scan_mode)} - {t.strftime('%a %d %b %Y, %I:%M %p').replace(' 0', ' ')} IST", "",
            f"*{_basis(result, now)}*", ""]
@@ -113,8 +114,15 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
             f"{', ' + str(f['repeats']) + ' already on the list' if f.get('repeats') else ''}*", ""]
     out += _table(result.picks)
     out += [""]
-    if any(getattr(p, "strong_trend", False) for p in result.picks):
+    earlier = list(earlier or [])
+    if any(getattr(p, "strong_trend", False) for p in list(result.picks) + earlier):
         out += [f"*{fp.strong_trend_legend()}*", ""]
+    if earlier:
+        out += ["**Earlier picks, still strong** (picked before, buy-stop still waiting - no new order):", ""]
+        for e in earlier:
+            out += [f"- **{e.symbol}**{' 💪' if getattr(e, 'strong_trend', False) else ''} - picked {e.picked}, buy-stop {fmt_price(e.trigger)} "
+                    f"still waiting ({e.sessions_left} session{'s' if e.sessions_left != 1 else ''} left), quality {e.quality_pct:.0f}/100"]
+        out += [""]
     if result.repeats:
         out += ["Already on your list (not repeated): " + ", ".join(s for s, _ in result.repeats[:20]), ""]
     if detail and result.picks:
@@ -164,7 +172,7 @@ def prepend_master(section: str, path: str = MASTER_PATH, max_sections: int = MA
 
 
 def write_scan_outputs(scan_mode: str, result, now: datetime, market_line: str = "", tracked_text: str = "",
-                       scoreboard_line: str = "", notes: list[str] | None = None) -> dict:
+                       scoreboard_line: str = "", notes: list[str] | None = None, earlier: list | None = None) -> dict:
     """Write every file listed in the module docstring. Returns the paths written."""
     folder = _ensure_dirs(scan_mode)
     t = now.astimezone(session.IST)
@@ -177,8 +185,8 @@ def write_scan_outputs(scan_mode: str, result, now: datetime, market_line: str =
     df.to_csv(paths["csv"], index=False)
     df.to_csv(paths["csv_dated"], index=False)
 
-    short = render_summary(scan_mode, result, now, market_line, tracked_text, scoreboard_line, notes, detail=False)
-    full = render_summary(scan_mode, result, now, market_line, tracked_text, scoreboard_line, notes, detail=True)
+    short = render_summary(scan_mode, result, now, market_line, tracked_text, scoreboard_line, notes, detail=False, earlier=earlier)
+    full = render_summary(scan_mode, result, now, market_line, tracked_text, scoreboard_line, notes, detail=True, earlier=earlier)
     paths["summary"] = f"summary_{scan_mode}.md"
     paths["summary_folder"] = f"{folder}/summary_{scan_mode}.md"
     paths["detail"] = f"{folder}/scan_{date_str}.md"

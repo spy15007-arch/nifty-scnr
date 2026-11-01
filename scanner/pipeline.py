@@ -165,6 +165,28 @@ class SelectionResult:
     live: bool
     vol_fraction: float
     used_delivery: bool
+    # what today's data say about each stock in `repeats`: {symbol: {setup, quality_pct, strong_trend, price, high}} (see earlier_picks)
+    repeat_info: dict = field(default_factory=dict)
+
+
+def rank_key(strong: bool, setup: str, quality_pct: float) -> tuple:
+    """
+    The order of the list, best first: stocks in a strong uptrend, then fresh breakouts before about-to-break stocks, then quality.
+    One definition for the new picks AND for earlier picks being compared with them.
+    """
+    return (0 if strong else 1, 0 if setup == "fresh" else 1, -float(quality_pct))
+
+
+@dataclass
+class EarlierPick:
+    """A stock picked on an earlier day whose buy-stop order is still waiting and which still passes today's tests (see earlier_picks)."""
+    symbol: str
+    setup: str                  # today's setup: 'fresh' | 'primed'
+    quality_pct: float          # today's quality rank
+    strong_trend: bool
+    picked: str                 # ISO date of the original signal
+    trigger: float              # the buy-stop price of the order that is still waiting
+    sessions_left: int          # sessions the order stays valid
 
 
 # --------------------------------------------------------------------------- #
@@ -384,6 +406,7 @@ def select_picks(
     # ---- candidates -------------------------------------------------------------
     candidates: list[tuple[float, str, str, dict]] = []
     repeats: list[tuple[str, str]] = []
+    repeat_info: dict[str, dict] = {}
     for sym, f in rows.items():
         su = fp.detect_setup(f)
         setup = su["setup"]
@@ -397,14 +420,16 @@ def select_picks(
         if sym in exclude:
             funnel["repeats"] += 1
             repeats.append((sym, setup))
+            # what today's data say about it: earlier_picks() compares the ones with a waiting order against today's new picks
+            repeat_info[sym] = {"setup": setup, "quality_pct": float(q), "strong_trend": bool(fp.trend_strong(f.get("sma200_chg"))),
+                                "price": f.get("close"), "high": f.get("high")}
             continue
         candidates.append((q, sym, setup, su))
 
-    # STRONG uptrends first (200-day average up 5%+ in 20 sessions), then FRESH before PRIMED, then best quality first.
+    # STRONG uptrends first (200-day average up 5%+ in 20 sessions), then FRESH before PRIMED, then best quality first (rank_key).
     # The strong ones lead because they did clearly better in the 10-year replay (reports/evidence/README.md, section 7); the rest of the
     # order is as before. The order only matters for which picks stay when more stocks qualify than max_picks (rare), and for how the list reads.
-    candidates.sort(key=lambda t: (0 if fp.trend_strong(rows[t[1]].get("sma200_chg")) else 1,
-                                   0 if t[2] == "fresh" else 1, -t[0], t[1]))
+    candidates.sort(key=lambda t: rank_key(fp.trend_strong(rows[t[1]].get("sma200_chg")), t[2], t[0]) + (t[1],))
 
     sig_date = ref_date.isoformat() if ref_date else ""
     sig_time = now.astimezone(session.IST).strftime("%H:%M") if live else ""
@@ -460,7 +485,47 @@ def select_picks(
             notes.append(f"{n} of the {len(picks)} picks are in the same sector ({sec}) - they tend to move together, "
                          f"so treat them as one position")
     return SelectionResult(picks, repeats, funnel, breadth, regime, out_stats, feats, notes,
-                           ref_date, live, vol_fraction, used_delivery)
+                           ref_date, live, vol_fraction, used_delivery, repeat_info)
+
+
+def earlier_picks(result: SelectionResult, ledger: pd.DataFrame | None) -> list[EarlierPick]:
+    """
+    Stocks picked on an EARLIER day that are still among the strongest on offer, so they are not lost behind today's new picks.
+
+    A stock qualifies when ALL of these hold:
+      * the ledger still has its buy-stop order waiting (status PENDING, sessions left) - a stock already bought (OPEN) is in the "Your
+        list" block with its stop, and one whose order expired is not re-issued before the cool-down ends (the back-test counted one trade per
+        stock per COOLDOWN_SESSIONS, so a re-pick would be untested);
+      * it still passes today's tests (it is in `result.repeat_info`: in a setup and in the top half by quality today);
+      * today's price has not reached its trigger (on a live scan the order may already have filled today - "still waiting" would be wrong);
+      * it ranks above at least one of today's new picks by the list order (`rank_key`), or there is no new pick.
+    Best first, all of them (the message shows the first config.EARLIER_PICKS_MAX). Nothing is re-picked or re-logged: the scoreboard is not touched.
+    """
+    if ledger is None or len(ledger) == 0 or not result.repeat_info:
+        return []
+    worst_new = max((rank_key(p.strong_trend, p.setup, p.quality_pct) for p in result.picks), default=None)
+    found: dict[str, EarlierPick] = {}                 # one line per stock, even if the ledger holds two waiting orders for it (the later one wins)
+    for _, r in ledger[ledger["status"] == "PENDING"].iterrows():
+        info = result.repeat_info.get(r["symbol"])
+        if info is None:
+            continue
+        try:
+            trigger = float(r["trigger"])
+            left = int(float(r["valid_sessions"]) - float(r["sessions"]))
+        except (TypeError, ValueError):
+            continue
+        if not (math.isfinite(trigger) and trigger > 0) or left < 1:
+            continue
+        reached = [float(v) for v in (info.get("price"), info.get("high")) if v is not None and math.isfinite(float(v))]
+        if not reached or max(reached) >= trigger:
+            continue                                   # no price at all, or it has probably triggered today: not "still waiting"
+        key = rank_key(info["strong_trend"], info["setup"], info["quality_pct"])
+        if worst_new is not None and not key < worst_new:
+            continue
+        found[str(r["symbol"])] = EarlierPick(symbol=str(r["symbol"]), setup=info["setup"], quality_pct=float(info["quality_pct"]),
+                                              strong_trend=bool(info["strong_trend"]), picked=str(r["signal_date"]), trigger=trigger,
+                                              sessions_left=left)
+    return sorted(found.values(), key=lambda e: rank_key(e.strong_trend, e.setup, e.quality_pct) + (e.symbol,))
 
 
 # --------------------------------------------------------------------------- #

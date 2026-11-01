@@ -138,6 +138,35 @@ def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bo
     return "📒 <b>Your list</b>\n" + "\n".join(lines)
 
 
+def _short_iso(iso: str) -> str:
+    """'2026-10-27' -> '27 Oct' (the text as it came when it is not a date)."""
+    try:
+        return datetime.fromisoformat(str(iso)).strftime("%d %b").lstrip("0")
+    except ValueError:
+        return str(iso)
+
+
+def format_earlier_block(earlier: list) -> str:
+    """
+    Stocks picked on an earlier day whose buy-stop order is still waiting and that still rank above today's new picks (pipeline.earlier_picks).
+    Two short lines each, no blank line inside (the splitter keeps the block whole). No new order is needed: the one already placed stands.
+    """
+    if not earlier:
+        return ""
+    shown = earlier[:config.EARLIER_PICKS_MAX]
+    lines = ["⭐ <b>EARLIER PICKS, still strong</b> (picked before, buy-stop still waiting - no new order)"]
+    for e in shown:
+        # the setup emoji is what puts a lower-quality fresh breakout above a higher-quality about-to-break stock (the order of the whole list)
+        marks = " ".join(m for m in (STAGE_EMOJI.get(e.setup, ""), "💪" if getattr(e, "strong_trend", False) else "") if m)
+        left = f"{e.sessions_left} session{'s' if e.sessions_left != 1 else ''} left"
+        lines.append(f"<b>{_e(e.symbol)}</b>{' ' + marks if marks else ''} · Quality {e.quality_pct:.0f}/100 · picked {_short_iso(e.picked)}")
+        lines.append(f"Buy-stop <b>{fmt_price(e.trigger)}</b> · {left}")
+    more = len(earlier) - len(shown)
+    if more > 0:
+        lines.append(f"+{more} more earlier pick{'s also still qualify' if more != 1 else ' also still qualifies'} (on your list)")
+    return "\n".join(lines)
+
+
 def _breadth_line(result) -> str:
     b50 = result.breadth.get("breadth50") if result.breadth else None
     if not (isinstance(b50, (int, float)) and math.isfinite(b50)):
@@ -160,8 +189,15 @@ def _no_pick_line(result) -> str:
 
 
 def format_scan_message(result, scan_mode: str, now: datetime | None = None, market_line: str = "",
-                        tracked_block: str = "", scoreboard_line: str = "", notes: list[str] | None = None) -> str:
-    """The whole message as a string of blocks separated by blank lines."""
+                        tracked_block: str = "", scoreboard_line: str = "", notes: list[str] | None = None,
+                        earlier: list | None = None) -> str:
+    """
+    The whole message as a string of blocks separated by blank lines.
+    `earlier` = earlier picks that are still strong (pipeline.earlier_picks): shown above the new picks, which then say NEW in their headings
+    so the two cannot be mixed up (on a day with no new pick the block follows the "No new pick" line).
+    """
+    earlier = list(earlier or [])
+    shown_earlier = earlier[:config.EARLIER_PICKS_MAX]
     now = now or session.now_ist()
     t = now.astimezone(session.IST)
     title = {"btst": "🌙 <b>BTST scan</b>", "swing": "📈 <b>Swing scan</b>"}.get(scan_mode, f"<b>{_e(scan_mode)} scan</b>")
@@ -191,23 +227,31 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
         blocks.append("\n".join(f"ℹ️ {_e(n)}" for n in notice))
 
     picks = result.picks
+    earlier_block = format_earlier_block(earlier)
+    if earlier_block and picks:
+        blocks.append(earlier_block)
+    new = "NEW · " if earlier_block and picks else ""         # the word is only needed when the two kinds are on the same message
     buy_now = [p for p in picks if p.entry_mode == "close"]
     stops = [p for p in picks if p.entry_mode != "close"]
     n = 0
     if buy_now:
-        blocks.append("<b>BUY NOW</b> (near the close, only if it still holds the breakout level)")
+        blocks.append(f"<b>{new}BUY NOW</b> (near the close, only if it still holds the breakout level)")
         for p in buy_now:
             n += 1
             blocks.append(format_pick(p, n))
     if stops:
-        blocks.append(f"<b>BUY-STOP ORDERS</b> (GTT / stop-limit, valid {stops[0].valid_sessions} sessions)")
+        blocks.append(f"<b>{new}BUY-STOP ORDERS</b> (GTT / stop-limit, valid {stops[0].valid_sessions} sessions)")
         for p in stops:
             n += 1
             blocks.append(format_pick(p, n))
     if not picks:
         blocks.append(_no_pick_line(result))
+        if earlier_block:
+            blocks.append(earlier_block)
     elif result.repeats:
-        blocks.append(f"+{len(result.repeats)} more qualify but are already on your list.")
+        hidden = len(result.repeats) - len(earlier)                # earlier picks are counted in their own block (shown, or its "+N more")
+        if hidden > 0:
+            blocks.append(f"+{hidden} more qualify but are already on your list.")
 
     if tracked_block:
         blocks.append(tracked_block)
@@ -215,7 +259,7 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     footer = (f"ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. "
               f"Risk at most {config.RISK_PER_TRADE_PCT:g}% of your capital per trade, half in a weak market. "
               f"A ranked shortlist, not a guarantee.</i>")
-    if any(getattr(p, "strong_trend", False) for p in picks):
+    if any(getattr(p, "strong_trend", False) for p in list(picks) + shown_earlier):
         footer = f"<i>{_e(fp.strong_trend_legend())}</i>\n" + footer          # the tag is explained only when a card carries it
     if scoreboard_line:
         footer = f"🧾 <i>{_e(scoreboard_line)}</i>\n" + footer
@@ -286,11 +330,12 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
 
 def notify_scan(result, scan_mode: str, bot_token: str, chat_id: str, now: datetime | None = None,
                 market_line: str = "", tracked_block: str = "", scoreboard_line: str = "",
-                notes: list[str] | None = None, save_to: str | None = None) -> bool:
+                notes: list[str] | None = None, save_to: str | None = None, earlier: list | None = None) -> bool:
     """Build the scan message and send it. `save_to`: also keep the exact text that was sent (the run log is not always reachable)."""
     try:
         message = format_scan_message(result, scan_mode, now=now, market_line=market_line,
-                                      tracked_block=tracked_block, scoreboard_line=scoreboard_line, notes=notes)
+                                      tracked_block=tracked_block, scoreboard_line=scoreboard_line, notes=notes,
+                                      earlier=earlier)
     except Exception:  # noqa: BLE001 - a formatting slip must never cost the whole message
         logger.exception("Could not format the scan message")
         message = _e(f"The {scan_mode.upper()} scan finished, but its message could not be formatted. "

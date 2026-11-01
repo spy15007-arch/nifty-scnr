@@ -25,7 +25,7 @@ A stock must pass **both** tests (`scanner/pipeline.py`, `scanner/footprint.py`)
 
 There is **no price cap.** Liquidity is the filter (20-day average turnover of at least ₹5 crore), because that is what lets big money in.
 
-**Order on the list:** stocks in a **💪 strong uptrend** (200-day average up 5%+ in a month, explained below) first, then fresh breakouts before about-to-break stocks, then by quality. The order only matters for how the list reads and for which picks stay when more stocks qualify than a message can carry (15 swing, 8 BTST - rare); it never adds a stock.
+**Order on the list:** stocks in a **💪 strong uptrend** (200-day average up 5%+ in a month, explained below) first, then fresh breakouts before about-to-break stocks, then by quality. The order only matters for how the list reads and for which picks stay when more stocks qualify than a message can carry (15 swing, 8 BTST - rare); it never adds a stock. A stock picked on an earlier day whose buy-stop order is still waiting, and that still ranks above today's new picks, is shown in a separate reminder block above them (see "What the Telegram message looks like"); it is never picked, or counted, a second time.
 
 ## The trade plan on every pick
 
@@ -66,6 +66,28 @@ near 52-wk high · very liquid · delivery ~54%
 ℹ️ Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. A ranked shortlist, not a guarantee.
 ```
 
+On a day when stocks picked earlier are still among the strongest, the same message gets a reminder block above the new picks, and the new picks' headings say **NEW ·** (illustrative again):
+
+```
+📈 Swing scan · Mon 2 Nov · close of Fri 30 Oct
+📊 Breadth 19% (stocks above their 50-day average) - weak market: half size
+
+⭐ EARLIER PICKS, still strong (picked before, buy-stop still waiting - no new order)
+GLAND 👀 💪 · Quality 94/100 · picked 29 Oct
+Buy-stop 3,177.35 · 4 sessions left
+ZYDUSLIFE 🔥 · Quality 72/100 · picked 30 Oct
+Buy-stop 1,251.40 · 5 sessions left
+BHARTIARTL 👀 · Quality 96/100 · picked 27 Oct
+Buy-stop 2,009.85 · 2 sessions left
++5 more earlier picks also still qualify (on your list)
+
+NEW · BUY-STOP ORDERS (GTT / stop-limit, valid 5 sessions)
+
+1. ...
+```
+
+* **⭐ EARLIER PICKS, still strong** is a reminder, not a new signal. It lists a stock picked on an earlier day when **all** of these hold: its buy-stop order is **still waiting** (not bought yet, not expired - a stock already bought is in 📒 Your list with its stop, and one whose order expired unfilled is not shown again); it **still passes today's tests** (a setup, top half by quality); today's price has not reached its trigger (so "still waiting" is true); and it **ranks above at least one of today's new picks** by the list order (💪 first, then fresh before about-to-break, then quality) - or there is no new pick at all. The best 3 are shown (`EARLIER_PICKS_MAX` in `config.py`), with a count of how many more qualify. It is placed **above** the new picks so a strong stock from earlier in the week is not lost behind a long list of new ones; the word **NEW ·** appears on the new picks' headings only on days when the block is shown. The word "fresh" is not used for new picks because 🔥 *Fresh breakout* already means something specific (above).
+  **Nothing is picked or logged a second time:** the order you already placed stands (no new order), the 15-session wait before a stock can be picked again is unchanged, and the scoreboard still counts one trade per stock - the same rule the back-test used, so the live record stays comparable with it. Honest limits: only the 💪 tag and fresh-before-about-to-break are backed by the back-test; the quality order inside the top half is **not** a proven ladder, so "ranks above" means ahead in the list's order, not "will do better". The same list is written to `summary_<mode>.md` under *Earlier picks, still strong*.
 * On a buy-stop card the first line says **Buy at** and the line under it is the **Stop** (the stop-loss); the heading above the cards says they are entered as buy-stop / GTT trigger orders (a plain limit order at that price would fill at once, below the trigger).
 * A **🔥 buy-now** card (BTST, live breakout) reads *Buy near 848.15 · up 3.4% today on 2.1x volume*.
 * **💪 strong uptrend** starts the "why" line of a stock whose 200-day average is at least 5% above where it was 20 sessions ago (`STRONG_TREND_200D_MIN` in `config.py`; about 1 signal in 5). These are **listed first**, and the footer explains the tag - only on a day when a card carries it. What the evidence says, honestly: in the 10-year replay (30 Oct 2026, [reports/evidence](reports/evidence/README.md) section 7) such stocks made **+3.95% per card after costs against +1.29%** for the rest, ahead in all three periods. But the 5% line was chosen after looking at the data, so the true gap is probably smaller; the gap was smaller in 2022-26 (about +1.5%, not clearly different from zero); it was not shown in weak markets (only 114 signals); and it comes from swing signals (BTST cannot be replayed). It is a ranking hint, not a promise - the live scoreboard (above) is how it gets confirmed or dropped, and setting `STRONG_TREND_200D_MIN` to `9.99` turns the tag and the ordering off.

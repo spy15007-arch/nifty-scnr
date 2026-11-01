@@ -907,6 +907,249 @@ class LiveScoreboardHints(unittest.TestCase):
         self.assertNotIn("too small to judge", text)
 
 
+class EarlierPicks(unittest.TestCase):
+    """
+    A stock picked on an earlier day whose buy-stop order is still waiting, and which still passes today's tests, is listed ABOVE today's new picks when it
+    ranks above at least one of them (or when there is no new pick). It only reminds: nothing is re-picked or re-logged, so the scoreboard is untouched.
+    """
+    LEGEND = "strong uptrend = the 200-day average is up 5%+ in a month; these are listed first"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.now = at(2026, 10, 13, 17, 0)
+        cls.bars = make_market()
+        # day 1: 11 picks. S001 = primed + strong uptrend; PLANT = fresh breakout of the highest quality, not strong; S043 = primed, quality 75; S006 = weakest (52)
+        cls.first = pl.select_picks("swing", cls.bars, now=cls.now, max_picks=1000)
+        cls.by = {p.symbol: p for p in cls.first.picks}
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.path = os.path.join(self.tmp, "trades.csv")
+        outcomes.log_new_picks(self.first.picks, self.now, path=self.path)         # all of them are now waiting buy-stops, 5 sessions left
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _today(self, on_list):
+        """Today's scan when `on_list` are already on the list: they come back as repeats, not as new picks."""
+        return pl.select_picks("swing", self.bars, now=self.now, max_picks=1000, exclude=set(on_list))
+
+    def _ledger(self, **edits):
+        """The ledger with some cells changed: _ledger(S001={"status": "OPEN"}, PLANT={"sessions": 2})."""
+        led = outcomes.load_ledger(self.path)
+        for sym, cols in edits.items():
+            for col, val in cols.items():
+                led.loc[led["symbol"] == sym, col] = val
+        return led
+
+    def _earlier(self, res, led=None):
+        return pl.earlier_picks(res, outcomes.load_ledger(self.path) if led is None else led)
+
+    def _msg(self, res, earlier, **kw):
+        return notify.format_scan_message(res, "swing", now=self.now, earlier=earlier, **kw)
+
+    # ---- which earlier picks are listed ---------------------------------------------------------------------------------
+    def test_with_no_new_pick_every_waiting_order_that_still_qualifies_is_listed_best_first(self):
+        res = self._today(self.by)                                                  # everything is already on the list
+        self.assertEqual(res.picks, [])
+        earlier = self._earlier(res)
+        self.assertEqual([e.symbol for e in earlier], [p.symbol for p in self.first.picks])   # the list order: strong first, fresh first, then quality
+        lead = earlier[0]
+        self.assertEqual((lead.symbol, lead.setup, lead.strong_trend, lead.picked), ("S001", "primed", True, "2026-10-13"))
+        self.assertAlmostEqual(lead.trigger, self.by["S001"].entry_price, places=2)
+        self.assertAlmostEqual(lead.quality_pct, self.by["S001"].quality_pct, places=3)
+        self.assertEqual(lead.sessions_left, config.ENTRY_VALID_SESSIONS)
+        self.assertEqual([e.symbol for e in earlier if e.strong_trend], ["S001"])
+        self.assertEqual(next(e for e in earlier if e.symbol == "PLANT").setup, "fresh")
+
+    def test_an_earlier_pick_is_listed_only_if_it_ranks_above_at_least_one_new_pick(self):
+        res = self._today({"S001", "S043", "S006"})
+        self.assertEqual({p.symbol for p in res.picks}, set(self.by) - {"S001", "S043", "S006"})
+        # S001 (strong) and S043 (quality 75) beat the weakest new pick; S006 (quality 52) is below every new pick, so it is not put on top
+        self.assertEqual([e.symbol for e in self._earlier(res)], ["S001", "S043"])
+
+    def test_an_earlier_pick_weaker_than_every_new_pick_is_not_listed(self):
+        self.assertEqual(self._earlier(self._today({"S006"})), [])
+
+    def test_a_strong_uptrend_stays_on_top_even_when_a_fresh_breakout_of_higher_quality_is_new(self):
+        res = self._today({"S001"})
+        plant = next(p for p in res.picks if p.symbol == "PLANT")
+        self.assertTrue(plant.setup == "fresh" and not plant.strong_trend and plant.quality_pct > self.by["S001"].quality_pct)
+        self.assertEqual([e.symbol for e in self._earlier(res)], ["S001"])
+
+    def test_only_a_buy_stop_that_is_still_waiting_counts(self):
+        gone = {"S001": "OPEN", "S043": "CLOSED", "S025": "UNFILLED", "S061": "VOID"}          # bought / finished / expired / dropped
+        led = self._ledger(**{s: {"status": st} for s, st in gone.items()})
+        names = [e.symbol for e in self._earlier(self._today(self.by), led)]
+        self.assertEqual(names, [p.symbol for p in self.first.picks if p.symbol not in gone])
+
+    def test_the_sessions_left_come_from_the_ledger_and_an_order_with_none_left_is_not_listed(self):
+        led = self._ledger(S001={"sessions": 4}, S043={"sessions": 5}, PLANT={"sessions": 2})
+        got = {e.symbol: e.sessions_left for e in self._earlier(self._today(self.by), led)}
+        self.assertEqual((got["S001"], got["PLANT"], got["S025"]), (1, 3, 5))
+        self.assertNotIn("S043", got)                                               # a 5-session order with 5 sessions gone has expired
+
+    def test_an_order_that_probably_triggered_today_is_not_called_waiting(self):
+        res = self._today(self.by)
+        trigger = float(outcomes.load_ledger(self.path).set_index("symbol").loc["S001", "trigger"])
+        for edit in ({"price": trigger + 1.0}, {"high": trigger}, {"high": trigger * 1.02},       # a live scan: the ledger has not seen today's bar yet
+                     {"price": None, "high": None}, {"price": float("nan"), "high": float("nan")}):
+            info = {**res.repeat_info, "S001": {**res.repeat_info["S001"], **edit}}
+            names = [e.symbol for e in self._earlier(dataclasses.replace(res, repeat_info=info))]
+            self.assertNotIn("S001", names, edit)
+            self.assertIn("PLANT", names, edit)
+        under = {**res.repeat_info, "S001": {**res.repeat_info["S001"], "price": trigger - 0.5, "high": trigger - 0.01}}
+        self.assertIn("S001", [e.symbol for e in self._earlier(dataclasses.replace(res, repeat_info=under))])
+
+    def test_a_stock_that_no_longer_passes_todays_tests_is_not_listed(self):
+        res = self._today(self.by)
+        info = {k: v for k, v in res.repeat_info.items() if k != "S001"}              # no longer in a setup / top half by quality
+        names = [e.symbol for e in self._earlier(dataclasses.replace(res, repeat_info=info))]
+        self.assertEqual(names, [p.symbol for p in self.first.picks if p.symbol != "S001"])
+
+    def test_nothing_is_listed_without_a_ledger_or_a_waiting_order_or_a_readable_order(self):
+        res = self._today(self.by)
+        self.assertEqual(pl.earlier_picks(res, None), [])
+        self.assertEqual(pl.earlier_picks(res, pd.DataFrame(columns=outcomes.COLUMNS)), [])
+        self.assertEqual(pl.earlier_picks(dataclasses.replace(res, repeat_info={}), outcomes.load_ledger(self.path)), [])
+        led = self._ledger(S001={"trigger": float("nan")}, PLANT={"valid_sessions": float("nan")}, S043={"sessions": float("nan")})
+        names = [e.symbol for e in self._earlier(res, led)]
+        self.assertTrue({"S001", "PLANT", "S043"}.isdisjoint(names))                 # a row it cannot read is skipped, never a crash
+        self.assertIn("S025", names)
+
+    def test_a_stock_with_two_waiting_orders_is_listed_once_with_the_later_one(self):
+        led = outcomes.load_ledger(self.path)
+        twin = led[led["symbol"] == "S001"].copy()
+        twin["trade_id"], twin["signal_date"], twin["sessions"] = "S001_2026-10-14_btst", "2026-10-14", 1
+        names = self._earlier(self._today(self.by), pd.concat([led, twin], ignore_index=True))
+        self.assertEqual([e.symbol for e in names].count("S001"), 1)
+        lead = next(e for e in names if e.symbol == "S001")
+        self.assertEqual((lead.picked, lead.sessions_left), ("2026-10-14", config.ENTRY_VALID_SESSIONS - 1))
+
+    def test_it_only_reads_nothing_is_picked_again_or_logged(self):
+        res = self._today({"S001"})
+        picks_before = [p.symbol for p in res.picks]
+        with open(self.path, "rb") as fh:
+            raw = fh.read()
+        self.assertTrue(self._earlier(res))
+        with open(self.path, "rb") as fh:
+            self.assertEqual(fh.read(), raw)                                        # the ledger file is byte for byte what it was
+        self.assertEqual([p.symbol for p in res.picks], picks_before)
+        self.assertNotIn("S001", picks_before)
+        self.assertEqual(len(outcomes.load_ledger(self.path)), len(self.first.picks))
+
+    def test_new_and_earlier_picks_share_one_ranking(self):
+        key = pl.rank_key
+        self.assertLess(key(True, "primed", 60), key(False, "fresh", 99))            # strong uptrend first
+        self.assertLess(key(False, "fresh", 60), key(False, "primed", 99))           # then fresh breakouts before about-to-break stocks
+        self.assertLess(key(False, "primed", 80), key(False, "primed", 70))          # then quality
+        ranked = sorted(self.first.picks, key=lambda p: key(p.strong_trend, p.setup, p.quality_pct))
+        self.assertEqual([p.symbol for p in ranked], [p.symbol for p in self.first.picks])
+
+    # ---- the message -----------------------------------------------------------------------------------------------------
+    def test_the_block_sits_above_the_new_picks_and_those_say_new(self):
+        res = self._today({"S001", "S043"})
+        earlier = self._earlier(res)
+        self.assertEqual([e.symbol for e in earlier], ["S001", "S043"])
+        msg = self._msg(res, earlier)
+        self.assertTrue(msg.startswith("📈 <b>Swing scan</b>"))
+        self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · BUY-STOP ORDERS</b> (GTT / stop-limit"))
+        self.assertIn("<b>S001</b> 👀 💪 · Quality 97/100 · picked 13 Oct\nBuy-stop <b>1,969.25</b> · 5 sessions left", msg)
+        self.assertIn("<b>S043</b> 👀 · Quality 75/100 · picked 13 Oct\nBuy-stop <b>1,254.05</b> · 5 sessions left", msg)
+        self.assertEqual(msg.count("NEW · "), 1)
+        self.assertEqual(msg.count("<b>1. "), 1)                                    # the new cards are numbered from 1; the earlier block has no numbers
+        self.assertEqual(msg.count(self.LEGEND), 1)                                # no new pick is strong: the 💪 is on the earlier block only
+        self.assertLess(msg.index(self.LEGEND), msg.index("ℹ️ <i>Trail ="))
+        chk = Messages._Check()
+        chk.feed(msg)
+        self.assertEqual((chk.err, chk.stack), ([], []))
+        block = notify.format_earlier_block(earlier)
+        self.assertNotIn("\n\n", block)                                             # no blank line inside: the splitter never cuts it
+        self.assertEqual(sum(block in c for c in notify.split_message(msg)), 1)
+
+    def test_on_a_day_with_nothing_new_the_block_follows_the_no_new_pick_line_and_nothing_says_new(self):
+        res = self._today(self.by)
+        msg = self._msg(res, self._earlier(res))
+        self.assertNotIn("NEW ·", msg)
+        self.assertLess(msg.index("No new pick."), msg.index("EARLIER PICKS, still strong"))
+        self.assertEqual(msg.count("Buy-stop <b>"), config.EARLIER_PICKS_MAX)
+        self.assertEqual(msg.count("💪 · Quality"), 1)
+
+    def test_without_earlier_picks_the_message_is_unchanged(self):
+        res = self._today({"S006"})
+        plain = notify.format_scan_message(res, "swing", now=self.now)
+        for earlier in (None, [], self._earlier(res)):
+            self.assertEqual(self._msg(res, earlier), plain)
+        self.assertNotIn("NEW ·", plain)
+        self.assertNotIn("EARLIER", plain)
+
+    def test_a_live_afternoon_message_says_new_on_its_buy_now_heading_too(self):
+        live = Messages._live()
+        self.assertTrue(any(p.entry_mode == "close" for p in live.picks))
+        e = pl.EarlierPick("ZZZ", "primed", 88.0, True, "2026-10-12", 123.4, 2)
+        msg = notify.format_scan_message(live, "btst", now=at(2026, 10, 13, 14, 0), earlier=[e])
+        self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · BUY NOW</b> (near the close"))
+        self.assertIn("<b>ZZZ</b> 👀 💪 · Quality 88/100 · picked 12 Oct\nBuy-stop <b>123.40</b> · 2 sessions left", msg)
+
+    def test_the_block_is_capped_and_says_how_many_more_qualify(self):
+        many = [pl.EarlierPick(f"E{i}", "primed", 90.0 - i, False, "2026-10-12", 100.0 + i, 3) for i in range(8)]
+        cap = config.EARLIER_PICKS_MAX
+        block = notify.format_earlier_block(many)
+        self.assertEqual(block.count("Buy-stop <b>"), cap)
+        self.assertEqual([i for i in range(8) if f"<b>E{i}</b>" in block], list(range(cap)))      # the best ones, in order
+        self.assertIn(f"+{8 - cap} more earlier picks also still qualify (on your list)", block)
+        with mock.patch.object(config, "EARLIER_PICKS_MAX", 2):
+            block = notify.format_earlier_block(many)
+            self.assertEqual(block.count("Buy-stop <b>"), 2)
+            self.assertIn("+6 more earlier picks also still qualify (on your list)", block)
+        with mock.patch.object(config, "EARLIER_PICKS_MAX", 7):
+            self.assertIn("+1 more earlier pick also still qualifies (on your list)", notify.format_earlier_block(many))      # singular
+        self.assertNotIn("more earlier pick", notify.format_earlier_block(many[:cap]))
+
+    def test_small_details_of_a_line(self):
+        one = notify.format_earlier_block([pl.EarlierPick("ZZZ", "fresh", 70.0, False, "2026-10-09", 55.5, 1)])
+        self.assertIn("<b>ZZZ</b> 🔥 · Quality 70/100 · picked 9 Oct", one)
+        self.assertIn("1 session left", one)
+        self.assertNotIn("1 sessions", one)
+        self.assertNotIn("💪", one)
+        self.assertEqual(notify.format_earlier_block([]), "")
+        self.assertEqual((notify._short_iso("2026-10-03"), notify._short_iso("garbage"), notify._short_iso("")), ("3 Oct", "garbage", ""))
+
+    def test_the_more_qualify_line_does_not_count_the_earlier_picks_again(self):
+        res = self._today({"S001", "S043", "S006"})
+        earlier = self._earlier(res)                                                # S001 and S043; S006 is not put on top
+        self.assertIn("+1 more qualify but are already on your list.", self._msg(res, earlier))
+        res2 = self._today({"S001", "S043"})
+        self.assertNotIn("more qualify", self._msg(res2, self._earlier(res2)))      # both repeats are in the block
+        with mock.patch.object(config, "EARLIER_PICKS_MAX", 1):                      # S043 falls into the block's own "+1 more" line, not the other one
+            msg = self._msg(res, earlier)
+        self.assertIn("+1 more earlier pick also still qualifies", msg)
+        self.assertIn("+1 more qualify but are already on your list.", msg)
+
+    def test_the_legend_is_there_only_when_a_listed_card_carries_the_tag(self):
+        res = self._today({"S043"})
+        self.assertEqual(self._msg(res, self._earlier(res)).count(self.LEGEND), 1)  # S001 (strong) is a new pick; S043 is the earlier one
+        none = pl.EarlierPick("ZZZ", "primed", 80.0, False, "2026-10-12", 10.0, 3)
+        quiet = dataclasses.replace(res, picks=[dataclasses.replace(p, strong_trend=False) for p in res.picks])
+        self.assertNotIn(self.LEGEND, self._msg(quiet, [none]))
+        many = [pl.EarlierPick(f"E{i}", "primed", 80.0 - i, False, "2026-10-12", 10.0, 3) for i in range(config.EARLIER_PICKS_MAX)]
+        hidden_strong = many + [pl.EarlierPick("HIDDEN", "primed", 10.0, True, "2026-10-12", 10.0, 3)]
+        self.assertNotIn(self.LEGEND, self._msg(quiet, hidden_strong))              # a strong one that is not shown does not need explaining
+
+    def test_the_scan_files_list_them_too_and_the_pick_table_holds_only_new_picks(self):
+        from reports import summary
+        res = self._today({"S001", "S043"})
+        earlier = self._earlier(res)
+        text = summary.render_summary("swing", res, self.now, earlier=earlier)
+        self.assertIn("**Earlier picks, still strong**", text)
+        self.assertIn("- **S001** 💪 - picked 2026-10-13, buy-stop 1,969.25 still waiting (5 sessions left), quality 97/100", text)
+        self.assertIn("- **S043** - picked 2026-10-13, buy-stop 1,254.05 still waiting (5 sessions left), quality 75/100", text)
+        self.assertEqual(text.count("strong uptrend = the 200-day average"), 1)
+        self.assertNotIn("Earlier picks", summary.render_summary("swing", res, self.now))
+        self.assertEqual(len(summary.picks_frame(res.picks)), len(res.picks))
+        self.assertNotIn("S001", list(summary.picks_frame(res.picks)["symbol"]))
+
+
 class Scoreboard(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -1303,7 +1546,7 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         afternoon = "\n".join(self.sent)
         self.assertTrue(afternoon)
         self.assertNotIn("current stops", afternoon)                                 # stops only change after a completed session
-        self.assertNotIn("still waiting", afternoon)
+        self.assertNotIn("Buy-stops still waiting", afternoon)                       # (the earlier-picks block may say "buy-stop still waiting")
 
     def test_afternoon_btst_fetches_only_the_watchlist_and_a_late_cron_is_skipped(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
@@ -1455,6 +1698,62 @@ class EndToEnd(E2EHarness, unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
+class EarlierPicksEndToEnd(E2EHarness, unittest.TestCase):
+    """The whole run: the next evening the stocks picked yesterday come back as "EARLIER PICKS", and nothing is logged twice."""
+
+    def _next_session(self):
+        nxt = {}
+        for s, d in self.bars.items():                                              # next session = a copy of the last bar, a day later
+            last = d.iloc[[-1]].copy()
+            last.index = [d.index[-1] + pd.Timedelta(days=1)]
+            nxt[s] = pd.concat([d, last])
+        return nxt
+
+    def test_the_next_evening_lists_the_waiting_picks_and_logs_nothing_twice(self):
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        before = pd.read_csv("tracking/trades.csv")
+        waiting = set(before.loc[before["status"] == "PENDING", "symbol"])
+        self.assertGreaterEqual(len(waiting), 2)
+        self.sent.clear()
+        code, _ = self._run(["scan_swing"], at(2026, 10, 14, 17, 0), bars=self._next_session())
+        self.assertEqual(code, 0)
+        text = "\n\n".join(self.sent)
+        self.assertIn("EARLIER PICKS, still strong", text)
+        block = text[text.index("EARLIER PICKS, still strong"):].split("\n\n")[0]
+        listed = [ln.split("</b>")[0].replace("<b>", "") for ln in block.split("\n")[1:] if ln.startswith("<b>")]
+        self.assertTrue(listed and set(listed) <= waiting, (listed, waiting))
+        self.assertIn(f"{config.ENTRY_VALID_SESSIONS - 1} sessions left", block)       # one session has gone since they were picked
+        new = pd.read_csv("scan_results_swing.csv")
+        if len(new):
+            self.assertIn("NEW · ", text)
+            self.assertLess(text.index("EARLIER PICKS"), text.index("NEW · "))
+        else:
+            self.assertNotIn("NEW ·", text)
+            self.assertLess(text.index("No new pick."), text.index("EARLIER PICKS"))
+        after = pd.read_csv("tracking/trades.csv")
+        self.assertEqual(len(after), len(before) + len(new))                           # only genuinely new picks are logged: nothing is picked twice
+        self.assertEqual(set(before["trade_id"]), set(after["trade_id"]) - set(f"{r.symbol}_{r.signal_date}_{r.scan_mode}" for r in new.itertuples()))
+        with open("summary_swing.md", encoding="utf-8") as fh:
+            self.assertIn("**Earlier picks, still strong**", fh.read())
+        with open("reports/output/last_message_swing.txt", encoding="utf-8") as fh:        # a copy of exactly what was sent
+            self.assertEqual(fh.read().strip(), text.strip())
+        self.assertTrue(all(len(m) <= 4096 for m in self.sent))
+
+    def test_a_scan_with_nothing_waiting_has_no_block(self):
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        self.assertNotIn("EARLIER PICKS", "\n".join(self.sent))                         # the first scan ever: nothing was picked before
+        self.assertNotIn("NEW ·", "\n".join(self.sent))
+
+    def test_a_ledger_that_cannot_be_read_never_costs_the_scan(self):
+        with mock.patch.object(pl, "earlier_picks", side_effect=RuntimeError("boom")):
+            self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+            self.sent.clear()
+            code, _ = self._run(["scan_swing"], at(2026, 10, 14, 17, 0), bars=self._next_session())
+        self.assertEqual(code, 0)
+        self.assertTrue(self.sent)
+        self.assertNotIn("EARLIER PICKS", "\n".join(self.sent))
+
+
 class QuoteRoute(E2EHarness, unittest.TestCase):
     """The afternoon BTST on saved candles + live quotes: a handful of broker calls instead of one per stock."""
 
@@ -1516,7 +1815,7 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertTrue(any("live quotes" in m for m in self.sent), self.sent[:1])
         self.assertFalse(any("Partial scan" in m for m in self.sent))
         self.assertFalse(any("Live quotes not used" in m for m in self.sent))
-        self.assertFalse(any("current stops" in m or "still waiting" in m for m in self.sent))   # the afternoon message has no stop list
+        self.assertFalse(any("current stops" in m or "Buy-stops still waiting" in m for m in self.sent))   # the afternoon message has no stop list
         doc = _load_json("reports/output/fetch_report_btst.json")
         self.assertEqual((doc["kind"], doc["route"], doc["loaded"] == doc["requested"]), ("watchlist", "quotes", True))
 
