@@ -71,7 +71,7 @@ MAX_PICKS = {"btst": 8, "swing": 15}  # how many ranked picks a message carries
 # Earlier picks that are still strong (added 2026-11-01): a stock picked on an earlier day, whose buy-stop order is still waiting and which still passes
 # today's tests, is shown above today's new picks when it ranks above at least one of them (or when there is no new pick). The message shows only the
 # best of them, at most this many (two short lines each), and says how many more there are. It only reminds: nothing is re-picked or re-logged (a stock
-# is not picked again for COOLDOWN_SESSIONS), so the scoreboard is untouched.
+# is not picked again for COOLDOWN_SESSIONS), so the scoreboard is untouched. Set it to 0 to switch the block off.
 EARLIER_PICKS_MAX = 3
 
 # Trade plan (same numbers the research simulated):

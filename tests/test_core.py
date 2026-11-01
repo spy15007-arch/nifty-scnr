@@ -1038,6 +1038,19 @@ class EarlierPicks(unittest.TestCase):
         self.assertNotIn("S001", picks_before)
         self.assertEqual(len(outcomes.load_ledger(self.path)), len(self.first.picks))
 
+    def test_a_maximum_of_zero_switches_the_block_off(self):
+        res = self._today(self.by)
+        self.assertTrue(self._earlier(res))
+        with mock.patch.object(config, "EARLIER_PICKS_MAX", 0):
+            self.assertEqual(self._earlier(res), [])
+            full = [pl.EarlierPick("ZZZ", "primed", 88.0, True, "2026-10-12", 123.4, 2)]       # even a list handed in directly shows nothing
+            self.assertEqual(notify.format_earlier_block(full), "")
+            msg = self._msg(self._today({"S006"}), full)
+        self.assertNotIn("EARLIER", msg)
+        self.assertNotIn("NEW ·", msg)
+        self.assertNotIn("ZZZ", msg)
+        self.assertIn("+1 more qualify but are already on your list.", msg)                    # S006 is counted as before
+
     def test_new_and_earlier_picks_share_one_ranking(self):
         key = pl.rank_key
         self.assertLess(key(True, "primed", 60), key(False, "fresh", 99))            # strong uptrend first

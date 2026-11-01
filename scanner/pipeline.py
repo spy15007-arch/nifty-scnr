@@ -499,9 +499,10 @@ def earlier_picks(result: SelectionResult, ledger: pd.DataFrame | None) -> list[
       * it still passes today's tests (it is in `result.repeat_info`: in a setup and in the top half by quality today);
       * today's price has not reached its trigger (on a live scan the order may already have filled today - "still waiting" would be wrong);
       * it ranks above at least one of today's new picks by the list order (`rank_key`), or there is no new pick.
-    Best first, all of them (the message shows the first config.EARLIER_PICKS_MAX). Nothing is re-picked or re-logged: the scoreboard is not touched.
+    Best first, all of them (the message shows the first config.EARLIER_PICKS_MAX; EARLIER_PICKS_MAX = 0 switches the whole feature off).
+    Nothing is re-picked or re-logged: the scoreboard is not touched.
     """
-    if ledger is None or len(ledger) == 0 or not result.repeat_info:
+    if config.EARLIER_PICKS_MAX <= 0 or ledger is None or len(ledger) == 0 or not result.repeat_info:
         return []
     worst_new = max((rank_key(p.strong_trend, p.setup, p.quality_pct) for p in result.picks), default=None)
     found: dict[str, EarlierPick] = {}                 # one line per stock, even if the ledger holds two waiting orders for it (the later one wins)

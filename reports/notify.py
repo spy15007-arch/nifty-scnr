@@ -151,7 +151,7 @@ def format_earlier_block(earlier: list) -> str:
     Stocks picked on an earlier day whose buy-stop order is still waiting and that still rank above today's new picks (pipeline.earlier_picks).
     Two short lines each, no blank line inside (the splitter keeps the block whole). No new order is needed: the one already placed stands.
     """
-    if not earlier:
+    if not earlier or config.EARLIER_PICKS_MAX <= 0:
         return ""
     shown = earlier[:config.EARLIER_PICKS_MAX]
     lines = ["⭐ <b>EARLIER PICKS, still strong</b> (picked before, buy-stop still waiting - no new order)"]
@@ -196,7 +196,7 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     `earlier` = earlier picks that are still strong (pipeline.earlier_picks): shown above the new picks, which then say NEW in their headings
     so the two cannot be mixed up (on a day with no new pick the block follows the "No new pick" line).
     """
-    earlier = list(earlier or [])
+    earlier = list(earlier or []) if config.EARLIER_PICKS_MAX > 0 else []
     shown_earlier = earlier[:config.EARLIER_PICKS_MAX]
     now = now or session.now_ist()
     t = now.astimezone(session.IST)
