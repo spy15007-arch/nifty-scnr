@@ -148,7 +148,7 @@ def _short_iso(iso: str) -> str:
 
 def format_earlier_block(earlier: list) -> str:
     """
-    Stocks picked on an earlier day whose buy-stop order is still waiting and that still rank above today's new picks (pipeline.earlier_picks).
+    Stocks picked on an earlier day whose buy-stop order is still waiting and that still rank above all of today's new picks (pipeline.earlier_picks).
     Two short lines each, no blank line inside (the splitter keeps the block whole). No new order is needed: the one already placed stands.
     """
     if not earlier or config.EARLIER_PICKS_MAX <= 0:

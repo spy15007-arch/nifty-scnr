@@ -498,13 +498,14 @@ def earlier_picks(result: SelectionResult, ledger: pd.DataFrame | None) -> list[
         stock per COOLDOWN_SESSIONS, so a re-pick would be untested);
       * it still passes today's tests (it is in `result.repeat_info`: in a setup and in the top half by quality today);
       * today's price has not reached its trigger (on a live scan the order may already have filled today - "still waiting" would be wrong);
-      * it ranks above at least one of today's new picks by the list order (`rank_key`), or there is no new pick.
+      * it ranks above EVERY one of today's new picks by the list order (`rank_key`), or there is no new pick: it really is first on the list, so a
+        fresh breakout is never pushed below an earlier about-to-break stock, and a 💪 strong uptrend from before is the usual one that goes on top.
     Best first, all of them (the message shows the first config.EARLIER_PICKS_MAX; EARLIER_PICKS_MAX = 0 switches the whole feature off).
     Nothing is re-picked or re-logged: the scoreboard is not touched.
     """
     if config.EARLIER_PICKS_MAX <= 0 or ledger is None or len(ledger) == 0 or not result.repeat_info:
         return []
-    worst_new = max((rank_key(p.strong_trend, p.setup, p.quality_pct) for p in result.picks), default=None)
+    best_new = min((rank_key(p.strong_trend, p.setup, p.quality_pct) for p in result.picks), default=None)
     found: dict[str, EarlierPick] = {}                 # one line per stock, even if the ledger holds two waiting orders for it (the later one wins)
     for _, r in ledger[ledger["status"] == "PENDING"].iterrows():
         info = result.repeat_info.get(r["symbol"])
@@ -521,8 +522,8 @@ def earlier_picks(result: SelectionResult, ledger: pd.DataFrame | None) -> list[
         if not reached or max(reached) >= trigger:
             continue                                   # no price at all, or it has probably triggered today: not "still waiting"
         key = rank_key(info["strong_trend"], info["setup"], info["quality_pct"])
-        if worst_new is not None and not key < worst_new:
-            continue
+        if best_new is not None and not key < best_new:
+            continue                                   # a new pick is at least as strong: the earlier one stays in "Your list"
         found[str(r["symbol"])] = EarlierPick(symbol=str(r["symbol"]), setup=info["setup"], quality_pct=float(info["quality_pct"]),
                                               strong_trend=bool(info["strong_trend"]), picked=str(r["signal_date"]), trigger=trigger,
                                               sessions_left=left)

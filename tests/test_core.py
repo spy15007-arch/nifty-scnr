@@ -910,7 +910,7 @@ class LiveScoreboardHints(unittest.TestCase):
 class EarlierPicks(unittest.TestCase):
     """
     A stock picked on an earlier day whose buy-stop order is still waiting, and which still passes today's tests, is listed ABOVE today's new picks when it
-    ranks above at least one of them (or when there is no new pick). It only reminds: nothing is re-picked or re-logged, so the scoreboard is untouched.
+    ranks above every one of them (or when there is no new pick). It only reminds: nothing is re-picked or re-logged, so the scoreboard is untouched.
     """
     LEGEND = "strong uptrend = the 200-day average is up 5%+ in a month; these are listed first"
 
@@ -962,14 +962,26 @@ class EarlierPicks(unittest.TestCase):
         self.assertEqual([e.symbol for e in earlier if e.strong_trend], ["S001"])
         self.assertEqual(next(e for e in earlier if e.symbol == "PLANT").setup, "fresh")
 
-    def test_an_earlier_pick_is_listed_only_if_it_ranks_above_at_least_one_new_pick(self):
+    def test_an_earlier_pick_is_listed_only_if_it_ranks_above_every_new_pick(self):
         res = self._today({"S001", "S043", "S006"})
         self.assertEqual({p.symbol for p in res.picks}, set(self.by) - {"S001", "S043", "S006"})
-        # S001 (strong) and S043 (quality 75) beat the weakest new pick; S006 (quality 52) is below every new pick, so it is not put on top
-        self.assertEqual([e.symbol for e in self._earlier(res)], ["S001", "S043"])
+        # the best new pick is PLANT, a fresh breakout. S001 (strong uptrend) is above it; S043 (primed, quality 75) and S006 are below it
+        self.assertEqual([e.symbol for e in self._earlier(res)], ["S001"])
+        # with PLANT on the list too, the best new pick is S025 (primed, quality 69): S001, PLANT and S043 (75) are above it, S006 (52) is not
+        res2 = self._today({"S001", "PLANT", "S043", "S006"})
+        self.assertEqual([e.symbol for e in self._earlier(res2)], ["S001", "PLANT", "S043"])
 
-    def test_an_earlier_pick_weaker_than_every_new_pick_is_not_listed(self):
+    def test_an_earlier_pick_weaker_than_any_new_pick_is_not_listed(self):
         self.assertEqual(self._earlier(self._today({"S006"})), [])
+        self.assertEqual(self._earlier(self._today({"S025"})), [])                  # PLANT, a new fresh breakout, outranks a primed stock of quality 69
+
+    def test_a_new_fresh_breakout_is_never_pushed_below_an_earlier_about_to_break_stock(self):
+        res = self._today({"S043", "S025", "S061"})                                  # three earlier primed stocks (quality 75, 69, 66)
+        self.assertIn("PLANT", [p.symbol for p in res.picks])                       # ...and a new fresh breakout of quality 99
+        self.assertEqual(self._earlier(res), [])
+        msg = self._msg(res, self._earlier(res))
+        self.assertNotIn("EARLIER", msg)
+        self.assertNotIn("NEW ·", msg)
 
     def test_a_strong_uptrend_stays_on_top_even_when_a_fresh_breakout_of_higher_quality_is_new(self):
         res = self._today({"S001"})
@@ -1061,14 +1073,14 @@ class EarlierPicks(unittest.TestCase):
 
     # ---- the message -----------------------------------------------------------------------------------------------------
     def test_the_block_sits_above_the_new_picks_and_those_say_new(self):
-        res = self._today({"S001", "S043"})
+        res = self._today({"S001", "PLANT"})                                        # the best new pick is S043 (primed, 75): both are above it
         earlier = self._earlier(res)
-        self.assertEqual([e.symbol for e in earlier], ["S001", "S043"])
+        self.assertEqual([e.symbol for e in earlier], ["S001", "PLANT"])
         msg = self._msg(res, earlier)
         self.assertTrue(msg.startswith("📈 <b>Swing scan</b>"))
         self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · BUY-STOP ORDERS</b> (GTT / stop-limit"))
         self.assertIn("<b>S001</b> 👀 💪 · Quality 97/100 · picked 13 Oct\nBuy-stop <b>1,969.25</b> · 5 sessions left", msg)
-        self.assertIn("<b>S043</b> 👀 · Quality 75/100 · picked 13 Oct\nBuy-stop <b>1,254.05</b> · 5 sessions left", msg)
+        self.assertIn("<b>PLANT</b> 🔥 · Quality 99/100 · picked 13 Oct\nBuy-stop <b>103.25</b> · 5 sessions left", msg)
         self.assertEqual(msg.count("NEW · "), 1)
         self.assertEqual(msg.count("<b>1. "), 1)                                    # the new cards are numbered from 1; the earlier block has no numbers
         self.assertEqual(msg.count(self.LEGEND), 1)                                # no new pick is strong: the 💪 is on the earlier block only
@@ -1129,34 +1141,36 @@ class EarlierPicks(unittest.TestCase):
         self.assertEqual((notify._short_iso("2026-10-03"), notify._short_iso("garbage"), notify._short_iso("")), ("3 Oct", "garbage", ""))
 
     def test_the_more_qualify_line_does_not_count_the_earlier_picks_again(self):
-        res = self._today({"S001", "S043", "S006"})
-        earlier = self._earlier(res)                                                # S001 and S043; S006 is not put on top
+        res = self._today({"S001", "PLANT", "S006"})
+        earlier = self._earlier(res)                                                # S001 and PLANT; S006 is not put on top
+        self.assertEqual([e.symbol for e in earlier], ["S001", "PLANT"])
         self.assertIn("+1 more qualify but are already on your list.", self._msg(res, earlier))
-        res2 = self._today({"S001", "S043"})
+        res2 = self._today({"S001", "PLANT"})
         self.assertNotIn("more qualify", self._msg(res2, self._earlier(res2)))      # both repeats are in the block
-        with mock.patch.object(config, "EARLIER_PICKS_MAX", 1):                      # S043 falls into the block's own "+1 more" line, not the other one
+        with mock.patch.object(config, "EARLIER_PICKS_MAX", 1):                      # PLANT falls into the block's own "+1 more" line, not the other one
             msg = self._msg(res, earlier)
         self.assertIn("+1 more earlier pick also still qualifies", msg)
         self.assertIn("+1 more qualify but are already on your list.", msg)
 
     def test_the_legend_is_there_only_when_a_listed_card_carries_the_tag(self):
         res = self._today({"S043"})
-        self.assertEqual(self._msg(res, self._earlier(res)).count(self.LEGEND), 1)  # S001 (strong) is a new pick; S043 is the earlier one
-        none = pl.EarlierPick("ZZZ", "primed", 80.0, False, "2026-10-12", 10.0, 3)
+        self.assertEqual(self._msg(res, []).count(self.LEGEND), 1)                  # S001 is a new pick in a strong uptrend: its card carries the tag
         quiet = dataclasses.replace(res, picks=[dataclasses.replace(p, strong_trend=False) for p in res.picks])
-        self.assertNotIn(self.LEGEND, self._msg(quiet, [none]))
+        plain = pl.EarlierPick("ZZZ", "primed", 80.0, False, "2026-10-12", 10.0, 3)
+        strong = pl.EarlierPick("YYY", "primed", 90.0, True, "2026-10-12", 10.0, 3)
+        self.assertNotIn(self.LEGEND, self._msg(quiet, [plain]))
+        self.assertEqual(self._msg(quiet, [strong, plain]).count(self.LEGEND), 1)   # the tag is on an earlier line only
         many = [pl.EarlierPick(f"E{i}", "primed", 80.0 - i, False, "2026-10-12", 10.0, 3) for i in range(config.EARLIER_PICKS_MAX)]
-        hidden_strong = many + [pl.EarlierPick("HIDDEN", "primed", 10.0, True, "2026-10-12", 10.0, 3)]
-        self.assertNotIn(self.LEGEND, self._msg(quiet, hidden_strong))              # a strong one that is not shown does not need explaining
+        self.assertNotIn(self.LEGEND, self._msg(quiet, many + [strong]))            # a strong one that is not shown does not need explaining
 
     def test_the_scan_files_list_them_too_and_the_pick_table_holds_only_new_picks(self):
         from reports import summary
-        res = self._today({"S001", "S043"})
+        res = self._today({"S001", "PLANT"})
         earlier = self._earlier(res)
         text = summary.render_summary("swing", res, self.now, earlier=earlier)
         self.assertIn("**Earlier picks, still strong**", text)
         self.assertIn("- **S001** 💪 - picked 2026-10-13, buy-stop 1,969.25 still waiting (5 sessions left), quality 97/100", text)
-        self.assertIn("- **S043** - picked 2026-10-13, buy-stop 1,254.05 still waiting (5 sessions left), quality 75/100", text)
+        self.assertIn("- **PLANT** - picked 2026-10-13, buy-stop 103.25 still waiting (5 sessions left), quality 99/100", text)
         self.assertEqual(text.count("strong uptrend = the 200-day average"), 1)
         self.assertNotIn("Earlier picks", summary.render_summary("swing", res, self.now))
         self.assertEqual(len(summary.picks_frame(res.picks)), len(res.picks))
