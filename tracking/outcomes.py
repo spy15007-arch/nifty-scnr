@@ -351,14 +351,15 @@ def _short_date(iso: str) -> str:
 
 
 def format_scoreboard_line(df: pd.DataFrame | None = None, scan_mode: str | None = None) -> str:
-    """One honest line for the message footer: only closed trades count (open ones are not wins or losses yet)."""
+    """One honest line for the message footer: only sold (finished) trades count - ones still held are not wins or losses yet.
+    "sold" rather than "closed" since 2026-11-01, the word the Telegram list and the dashboard use."""
     s = scoreboard(df, scan_mode=scan_mode)
     if s["total"] == 0:
-        return "Record: nothing tracked yet - results appear as picks are triggered and closed"
+        return "Record: nothing tracked yet - results appear as picks are bought and sold"
     since = f" since {_short_date(s['first_signal'])}" if s["first_signal"] else ""
     if not s["closed"]:
-        return f"Record{since}: no trade closed yet"
-    line = (f"Record{since}: {s['closed']} closed, {s['win_rate']:.0%} won, average {s['avg_R']:+.2f}R "
+        return f"Record{since}: no trade sold yet"
+    line = (f"Record{since}: {s['closed']} sold, {s['win_rate']:.0%} won, average {s['avg_R']:+.2f}R "
             f"({s['avg_net']:+.1%} per trade after costs)")
     if s["closed"] < 30:
         line += " - too few to judge yet (need 30+)"

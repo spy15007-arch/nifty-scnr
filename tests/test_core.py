@@ -7,6 +7,7 @@ and plan arithmetic, the scoreboard (including re-runs and split gaps), the mess
 `main.py scan_*` flow with a stub broker.
 """
 import dataclasses
+import importlib.util
 import json
 import logging
 import os
@@ -1078,7 +1079,7 @@ class EarlierPicks(unittest.TestCase):
         self.assertEqual([e.symbol for e in earlier], ["S001", "PLANT"])
         msg = self._msg(res, earlier)
         self.assertTrue(msg.startswith("📈 <b>Swing scan</b>"))
-        self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · BUY-STOP ORDERS</b> (GTT / stop-limit"))
+        self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · PLACE THESE BUY ORDERS</b> (valid"))
         self.assertIn("<b>S001</b> 👀 💪 · Quality 97/100 · picked 13 Oct\nBuy at <b>1,969.25</b> · order valid 5 more sessions", msg)
         self.assertIn("<b>PLANT</b> 🔥 · Quality 99/100 · picked 13 Oct\nBuy at <b>103.25</b> · order valid 5 more sessions", msg)
         self.assertEqual(msg.count("NEW · "), 1)
@@ -1355,10 +1356,42 @@ class Messages(unittest.TestCase):
                     self.assertNotIn("Buy-stop", card)                               # the Stop line right below it is the stop-loss
                 self.assertNotIn("\n\n", card)                                      # the splitter keeps a card whole
 
-    def test_the_section_heading_still_says_which_cards_are_trigger_orders(self):
-        # the cards say "Buy at"; this heading is what tells a reader to enter them as buy-stop / GTT trigger orders, not as plain limit orders
+    def test_the_buy_orders_heading_is_plain_and_still_says_how_to_place_them(self):
+        # the cards say "Buy at"; this heading is what tells a reader to enter them as GTT / stop-limit orders that trigger on the way UP, not as
+        # plain limit orders (those would fill at once, below the trigger). Reworded 2026-11-01: "BUY-STOP ORDERS" was jargon to the user.
         msg = notify.format_scan_message(self._swing(), "swing", now=at(2026, 10, 13, 17, 0))
-        self.assertIn("BUY-STOP ORDERS</b> (GTT / stop-limit", msg)
+        heading = f"<b>PLACE THESE BUY ORDERS</b> (valid {config.ENTRY_VALID_SESSIONS} sessions)"
+        self.assertIn(heading + '\nSet each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.', msg)
+        block = next(b for b in msg.split("\n\n") if b.startswith(heading))
+        self.assertEqual(len(block.split("\n")), 2)                                  # one block, no blank line inside: the splitter keeps it whole
+        self.assertLess(msg.index(heading), msg.index("<b>1. "))                     # above the first card
+        self.assertNotIn("BUY-STOP", msg)
+
+    def test_the_buy_now_heading_is_plain(self):
+        msg = notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 0))
+        self.assertIn("<b>BUY NOW</b> (near the close, only if the price is still above its breakout price)", msg)
+        self.assertNotIn("holds the breakout level", msg)
+
+    def test_no_message_uses_the_buy_stop_jargon(self):
+        e = pl.EarlierPick("ZZZ", "primed", 88.0, True, "2026-10-12", 123.4, 2)
+        tracked = notify.format_tracked_block([{"kind": "closed", "symbol": "CCC", "reason": "stop", "price": 90.0, "R": -1.0, "net": -0.06}],
+                                              [{"symbol": "AAA", "status": "OPEN", "trail": 95.0}, {"symbol": "BBB", "status": "PENDING", "trigger": 50.0}])
+        for res, mode, now in self._all_messages():
+            msg = notify.format_scan_message(res, mode, now=now, earlier=[e], tracked_block=tracked)
+            low = msg.lower()
+            for jargon in ("buy-stop", "current stops", "stopped out", "raise stop "):
+                self.assertNotIn(jargon, low, jargon)
+
+    def test_the_written_summary_uses_the_same_plain_words(self):
+        from reports import summary
+        text = summary.render_summary("swing", self._swing(), at(2026, 10, 13, 17, 0), detail=True)
+        self.assertIn("\n| # |", text)                                                # the dashboard cuts the file at the table's first row
+        self.assertIn("| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) |", text)
+        self.assertIn("(GTT / stop-limit buy order; skip if it opens above", text)
+        for plain in ("- **Buy:**", "- **Stop-loss:**", "- **Reference prices:**"):
+            self.assertIn(plain, text)
+        for jargon in ("buy-stop", "Trail below high close", "**Entry:**", "- **Stop:**", "Reference levels", "stop-outs"):
+            self.assertNotIn(jargon, text, jargon)
 
     def test_the_message_stays_short(self):
         for res, mode, now in self._all_messages():
@@ -1474,12 +1507,113 @@ class Messages(unittest.TestCase):
         self.assertTrue(outcomes.format_scoreboard_line(pd.DataFrame(columns=cols)).startswith("Record: nothing tracked"))
         waiting = pd.DataFrame({"status": ["OPEN", "PENDING"], "net": [np.nan] * 2, "R": [np.nan] * 2, "signal_date": ["2026-10-21"] * 2,
                                 "scan_mode": ["swing"] * 2, "setup": ["primed"] * 2, "exit_n": [-1, -1], "fill_n": [1, -1]})
-        self.assertEqual(outcomes.format_scoreboard_line(waiting), "Record since 21 Oct: no trade closed yet")
+        self.assertEqual(outcomes.format_scoreboard_line(waiting), "Record since 21 Oct: no trade sold yet")
         two = pd.DataFrame({"status": ["CLOSED", "CLOSED", "OPEN"], "net": [0.10, -0.05, np.nan], "R": [2.0, -1.0, np.nan],
                             "signal_date": ["2026-10-21"] * 3, "scan_mode": ["swing"] * 3, "setup": ["primed"] * 3,
                             "exit_n": [10, 5, -1], "fill_n": [1, 1, 1]})
         line = outcomes.format_scoreboard_line(two)
-        self.assertEqual(line, "Record since 21 Oct: 2 closed, 50% won, average +0.50R (+2.5% per trade after costs) - too few to judge yet (need 30+)")
+        self.assertEqual(line, "Record since 21 Oct: 2 sold, 50% won, average +0.50R (+2.5% per trade after costs) - too few to judge yet (need 30+)")
+
+
+# --------------------------------------------------------------------------- #
+@unittest.skipUnless(importlib.util.find_spec("streamlit"), "streamlit is not installed")
+class Dashboard(unittest.TestCase):
+    """app.py run headless with Streamlit's own test runner on small files: it must not crash, and what it shows is in plain words (2026-11-01)."""
+
+    JARGON = ("buy-stop", "Buy-stop", "Current stop", "Mark-to-market", "Open - keep", "Waiting for their", "Sessions left",
+              "plus_1R", "entry_mode", "trail_pct", "Avg after costs")
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.cwd = os.getcwd()
+        os.chdir(self.tmp)
+        os.makedirs("tracking")
+
+    def tearDown(self):
+        os.chdir(self.cwd)
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    @staticmethod
+    def _run():
+        from streamlit.testing.v1 import AppTest
+        logging.disable(logging.CRITICAL)
+        try:
+            return AppTest.from_file(os.path.join(ROOT, "app.py"), default_timeout=90).run()
+        finally:
+            logging.disable(logging.NOTSET)
+
+    @staticmethod
+    def _write_files():
+        from reports import summary
+        res = pl.select_picks("swing", make_market(), now=at(2026, 10, 13, 17, 0), max_picks=1000)
+        summary.picks_frame(res.picks).to_csv("scan_results_swing.csv", index=False)
+        base = {c: "" for c in outcomes.COLUMNS}
+        common = {"scan_mode": "swing", "regime": "weak"}
+        rows = [
+            {**base, **common, "trade_id": "SOLD", "symbol": "SOLD", "setup": "primed", "entry_mode": "stop", "signal_date": "2026-10-20", "quality_pct": 70,
+             "status": "CLOSED", "trigger": 100.0, "fill_date": "2026-10-21", "fill_px": 100.0, "exit_date": "2026-11-02", "exit_px": 94.0,
+             "exit_reason": "trail", "net": 0.05, "R": 1.0, "peak_R": 1.5, "fill_n": 1, "exit_n": 9},
+            {**base, **common, "trade_id": "HELD", "symbol": "HELD", "setup": "fresh", "entry_mode": "close", "signal_date": "2026-10-28", "quality_pct": 80,
+             "status": "OPEN", "fill_date": "2026-10-29", "fill_px": 100.0, "trail": 92.5, "last_close": 104.0, "net": 0.03, "R": 0.5, "peak_R": 0.8},
+            {**base, **common, "trade_id": "WAITING", "symbol": "WAITING", "setup": "primed", "entry_mode": "stop", "signal_date": "2026-10-30", "quality_pct": 75,
+             "status": "PENDING", "trigger": 250.5, "sessions": 1, "valid_sessions": 5},
+            {**base, **common, "trade_id": "NEVER", "symbol": "NEVER", "setup": "primed", "entry_mode": "stop", "signal_date": "2026-10-20", "quality_pct": 60,
+             "status": "UNFILLED", "trigger": 80.0, "exit_reason": "expired"},
+        ]
+        pd.DataFrame(rows, columns=outcomes.COLUMNS).to_csv("tracking/trades.csv", index=False)
+
+    @staticmethod
+    def _everything_shown(page):
+        """Every label, heading, caption, message and column name on the page, as one text."""
+        parts = [t.label for t in page.tabs] + [m.label for m in page.metric] + [s.value for s in page.subheader] + [c.value for c in page.caption]
+        parts += [i.value for i in page.info] + [w.value for w in page.warning]
+        for df in page.dataframe:
+            parts += [str(c) for c in df.value.columns]
+        return "\n".join(parts)
+
+    def test_it_opens_and_every_heading_is_in_plain_words(self):
+        self._write_files()
+        page = self._run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        self.assertEqual([t.label for t in page.tabs], ["🌙 BTST", "📈 Swing", "📌 Your list", "📒 Scoreboard"])
+        subheaders = [s.value for s in page.subheader]
+        self.assertIn("Bought, not sold yet - keep your stop-loss updated", subheaders)
+        self.assertIn("Waiting to buy - buy orders that have not triggered yet", subheaders)
+        labels = [m.label for m in page.metric]
+        for plain in ("Bought, not sold yet", "Waiting to buy", "Sold (finished)", "Never bought", "Buy now / buy orders"):
+            self.assertIn(plain, labels)
+        shown = self._everything_shown(page)
+        for jargon in self.JARGON:
+            self.assertNotIn(jargon, shown, jargon)
+
+    def test_the_tables_have_readable_columns_and_the_buy_price_next_to_each_waiting_stock(self):
+        self._write_files()
+        page = self._run()
+        tables = [df.value for df in page.dataframe]
+
+        def table_with(column):
+            return next(t for t in tables if column in list(t.columns))
+
+        waiting = table_with("Order valid for (more sessions)")
+        self.assertEqual(list(waiting["Stock"]), ["WAITING"])
+        self.assertAlmostEqual(float(waiting["Buy at"].iloc[0]), 250.5)
+        self.assertEqual(int(waiting["Order valid for (more sessions)"].iloc[0]), 4)
+        holding = table_with("Sell if price falls to")
+        self.assertEqual(list(holding["Stock"]), ["HELD"])
+        self.assertAlmostEqual(float(holding["Sell if price falls to"].iloc[0]), 92.5)
+        picks = table_with("Skip if it opens above")
+        self.assertLessEqual({"Stock", "Buy at", "Stop-loss", "How to buy", "Trailing stop-loss (% below highest close)", "+1R price"}, set(picks.columns))
+        self.assertEqual(set(picks["How to buy"]), {"Place buy order"})
+        trades = table_with("Why it ended")
+        self.assertEqual(set(trades["Status"]), {"Sold", "Bought, not sold yet", "Waiting to buy", "Never bought"})
+        self.assertEqual(set(trades["Why it ended"].dropna()), {"Trailing stop-loss hit", "Buy order expired"})
+        stats = table_with("Average gain/loss (after costs)")
+        self.assertLessEqual({"Win rate", "Average R", "Typical trade (median)", "Profit factor"}, set(stats.columns))
+
+    def test_with_no_files_at_all_it_still_opens(self):
+        page = self._run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        self.assertTrue(any("No tracked trades yet" in i.value for i in page.info))
 
 
 # --------------------------------------------------------------------------- #

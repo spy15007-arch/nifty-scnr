@@ -71,7 +71,7 @@ def format_pick(p, idx: int) -> str:
     One compact card of 4-6 short lines (no blank lines inside, so the message splitter keeps it whole):
     the setup, where to buy, the stop, a few words on why, and one line per specific warning (e.g. already spiked in 5 days).
     The buy line of a buy-stop pick just says "Buy at": the Stop line right under it is the stop-loss, and the section heading
-    above the cards says these are trigger orders.
+    above the cards ("PLACE THESE BUY ORDERS") says these are orders that trigger only when the price rises to that price.
     A stock in a strong uptrend starts its "why" line with the 💪 tag (explained once in the footer); the tag takes its own slot, so the
     line still carries the same reasons as any other card.
     """
@@ -255,12 +255,16 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     stops = [p for p in picks if p.entry_mode != "close"]
     n = 0
     if buy_now:
-        blocks.append(f"<b>{new}BUY NOW</b> (near the close, only if it still holds the breakout level)")
+        blocks.append(f"<b>{new}BUY NOW</b> (near the close, only if the price is still above its breakout price)")
         for p in buy_now:
             n += 1
             blocks.append(format_pick(p, n))
     if stops:
-        blocks.append(f"<b>{new}BUY-STOP ORDERS</b> (GTT / stop-limit, valid {stops[0].valid_sessions} sessions)")
+        # plain words (changed 2026-11-01 at the user's request; the old heading was "BUY-STOP ORDERS (GTT / stop-limit, valid 5 sessions)").
+        # The second line keeps the one thing that matters: a plain limit order at "Buy at" would fill at once, below the trigger, so it has to be a
+        # GTT / stop-limit order that only triggers when the price rises to that price. One block, no blank line inside, so the splitter keeps it whole.
+        blocks.append(f"<b>{new}PLACE THESE BUY ORDERS</b> (valid {stops[0].valid_sessions} sessions)\n"
+                      f"Set each as a GTT / stop-limit order: it buys only if the price rises to its \"Buy at\" price.")
         for p in stops:
             n += 1
             blocks.append(format_pick(p, n))

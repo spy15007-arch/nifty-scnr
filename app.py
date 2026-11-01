@@ -8,8 +8,13 @@ data pipeline and no import of the scanner package, so it stays a plain, safe vi
 
 REWRITTEN 2026-10-20 for the evidence-based selection: picks are ranked by a QUALITY percentile (a rank, not a
 probability) and every pick carries entry, stop, trailing stop and size. The scoreboard counts only trades that
-have CLOSED (stopped out / time limit); buy-stops that never triggered are shown separately and are neither wins
+have been SOLD (stopped out / time limit); buy orders that never triggered are shown separately and are neither wins
 nor losses.
+
+REWORDED 2026-11-01 in plain words, at the user's request (the Telegram "Your list" headings were confusing, then the same was asked of the
+rest): "bought / sold / waiting to buy / stop-loss / buy order" instead of "open / closed / pending / buy-stop", readable column names instead
+of the raw file names (symbol, entry_mode, plus_1R ...), and a few one-line explanations (R, ATR, profit factor). The files and the ledger
+columns are unchanged: only what is shown on this page changed.
 """
 import os
 from datetime import datetime
@@ -23,7 +28,30 @@ st.title("📊 NIFTY Scanner Dashboard")
 
 LEDGER = "tracking/trades.csv"
 SETUP_LABEL = {"fresh": "🔥 Fresh breakout", "primed": "👀 About to break out"}
-STATUS_COLORS = {"CLOSED": "#555555", "OPEN": "#2e6da4", "PENDING": "#e8a33d", "UNFILLED": "#999999", "VOID": "#999999"}
+HOW_TO_BUY = {"close": "Buy now", "stop": "Place buy order"}
+# the ledger's status words, in the words used in the Telegram message
+STATUS_LABEL = {"CLOSED": "Sold", "OPEN": "Bought, not sold yet", "PENDING": "Waiting to buy", "UNFILLED": "Never bought", "VOID": "Dropped (split?)"}
+STATUS_COLORS = {"Sold": "#555555", "Bought, not sold yet": "#2e6da4", "Waiting to buy": "#e8a33d", "Never bought": "#999999", "Dropped (split?)": "#999999"}
+WHY_ENDED = {"stop": "Stop-loss hit", "trail": "Trailing stop-loss hit", "gap_stop": "Opened below the stop-loss",
+             "same_day_stop": "Bought and hit the stop-loss the same day", "time": "60-session limit reached",
+             "expired": "Buy order expired", "gapped_past_trigger": "Skipped: opened too far above the buy price"}
+R_HELP = ("R = the amount you risked on a trade (buy price minus the first stop-loss). +1R means the trade is up as much as you risked; "
+          "-1R means it has fallen to its first stop-loss.")
+
+# the names of the picks-table columns as the files have them -> what the page shows
+PICK_COLUMNS = {
+    "symbol": "Stock", "setup": "Setup", "quality_pct": "Quality (0-100)", "trend": "200-day trend", "spiked": "Recent run-up",
+    "entry_mode": "How to buy", "entry_price": "Buy at", "max_entry": "Skip if it opens above", "stop_loss": "Stop-loss",
+    "risk_pct": "Risk to stop-loss", "trail_pct": "Trailing stop-loss (% below highest close)",
+    "plus_1R": "+1R price", "plus_2R": "+2R price", "plus_3R": "+3R price",
+    "delivery_20d_pct": "Delivery % (20-day avg)", "vol_ratio": "Volume vs normal", "gain_pct": "Day's gain",
+    "ext_pct": "Vs breakout level (50-day high)", "dist_52w_high_pct": "Vs 52-week high", "ret_12m_pct": "12-month return",
+    "sector": "Sector", "stage": "Setup details",
+}
+PICK_FORMAT = {"quality_pct": "{:.0f}", "entry_price": "{:,.2f}", "max_entry": "{:,.2f}", "stop_loss": "{:,.2f}",
+               "risk_pct": "{:.1%}", "trail_pct": "{:.1%}", "plus_1R": "{:,.2f}", "plus_2R": "{:,.2f}", "plus_3R": "{:,.2f}",
+               "delivery_20d_pct": "{:.0f}%", "vol_ratio": "{:.1f}x", "gain_pct": "{:+.1%}",
+               "ext_pct": "{:+.1%}", "dist_52w_high_pct": "{:+.1%}", "ret_12m_pct": "{:+.0%}"}
 
 
 def _df(data, **kw):
@@ -73,34 +101,30 @@ def render_scan_tab(mode: str, label: str):
     c[0].metric("Picks", len(df))
     c[1].metric("🔥 Fresh breakouts", int((df["setup"] == "fresh").sum()))
     c[2].metric("👀 About to break out", int((df["setup"] == "primed").sum()))
-    c[3].metric("Buy now / buy-stop", f"{int((df['entry_mode'] == 'close').sum())} / {int((df['entry_mode'] == 'stop').sum())}")
+    c[3].metric("Buy now / buy orders", f"{int((df['entry_mode'] == 'close').sum())} / {int((df['entry_mode'] == 'stop').sum())}",
+                help="Buy now = buy near the close. Buy orders = GTT / stop-limit orders that buy only if the price rises to the 'Buy at' price.")
     if "strong_trend" in df.columns:
         c[4].metric("💪 Strong uptrend", int(df["strong_trend"].map(_is_yes).sum()))
 
     show = df.copy()
     show["setup"] = show["setup"].map(lambda s: SETUP_LABEL.get(s, s))
-    show["entry_mode"] = show["entry_mode"].map({"close": "Buy now", "stop": "Buy-stop"}).fillna(show["entry_mode"])
+    show["entry_mode"] = show["entry_mode"].map(HOW_TO_BUY).fillna(show["entry_mode"])
     if "strong_trend" in show.columns:
         show["trend"] = show["strong_trend"].map(lambda v: "💪 strong" if _is_yes(v) else "")
     if "spiked" in show.columns:
         show["spiked"] = show["spiked"].map(lambda v: "⚠️ already spiked" if _is_yes(v) else "")
-    cols = ["symbol", "setup", "quality_pct", "trend", "spiked", "entry_mode", "entry_price", "max_entry", "stop_loss", "risk_pct",
-            "trail_pct", "plus_1R", "plus_2R", "plus_3R", "delivery_20d_pct", "vol_ratio",
-            "gain_pct", "ext_pct", "dist_52w_high_pct", "ret_12m_pct", "sector", "stage"]
-    show = show[[c_ for c_ in cols if c_ in show.columns]]
-
-    fmt = {"quality_pct": "{:.0f}", "entry_price": "{:,.2f}", "max_entry": "{:,.2f}", "stop_loss": "{:,.2f}",
-           "risk_pct": "{:.1%}", "trail_pct": "{:.1%}", "plus_1R": "{:,.2f}", "plus_2R": "{:,.2f}", "plus_3R": "{:,.2f}",
-           "delivery_20d_pct": "{:.0f}%", "vol_ratio": "{:.1f}x", "gain_pct": "{:+.1%}",
-           "ext_pct": "{:+.1%}", "dist_52w_high_pct": "{:+.1%}", "ret_12m_pct": "{:+.0%}"}
-    styled = show.style.format({k: v for k, v in fmt.items() if k in show.columns}, na_rep="–")
-    _df(styled, height=min(620, 80 + 36 * len(show)))
-    st.caption("Quality = rank among today's liquid stocks (100 = best): a filter (top half only), not a probability and not a ladder. Stop trails up behind the highest close "
-               "(trail_pct); there is no fixed target - +1R/+2R/+3R are reference levels. Position size is yours to set: risk at most 1% of your "
-               "capital per trade (half in a weak market), i.e. shares = the money you are willing to lose / (entry - stop).")
+    cols = [c_ for c_ in PICK_COLUMNS if c_ in show.columns]
+    show = show[cols].rename(columns=PICK_COLUMNS)
+    fmt = {PICK_COLUMNS[k]: v for k, v in PICK_FORMAT.items() if k in cols}
+    _df(show.style.format(fmt, na_rep="–"), height=min(620, 80 + 36 * len(show)))
+    st.caption("Quality = rank among today's liquid stocks (100 = best): a filter (top half only), not a probability and not a ladder. "
+               "The stop-loss moves up behind the highest close (the trailing stop-loss column); there is no fixed target. "
+               "R = the amount you risk per share (buy price minus stop-loss): +1R, +2R and +3R are the prices where you would be up 1, 2 or 3 times "
+               "that - reference prices, not targets. The size is yours to set: risk at most 1% of your capital per trade (half in a weak market), "
+               "i.e. shares = the money you are willing to lose / (buy price - stop-loss).")
     if "strong_trend" in df.columns or "spiked" in df.columns:
         st.caption("💪 strong = the 200-day average is up 5%+ in a month (listed first; it did better in a 10-year replay, but the live scoreboard has to confirm it). "
-                   "⚠️ already spiked = up sharply in the last 5 days: buy in continuation (at the Buy-at price), not on a dip.")
+                   "⚠️ already spiked = up sharply in the last 5 days: buy in continuation (at the 'Buy at' price), not on a dip.")
     st.download_button(f"Download {label} CSV", df.to_csv(index=False), file_name=f"scan_results_{mode}.csv")
 
 
@@ -127,98 +151,108 @@ def _stats(g: pd.DataFrame) -> dict:
     }
 
 
+STATS_LABEL = {"Avg after costs": "Average gain/loss (after costs)", "Avg R": "Average R", "Median": "Typical trade (median)"}
+
+
 def _stats_table(df: pd.DataFrame, by: str, labels: dict | None = None) -> pd.DataFrame:
     rows = {}
     for k, g in df.groupby(by):
         if str(k) == "" or str(k) == "nan":
             continue
         rows[labels.get(k, k) if labels else k] = _stats(g)
-    return pd.DataFrame(rows).T if rows else pd.DataFrame()
+    return pd.DataFrame(rows).T.rename(columns=STATS_LABEL) if rows else pd.DataFrame()
 
 
-STATS_FMT = {"Win rate": "{:.0%}", "Avg after costs": "{:+.2%}", "Avg R": "{:+.2f}", "Median": "{:+.2%}",
+STATS_FMT = {"Win rate": "{:.0%}", "Average gain/loss (after costs)": "{:+.2%}", "Average R": "{:+.2f}", "Typical trade (median)": "{:+.2%}",
              "Profit factor": "{:.2f}", "Best R": "{:+.1f}", "Worst R": "{:+.1f}"}
 
 
 def render_open_tab(df: pd.DataFrame | None):
+    """'Your list' - the same two lists as the Telegram message: bought and not sold yet, and buy orders still waiting."""
     if df is None:
         st.info("No tracked trades yet - this fills in once a scan has logged its first picks.")
         return
     openp = df[df["status"] == "OPEN"].sort_values("signal_date", ascending=False)
     pend = df[df["status"] == "PENDING"].sort_values("signal_date", ascending=False)
     c = st.columns(3)
-    c[0].metric("Open positions", len(openp))
-    c[1].metric("Waiting for their buy-stop", len(pend))
-    c[2].metric("Average mark-to-market", f"{openp['R'].mean():+.2f}R" if len(openp) and openp["R"].notna().any() else "–")
+    c[0].metric("Bought, not sold yet", len(openp))
+    c[1].metric("Waiting to buy", len(pend))
+    c[2].metric("Average so far (in R)", f"{openp['R'].mean():+.2f}R" if len(openp) and openp["R"].notna().any() else "–", help=R_HELP)
 
-    st.subheader("Open - keep the stop updated")
+    st.subheader("Bought, not sold yet - keep your stop-loss updated")
     if len(openp):
         t = openp[["symbol", "scan_mode", "setup", "signal_date", "fill_date", "fill_px", "trail", "last_close", "net", "R", "peak_R"]].copy()
         t["setup"] = t["setup"].map(lambda s: SETUP_LABEL.get(s, s))
-        t.columns = ["Stock", "Scan", "Setup", "Signal", "Filled", "Fill price", "Current stop", "Last close", "Mark-to-market", "R", "Peak R"]
-        _df(t.style.format({"Fill price": "{:,.2f}", "Current stop": "{:,.2f}", "Last close": "{:,.2f}", "Mark-to-market": "{:+.1%}",
-                                     "R": "{:+.2f}", "Peak R": "{:+.1f}"}, na_rep="–"), hide_index=True)
-        st.caption("Current stop = the higher of the initial stop and the trailing stop (5 ATR below the highest close). "
-                   "Raise your stop to it; never lower it. Marked at the last completed close, after the 0.35% round-trip cost.")
+        t.columns = ["Stock", "Scan", "Setup", "Picked on", "Bought on", "Bought at", "Sell if price falls to", "Last close",
+                     "Gain / loss so far", "R so far", "Best R so far"]
+        _df(t.style.format({"Bought at": "{:,.2f}", "Sell if price falls to": "{:,.2f}", "Last close": "{:,.2f}", "Gain / loss so far": "{:+.1%}",
+                            "R so far": "{:+.2f}", "Best R so far": "{:+.1f}"}, na_rep="–"), hide_index=True)
+        st.caption("'Sell if price falls to' is your current stop-loss: the higher of the first stop-loss and the trailing stop-loss "
+                   "(5 x the stock's average daily range, ATR, below its highest close). Move your stop-loss up to it when it rises; never lower it. "
+                   "'Gain / loss so far' is marked at the last completed close, after the 0.35% round-trip cost. "
+                   "R = the amount you risked on the trade: +1R means it is up as much as you risked.")
     else:
-        st.info("No open positions.")
+        st.info("Nothing bought and still held.")
 
-    st.subheader("Waiting for their buy-stop")
+    st.subheader("Waiting to buy - buy orders that have not triggered yet")
     if len(pend):
         t = pend[["symbol", "scan_mode", "setup", "signal_date", "trigger", "valid_sessions", "sessions"]].copy()
         t["setup"] = t["setup"].map(lambda s: SETUP_LABEL.get(s, s))
         t["left"] = (t["valid_sessions"] - t["sessions"]).clip(lower=0)
         t = t[["symbol", "scan_mode", "setup", "signal_date", "trigger", "left"]]
-        t.columns = ["Stock", "Scan", "Setup", "Signal", "Buy-stop price", "Sessions left"]
-        _df(t.style.format({"Buy-stop price": "{:,.2f}"}, na_rep="–"), hide_index=True)
+        t.columns = ["Stock", "Scan", "Setup", "Picked on", "Buy at", "Order valid for (more sessions)"]
+        _df(t.style.format({"Buy at": "{:,.2f}"}, na_rep="–"), hide_index=True)
+        st.caption("Each order buys only if the price rises to its 'Buy at' price within the sessions shown; after that it expires and is not a trade.")
     else:
-        st.info("No buy-stops waiting.")
+        st.info("No buy orders waiting.")
 
 
 def render_scoreboard_tab(df: pd.DataFrame | None):
     if df is None:
         st.info("No tracked trades yet.")
         return
-    st.caption("Every pick, followed exactly by the plan (buy-stop or buy-now, 2.5 ATR stop, 5 ATR trailing stop, 60-session limit), "
-               "after 0.35% round-trip costs. Only CLOSED trades count: a buy-stop that never triggered is neither a win nor a loss.")
+    st.caption("Every pick, followed exactly by the plan: a buy order (or buy now), a stop-loss 2.5 x ATR below the buy price that then follows the price "
+               "up at 5 x ATR below the highest close, and a sale after 60 sessions at the latest - all after 0.35% round-trip costs "
+               "(ATR = the stock's average daily range). Only sold trades count: a buy order that never triggered is neither a win nor a loss.")
     closed = df[df["status"] == "CLOSED"]
     c = st.columns(6)
     c[0].metric("Picks logged", len(df))
-    c[1].metric("Closed", len(closed))
-    c[2].metric("Open", int((df["status"] == "OPEN").sum()))
-    c[3].metric("Waiting", int((df["status"] == "PENDING").sum()))
-    c[4].metric("Never triggered", int((df["status"] == "UNFILLED").sum()))
-    c[5].metric("Dropped (split?)", int((df["status"] == "VOID").sum()))
+    c[1].metric("Sold (finished)", len(closed))
+    c[2].metric("Bought, not sold yet", int((df["status"] == "OPEN").sum()))
+    c[3].metric("Waiting to buy", int((df["status"] == "PENDING").sum()))
+    c[4].metric("Never bought", int((df["status"] == "UNFILLED").sum()), help="The buy order expired, or the stock opened too far above the buy price.")
+    c[5].metric("Dropped (split?)", int((df["status"] == "VOID").sum()), help="The price jumped as if from a split / bonus / demerger, so the trade can no longer be scored.")
 
     if closed.empty:
-        st.info("No trade has closed yet. Results appear as tracked trades are stopped out or reach the time limit.")
+        st.info("No trade has finished yet. Results appear when a trade is sold: its stop-loss is hit or it reaches the 60-session limit.")
     else:
         s = _stats(closed)
         c = st.columns(5)
         c[0].metric("Win rate", f"{s['Win rate']:.0%}")
         c[1].metric("Avg per trade (after costs)", f"{s['Avg after costs']:+.2%}")
-        c[2].metric("Avg R", f"{s['Avg R']:+.2f}")
-        c[3].metric("Profit factor", "∞" if np.isinf(s["Profit factor"]) else f"{s['Profit factor']:.2f}")
-        c[4].metric("Best / worst R", f"{s['Best R']:+.1f} / {s['Worst R']:+.1f}")
+        c[2].metric("Average R", f"{s['Avg R']:+.2f}", help=R_HELP)
+        c[3].metric("Profit factor", "∞" if np.isinf(s["Profit factor"]) else f"{s['Profit factor']:.2f}",
+                    help="Total made by the winning trades divided by the total lost by the losing ones. Above 1 means the winners outweigh the losers.")
+        c[4].metric("Best / worst R", f"{s['Best R']:+.1f} / {s['Worst R']:+.1f}", help=R_HELP)
         if len(closed) < 30:
-            st.warning(f"Only {len(closed)} closed trades - far too few to judge. In the 2019-2026 back-test about 4 trades in 10 won, "
-                       f"a few big winners paid for the many small stop-outs, and 2024-26 was about break-even after costs; treat every "
-                       f"number here as noise until there are 30+ closed trades.")
+            st.warning(f"Only {len(closed)} finished trades - far too few to judge. In the 2019-2026 back-test about 4 trades in 10 won, "
+                       f"a few big winners paid for the many small stop-loss exits, and 2024-26 was about break-even after costs; treat every "
+                       f"number here as noise until there are 30+ finished trades.")
 
         cur = closed.dropna(subset=["R"]).sort_values("exit_date")
         if len(cur) >= 2:
-            st.subheader("Cumulative R (sum of all closed trades, in order of exit)")
-            st.line_chart(pd.DataFrame({"Cumulative R": cur["R"].cumsum().to_numpy()}, index=pd.to_datetime(cur["exit_date"], errors="coerce")))
+            st.subheader("Running total of R (all finished trades, in the order they were sold)")
+            st.line_chart(pd.DataFrame({"Running total of R": cur["R"].cumsum().to_numpy()}, index=pd.to_datetime(cur["exit_date"], errors="coerce")))
 
         bucket = pd.cut(closed["quality_pct"], [0, 65, 80, 90, 100.01], labels=["50-65", "65-80", "80-90", "90-100"], right=False)
         cl = closed.assign(bucket=bucket.astype(str))
-        groupings = [("By quality percentile (does a higher rank do better?)", "bucket", None),
+        groupings = [("By quality score (does a higher score do better?)", "bucket", None),
                      ("By setup", "setup", SETUP_LABEL), ("By scan", "scan_mode", {"btst": "🌙 BTST", "swing": "📈 Swing"}),
-                     ("By market regime on the signal day", "regime", None)]
+                     ("By market condition on the pick day", "regime", None)]
         # picks logged since 2026-10-31 record the 200-day trend and the run-up; older ones are blank and left out of these two tables
         for col, name, yes, no, title in (
-                ("strong_trend", "trend_group", "💪 Strong uptrend", "Other picks", "By 200-day trend when picked (💪 = average up 5%+ in 20 sessions)"),
-                ("spiked", "spike_group", "⚠️ Already spiked", "Not spiked", "By run-up before the signal")):
+                ("strong_trend", "trend_group", "💪 Strong uptrend", "Other picks", "By 200-day trend when picked (💪 = 200-day average up 5%+ in a month)"),
+                ("spiked", "spike_group", "⚠️ Already spiked", "Not spiked", "By run-up before the pick")):
             if col in cl.columns and cl[col].notna().any():
                 cl[name] = cl[col].map(lambda v, yes=yes, no=no: yes if v == 1 else no if v == 0 else None)
                 groupings.append((title, name, None))
@@ -229,27 +263,36 @@ def render_scoreboard_tab(df: pd.DataFrame | None):
                 _df(t.style.format(STATS_FMT))
         if "trend_group" in cl.columns or "spike_group" in cl.columns:
             st.caption("The two trend / run-up tables only include picks logged since 31 Oct 2026. They started as hints from a 10-year replay "
-                       "(strong uptrends did better; spiked picks did not do measurably worse), so a group with fewer than 30 closed trades is noise.")
+                       "(strong uptrends did better; spiked picks did not do measurably worse), so a group with fewer than 30 finished trades is noise.")
 
     st.subheader("All tracked trades")
     show = df.sort_values("signal_date", ascending=False).copy()
     show["setup"] = show["setup"].map(lambda s: SETUP_LABEL.get(s, s))
-    cols = ["symbol", "scan_mode", "setup", "signal_date", "status", "entry_mode", "trigger", "fill_date", "fill_px",
-            "exit_date", "exit_px", "exit_reason", "net", "R", "peak_R", "quality_pct", "regime"]
-    show = show[[c_ for c_ in cols if c_ in show.columns]]
+    show["status"] = show["status"].map(STATUS_LABEL).fillna(show["status"])
+    if "entry_mode" in show.columns:
+        show["entry_mode"] = show["entry_mode"].map(HOW_TO_BUY).fillna(show["entry_mode"])
+    if "exit_reason" in show.columns:
+        show["exit_reason"] = show["exit_reason"].map(WHY_ENDED).fillna(show["exit_reason"])
+    trade_columns = {"symbol": "Stock", "scan_mode": "Scan", "setup": "Setup", "signal_date": "Picked on", "status": "Status",
+                     "entry_mode": "How to buy", "trigger": "Buy at", "fill_date": "Bought on", "fill_px": "Bought at",
+                     "exit_date": "Sold on", "exit_px": "Sold at", "exit_reason": "Why it ended", "net": "Gain / loss (after costs)",
+                     "R": "R", "peak_R": "Best R reached", "quality_pct": "Quality", "regime": "Market on pick day"}
+    cols = [c_ for c_ in trade_columns if c_ in show.columns]
+    show = show[cols].rename(columns=trade_columns)
 
     def status_style(val):
         return f"background-color: {STATUS_COLORS.get(val, '#333333')}; color: white; font-weight: bold; text-align: center;"
 
     fmt = {"trigger": "{:,.2f}", "fill_px": "{:,.2f}", "exit_px": "{:,.2f}", "net": "{:+.1%}", "R": "{:+.2f}", "peak_R": "{:+.1f}",
            "quality_pct": "{:.0f}"}
-    _df(show.style.map(status_style, subset=["status"]).format({k: v for k, v in fmt.items() if k in show.columns}, na_rep="–"), height=420)
+    fmt = {trade_columns[k]: v for k, v in fmt.items() if k in cols}
+    _df(show.style.map(status_style, subset=["Status"]).format(fmt, na_rep="–"), height=420)
     st.download_button("Download the ledger", df.to_csv(index=False), file_name="trades.csv")
 
 
 # --------------------------------------------------------------------------- #
 ledger = load_ledger()
-tab1, tab2, tab3, tab4 = st.tabs(["🌙 BTST", "📈 Swing", "📌 Open trades", "📒 Scoreboard"])
+tab1, tab2, tab3, tab4 = st.tabs(["🌙 BTST", "📈 Swing", "📌 Your list", "📒 Scoreboard"])
 with tab1:
     render_scan_tab("btst", "BTST")
 with tab2:

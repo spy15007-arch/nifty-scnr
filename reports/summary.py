@@ -71,12 +71,12 @@ def _basis(result, now: datetime) -> str:
 def _entry_cell(p) -> str:
     if p.entry_mode == "close":
         return f"Buy near {fmt_price(p.entry_price)}"
-    return f"Buy at {fmt_price(p.entry_price)} (buy-stop order; skip if opens above {fmt_price(p.max_entry)})"
+    return f"Buy at {fmt_price(p.entry_price)} (GTT / stop-limit buy order; skip if it opens above {fmt_price(p.max_entry)})"
 
 
 def _table(picks: list) -> list[str]:
     lines = [
-        "| # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Delivery 20d |",
+        "| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |",
         "| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |",
     ]
     if not picks:
@@ -129,9 +129,10 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
         out += ["## Plan and reasons", ""]
         for i, p in enumerate(result.picks, 1):
             out += [f"### {i}. {p.symbol} - {p.stage_label}"]
-            out += [f"- **Entry:** {_entry_cell(p)}",
-                    f"- **Stop:** {fmt_price(p.stop)} (-{p.risk_pct:.1%}); trail it {p.trail_pct:.1%} below the highest close, raise only, never lower",
-                    f"- **Reference levels:** +1R {fmt_price(p.r1)}, +2R {fmt_price(p.r2)}, +3R {fmt_price(p.r3)} (no fixed target)"]
+            out += [f"- **Buy:** {_entry_cell(p)}",
+                    f"- **Stop-loss:** {fmt_price(p.stop)} (-{p.risk_pct:.1%}); then keep it {p.trail_pct:.1%} below the highest close - raise it only, never lower it",
+                    f"- **Reference prices:** +1R {fmt_price(p.r1)}, +2R {fmt_price(p.r2)}, +3R {fmt_price(p.r3)} "
+                    f"(up 1, 2 or 3 times the amount you risk; not targets - there is no fixed target)"]
             if p.reasons:
                 out += ["- **Why:** " + "; ".join(p.reasons)]
             if p.cautions:
@@ -141,9 +142,9 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
         out += ["## Trades already on your list", "", strip_html(tracked_text).replace("📒 ", ""), ""]
     out += ["---",
             "*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not "
-            "mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and exit only through "
-            "the stop, which trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the "
-            "many small stop-outs; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*"]
+            "mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the "
+            "stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the "
+            "many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*"]
     if scoreboard_line:
         out += ["", f"*{scoreboard_line}*"]
     return "\n".join(out) + "\n"
