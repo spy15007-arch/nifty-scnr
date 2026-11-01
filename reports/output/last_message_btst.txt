@@ -1,8 +1,18 @@
-🌙 <b>BTST scan</b> · Sat 31 Oct · close of Fri 30 Oct
+🌙 <b>BTST scan</b> · Sun 01 Nov · close of Fri 30 Oct
 🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +0.4% last session · global hostile
 📊 Breadth 19% (stocks above their 50-day average) - <b>weak market: half size</b>
 
 <b>No new pick.</b> 495 stocks checked, 31 in a breakout setup, 23 passed the quality filter - all already on your list.
 
+⭐ <b>EARLIER PICKS, still strong</b> (picked before, buy-stop still waiting - no new order)
+<b>GLAND</b> 👀 💪 · Quality 94/100 · picked 29 Oct
+Buy-stop <b>3,177.35</b> · 4 sessions left
+<b>ZYDUSLIFE</b> 🔥 · Quality 73/100 · picked 30 Oct
+Buy-stop <b>1,251.40</b> · 5 sessions left
+<b>BHARTIARTL</b> 👀 · Quality 96/100 · picked 27 Oct
+Buy-stop <b>2,009.85</b> · 2 sessions left
++5 more earlier picks also still qualify (on your list)
+
 🧾 <i>Record since 21 Oct: no trade closed yet</i>
+<i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
 ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. A ranked shortlist, not a guarantee.</i>
