@@ -120,8 +120,10 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
     if earlier:
         out += ["**Earlier picks, still strong** (picked before, order still waiting - no new order):", ""]
         for e in earlier:
+            m = getattr(e, "marks", None)
+            marks = f", profit marks {' · '.join(fmt_price(v) for v in m)}" if m else ""
             out += [f"- **{e.symbol}**{' 💪' if getattr(e, 'strong_trend', False) else ''} - picked {e.picked}, buy at {fmt_price(e.trigger)} "
-                    f"(order still waiting, valid {e.sessions_left} more session{'s' if e.sessions_left != 1 else ''}), quality {e.quality_pct:.0f}/100"]
+                    f"(order still waiting, valid {e.sessions_left} more session{'s' if e.sessions_left != 1 else ''}), quality {e.quality_pct:.0f}/100{marks}"]
         out += [""]
     if result.repeats:
         out += ["Already on your list (not repeated): " + ", ".join(s for s, _ in result.repeats[:20]), ""]
@@ -131,8 +133,8 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
             out += [f"### {i}. {p.symbol} - {p.stage_label}"]
             out += [f"- **Buy:** {_entry_cell(p)}",
                     f"- **Stop-loss:** {fmt_price(p.stop)} (-{p.risk_pct:.1%}); then keep it {p.trail_pct:.1%} below the highest close - raise it only, never lower it",
-                    f"- **Reference prices:** +1R {fmt_price(p.r1)}, +2R {fmt_price(p.r2)}, +3R {fmt_price(p.r3)} "
-                    f"(up 1, 2 or 3 times the amount you risk; not targets - there is no fixed target)"]
+                    f"- **Profit marks:** {fmt_price(p.r1)} · {fmt_price(p.r2)} · {fmt_price(p.r3)} "
+                    f"(the price where you are up 1x, 2x or 3x the amount you risk; reference points only - there is no fixed target)"]
             if p.reasons:
                 out += ["- **Why:** " + "; ".join(p.reasons)]
             if p.cautions:

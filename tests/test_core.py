@@ -710,7 +710,7 @@ class SpikeWarning(unittest.TestCase):
         self.assertEqual(p.watch[0], f"200-day trend rising, but already spiked 9% before today - {self.PHRASE}")
         card = notify.format_pick(p, 1)
         self.assertIn(f"\n⚠️ 200-day trend rising, but already spiked 9% before today - {self.PHRASE}", card)
-        self.assertLessEqual(len(card.split("\n")), 6)
+        self.assertLessEqual(len(card.split("\n")), 7)
         spike_cautions = [c for c in p.cautions if self.PHRASE in c]
         self.assertEqual(len(spike_cautions), 1, p.cautions)
         self.assertTrue(spike_cautions[0].startswith("The long-term (200-day) trend is rising, but the stock has already spiked 9.3% "
@@ -780,11 +780,12 @@ class StrongUptrend(unittest.TestCase):
         card = notify.format_pick(p, 1).split("\n")
         plain = notify.format_pick(dataclasses.replace(p, strong_trend=False), 1).split("\n")
         self.assertEqual(len(card), len(plain))                                     # no extra line
-        self.assertTrue(card[3].startswith("💪 strong uptrend · "), card[3])
-        self.assertEqual(card[3].split(" · ")[1:], plain[3].split(" · "))           # the tag takes its own slot: nothing else is dropped
+        self.assertTrue(card[3].startswith("Profit marks "), card[3])               # header, Buy at, Stop, Profit marks, then the why line
+        self.assertTrue(card[4].startswith("💪 strong uptrend · "), card[4])
+        self.assertEqual(card[4].split(" · ")[1:], plain[4].split(" · "))           # the tag takes its own slot: nothing else is dropped
         self.assertNotIn("💪", "\n".join(plain))
         # a fresh buy-stop card also shows "up x% on y volume": the tag + the usual four items
-        line = notify.format_pick(dataclasses.replace(self.by["PLANT"], strong_trend=True), 1).split("\n")[3]
+        line = notify.format_pick(dataclasses.replace(self.by["PLANT"], strong_trend=True), 1).split("\n")[4]
         self.assertTrue(line.startswith("💪 strong uptrend · up "), line)
         self.assertEqual(len(line.split(" · ")), 5, line)
 
@@ -792,7 +793,7 @@ class StrongUptrend(unittest.TestCase):
         legend = "strong uptrend = the 200-day average is up 5%+ in a month; these are listed first"
         msg = notify.format_scan_message(self.res, "swing", now=self.now)
         self.assertEqual(msg.count(legend), 1)
-        self.assertLess(msg.index(legend), msg.index("ℹ️ <i>Trail ="))
+        self.assertLess(msg.index(legend), msg.index("Trail = keep the stop"))
         none = dataclasses.replace(self.res, picks=[dataclasses.replace(p, strong_trend=False) for p in self.res.picks])
         self.assertNotIn("💪", notify.format_scan_message(none, "swing", now=self.now))
 
@@ -1085,7 +1086,7 @@ class EarlierPicks(unittest.TestCase):
         self.assertEqual(msg.count("NEW · "), 1)
         self.assertEqual(msg.count("<b>1. "), 1)                                    # the new cards are numbered from 1; the earlier block has no numbers
         self.assertEqual(msg.count(self.LEGEND), 1)                                # no new pick is strong: the 💪 is on the earlier block only
-        self.assertLess(msg.index(self.LEGEND), msg.index("ℹ️ <i>Trail ="))
+        self.assertLess(msg.index(self.LEGEND), msg.index("Trail = keep the stop"))
         chk = Messages._Check()
         chk.feed(msg)
         self.assertEqual((chk.err, chk.stack), ([], []))
@@ -1132,6 +1133,38 @@ class EarlierPicks(unittest.TestCase):
             self.assertIn("+1 more earlier pick also still qualifies (on your list)", notify.format_earlier_block(many))      # singular
         self.assertNotIn("more earlier pick", notify.format_earlier_block(many[:cap]))
 
+    def test_an_earlier_pick_shows_the_same_profit_marks_its_original_card_had(self):
+        res = self._today(self.by)                                                  # everything is already on the list
+        earlier = self._earlier(res)
+        self.assertEqual(len(earlier), len(self.first.picks))
+        for e in earlier:
+            p = self.by[e.symbol]
+            self.assertEqual(e.marks, (p.r1, p.r2, p.r3), e.symbol)                 # worked out from the ledger row: identical to the card, to the paisa
+        block = notify.format_earlier_block(earlier)
+        shown = earlier[:config.EARLIER_PICKS_MAX]
+        for e in shown:
+            self.assertIn(f"Buy at <b>{pl.fmt_price(e.trigger)}</b>", block)
+            self.assertIn("Profit marks " + " · ".join(pl.fmt_price(v) for v in e.marks), block)
+        self.assertEqual(block.count("Profit marks"), len(shown))
+        lines = block.split("\n")
+        for n, ln in enumerate(lines):
+            if ln.startswith("Buy at"):
+                self.assertTrue(lines[n + 1].startswith("Profit marks "), lines[n + 1])    # directly under the buy line
+        self.assertNotIn("\n\n", block)                                             # still one block for the splitter
+
+    def test_an_older_ledger_without_the_plan_columns_gives_a_line_without_marks(self):
+        res = self._today(self.by)
+        led = outcomes.load_ledger(self.path).drop(columns=["atr_pct", "stop_mult"])
+        earlier = self._earlier(res, led)
+        self.assertTrue(earlier)
+        self.assertTrue(all(e.marks is None for e in earlier))
+        block = notify.format_earlier_block(earlier)
+        self.assertIn("Buy at <b>", block)
+        self.assertNotIn("Profit marks", block)
+        led2 = outcomes.load_ledger(self.path)
+        led2["atr_pct"] = float("nan")                                              # a blank plan cell
+        self.assertTrue(all(e.marks is None for e in self._earlier(res, led2)))
+
     def test_small_details_of_a_line(self):
         one = notify.format_earlier_block([pl.EarlierPick("ZZZ", "fresh", 70.0, False, "2026-10-09", 55.5, 1)])
         self.assertIn("<b>ZZZ</b> 🔥 · Quality 70/100 · picked 9 Oct", one)
@@ -1172,6 +1205,7 @@ class EarlierPicks(unittest.TestCase):
         self.assertIn("**Earlier picks, still strong**", text)
         self.assertIn("- **S001** 💪 - picked 2026-10-13, buy at 1,969.25 (order still waiting, valid 5 more sessions), quality 97/100", text)
         self.assertIn("- **PLANT** - picked 2026-10-13, buy at 103.25 (order still waiting, valid 5 more sessions), quality 99/100", text)
+        self.assertIn(", profit marks " + " · ".join(pl.fmt_price(v) for v in earlier[0].marks), text)
         self.assertEqual(text.count("strong uptrend = the 200-day average"), 1)
         self.assertNotIn("Earlier picks", summary.render_summary("swing", res, self.now))
         self.assertEqual(len(summary.picks_frame(res.picks)), len(res.picks))
@@ -1342,8 +1376,8 @@ class Messages(unittest.TestCase):
                 card = notify.format_pick(p, i)
                 lines = card.split("\n")
                 warnings = [ln for ln in lines if ln.startswith("⚠️")]
-                self.assertTrue(3 <= len(lines) <= 6, card)
-                self.assertLessEqual(len(card), 330 + 110 * len(warnings), card)
+                self.assertTrue(3 <= len(lines) <= 7, card)
+                self.assertLessEqual(len(card), 380 + 110 * len(warnings), card)
                 self.assertIn(pl.fmt_price(p.entry_price), card)
                 self.assertIn(pl.fmt_price(p.stop), card)
                 self.assertIn(f"trail {p.trail_pct:.1%}", card)
@@ -1355,6 +1389,38 @@ class Messages(unittest.TestCase):
                     self.assertIn(f"Buy at <b>{pl.fmt_price(p.entry_price)}</b> · skip if it opens above {pl.fmt_price(p.max_entry)}", card)
                     self.assertNotIn("Buy-stop", card)                               # the Stop line right below it is the stop-loss
                 self.assertNotIn("\n\n", card)                                      # the splitter keeps a card whole
+
+    def test_every_card_shows_its_profit_marks_under_the_stop(self):
+        # added 2026-11-02 at the user's request: the price where a trade is up 1x, 2x, 3x the amount it risks. Reference points: there is no fixed target.
+        for res, _, _ in self._all_messages():
+            for i, p in enumerate(res.picks, 1):
+                lines = notify.format_pick(p, i).split("\n")
+                stop = next(n for n, ln in enumerate(lines) if ln.startswith("Stop "))
+                self.assertEqual(lines[stop + 1], f"Profit marks {pl.fmt_price(p.r1)} · {pl.fmt_price(p.r2)} · {pl.fmt_price(p.r3)}")
+                self.assertLess(p.entry_price, p.r1)
+                self.assertLess(p.r1, p.r2)
+                self.assertLess(p.r2, p.r3)
+                self.assertEqual((p.r1, p.r2, p.r3), pl.profit_marks(p.entry_price, p.risk_pct))
+                self.assertAlmostEqual(p.r1 - p.entry_price, p.entry_price - p.stop, delta=0.11)       # one "R" above the entry, to the tick
+
+    def test_profit_marks_on_real_numbers_and_no_line_when_they_are_unknown(self):
+        # the plan numbers stored in the ledger for two real waiting orders (GLAND picked 29 Oct, ZYDUSLIFE picked 30 Oct 2026)
+        self.assertEqual(pl.profit_marks(3177.35, 2.5 * 0.034273201116984335), (3449.60, 3721.85, 3994.10))
+        self.assertEqual(pl.profit_marks(1251.4, 2.5 * 0.02783225222507167), (1338.50, 1425.55, 1512.65))
+        self.assertEqual(notify._marks_line((3449.6, 3721.85, 3994.1)), "Profit marks 3,449.60 · 3,721.85 · 3,994.10")
+        for bad in (None, (), (1.0, 2.0), (float("nan"), 2.0, 3.0), (0.0, 1.0, 2.0), ("x", 1.0, 2.0)):
+            self.assertEqual(notify._marks_line(bad), "")                               # unknown or unusable: no line, never a made-up number
+
+    def test_the_footer_explains_profit_marks_only_when_a_card_carries_them(self):
+        explain = "Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only)."
+        res, now = self._swing(), at(2026, 10, 13, 17, 0)
+        self.assertEqual(notify.format_scan_message(res, "swing", now=now).count(explain), 1)
+        none = dataclasses.replace(res, picks=[], repeats=[])
+        self.assertNotIn("Profit marks", notify.format_scan_message(none, "swing", now=now))                       # no card: nothing to explain
+        e = pl.EarlierPick("ZZZ", "primed", 88.0, False, "2026-10-12", 123.4, 2, (130.0, 137.0, 144.0))
+        msg = notify.format_scan_message(none, "swing", now=now, earlier=[e])
+        self.assertEqual(msg.count(explain), 1)                                                                     # an earlier pick's marks need it too
+        self.assertIn("Buy at <b>123.40</b> · order valid 2 more sessions\nProfit marks 130.00 · 137.00 · 144.00", msg)
 
     def test_the_buy_orders_heading_is_plain_and_still_says_how_to_place_them(self):
         # the cards say "Buy at"; this heading is what tells a reader to enter them as GTT / stop-limit orders that trigger on the way UP, not as
@@ -1388,15 +1454,15 @@ class Messages(unittest.TestCase):
         self.assertIn("\n| # |", text)                                                # the dashboard cuts the file at the table's first row
         self.assertIn("| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) |", text)
         self.assertIn("(GTT / stop-limit buy order; skip if it opens above", text)
-        for plain in ("- **Buy:**", "- **Stop-loss:**", "- **Reference prices:**"):
+        for plain in ("- **Buy:**", "- **Stop-loss:**", "- **Profit marks:**"):
             self.assertIn(plain, text)
-        for jargon in ("buy-stop", "Trail below high close", "**Entry:**", "- **Stop:**", "Reference levels", "stop-outs"):
+        for jargon in ("buy-stop", "Trail below high close", "**Entry:**", "- **Stop:**", "Reference levels", "Reference prices", "stop-outs"):
             self.assertNotIn(jargon, text, jargon)
 
     def test_the_message_stays_short(self):
         for res, mode, now in self._all_messages():
             msg = notify.format_scan_message(res, mode, now=now)
-            self.assertLessEqual(len(msg), 1100 + 300 * len(res.picks), len(msg))
+            self.assertLessEqual(len(msg), 1250 + 350 * len(res.picks), len(msg))
             self.assertEqual(len(notify.split_message(msg)), 1)
 
     def test_no_new_pick_is_one_short_line_that_says_why(self):
@@ -1521,7 +1587,7 @@ class Dashboard(unittest.TestCase):
     """app.py run headless with Streamlit's own test runner on small files: it must not crash, and what it shows is in plain words (2026-11-01)."""
 
     JARGON = ("buy-stop", "Buy-stop", "Current stop", "Mark-to-market", "Open - keep", "Waiting for their", "Sessions left",
-              "plus_1R", "entry_mode", "trail_pct", "Avg after costs")
+              "plus_1R", "+1R price", "entry_mode", "trail_pct", "Avg after costs")
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -1602,7 +1668,7 @@ class Dashboard(unittest.TestCase):
         self.assertEqual(list(holding["Stock"]), ["HELD"])
         self.assertAlmostEqual(float(holding["Sell if price falls to"].iloc[0]), 92.5)
         picks = table_with("Skip if it opens above")
-        self.assertLessEqual({"Stock", "Buy at", "Stop-loss", "How to buy", "Trailing stop-loss (% below highest close)", "+1R price"}, set(picks.columns))
+        self.assertLessEqual({"Stock", "Buy at", "Stop-loss", "How to buy", "Trailing stop-loss (% below highest close)", "Profit mark 1"}, set(picks.columns))
         self.assertEqual(set(picks["How to buy"]), {"Place buy order"})
         trades = table_with("Why it ended")
         self.assertEqual(set(trades["Status"]), {"Sold", "Bought, not sold yet", "Waiting to buy", "Never bought"})

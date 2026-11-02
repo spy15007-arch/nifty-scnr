@@ -66,9 +66,20 @@ def _rows(items: list[str], per_row: int = 2) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
+def _marks_line(marks) -> str:
+    """'Profit marks 3,449.60 · 3,721.85 · 3,994.10' (up 1x, 2x, 3x the amount risked: reference points, the footer explains them); '' when not known."""
+    try:
+        vals = [float(v) for v in marks]
+    except (TypeError, ValueError):
+        return ""
+    if len(vals) != 3 or not all(math.isfinite(v) and v > 0 for v in vals):
+        return ""
+    return "Profit marks " + " · ".join(fmt_price(v) for v in vals)
+
+
 def format_pick(p, idx: int) -> str:
     """
-    One compact card of 4-6 short lines (no blank lines inside, so the message splitter keeps it whole):
+    One compact card of 4-7 short lines (no blank lines inside, so the message splitter keeps it whole):
     the setup, where to buy, the stop, a few words on why, and one line per specific warning (e.g. already spiked in 5 days).
     The buy line of a buy-stop pick just says "Buy at": the Stop line right under it is the stop-loss, and the section heading
     above the cards ("PLACE THESE BUY ORDERS") says these are orders that trigger only when the price rises to that price.
@@ -87,6 +98,9 @@ def format_pick(p, idx: int) -> str:
     else:
         lines.append(f"Buy at <b>{fmt_price(p.entry_price)}</b> · skip if it opens above {fmt_price(p.max_entry)}")
     lines.append(f"Stop <b>{fmt_price(p.stop)}</b> (-{_pct(p.risk_pct)}) · trail {_pct(p.trail_pct)}")
+    marks = _marks_line((p.r1, p.r2, p.r3))
+    if marks:
+        lines.append(marks)
 
     tag = [fp.STRONG_TREND_TAG] if getattr(p, "strong_trend", False) else []
     context = tag + ([stats] if stats else []) + [_e(w) for w in p.why]
@@ -181,6 +195,9 @@ def format_earlier_block(earlier: list) -> str:
         left = f"order valid {e.sessions_left} more session{'s' if e.sessions_left != 1 else ''}"
         lines.append(f"<b>{_e(e.symbol)}</b>{' ' + marks if marks else ''} · Quality {e.quality_pct:.0f}/100 · picked {_short_iso(e.picked)}")
         lines.append(f"Buy at <b>{fmt_price(e.trigger)}</b> · {left}")
+        profit = _marks_line(getattr(e, "marks", None))
+        if profit:
+            lines.append(profit)                                               # the same numbers its original card showed
     more = len(earlier) - len(shown)
     if more > 0:
         lines.append(f"+{more} more earlier pick{'s also still qualify' if more != 1 else ' also still qualifies'} (on your list)")
@@ -280,7 +297,9 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     if tracked_block:
         blocks.append(tracked_block)
 
-    footer = (f"ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. "
+    marks_note = ("Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). "
+                  if (picks or shown_earlier) else "")                          # explained only when a card carries them, like the 💪 tag
+    footer = (f"ℹ️ <i>{marks_note}Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. "
               f"Risk at most {config.RISK_PER_TRADE_PCT:g}% of your capital per trade, half in a weak market. "
               f"A ranked shortlist, not a guarantee.</i>")
     if any(getattr(p, "strong_trend", False) for p in list(picks) + shown_earlier):

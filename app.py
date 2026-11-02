@@ -43,7 +43,7 @@ PICK_COLUMNS = {
     "symbol": "Stock", "setup": "Setup", "quality_pct": "Quality (0-100)", "trend": "200-day trend", "spiked": "Recent run-up",
     "entry_mode": "How to buy", "entry_price": "Buy at", "max_entry": "Skip if it opens above", "stop_loss": "Stop-loss",
     "risk_pct": "Risk to stop-loss", "trail_pct": "Trailing stop-loss (% below highest close)",
-    "plus_1R": "+1R price", "plus_2R": "+2R price", "plus_3R": "+3R price",
+    "plus_1R": "Profit mark 1", "plus_2R": "Profit mark 2", "plus_3R": "Profit mark 3",
     "delivery_20d_pct": "Delivery % (20-day avg)", "vol_ratio": "Volume vs normal", "gain_pct": "Day's gain",
     "ext_pct": "Vs breakout level (50-day high)", "dist_52w_high_pct": "Vs 52-week high", "ret_12m_pct": "12-month return",
     "sector": "Sector", "stage": "Setup details",
@@ -119,8 +119,8 @@ def render_scan_tab(mode: str, label: str):
     _df(show.style.format(fmt, na_rep="–"), height=min(620, 80 + 36 * len(show)))
     st.caption("Quality = rank among today's liquid stocks (100 = best): a filter (top half only), not a probability and not a ladder. "
                "The stop-loss moves up behind the highest close (the trailing stop-loss column); there is no fixed target. "
-               "R = the amount you risk per share (buy price minus stop-loss): +1R, +2R and +3R are the prices where you would be up 1, 2 or 3 times "
-               "that - reference prices, not targets. The size is yours to set: risk at most 1% of your capital per trade (half in a weak market), "
+               "Profit marks 1, 2 and 3 are the prices where you would be up 1x, 2x or 3x the amount you risk per share (buy price minus stop-loss) - "
+               "reference points only, not targets. The size is yours to set: risk at most 1% of your capital per trade (half in a weak market), "
                "i.e. shares = the money you are willing to lose / (buy price - stop-loss).")
     if "strong_trend" in df.columns or "spiked" in df.columns:
         st.caption("💪 strong = the 200-day average is up 5%+ in a month (listed first; it did better in a 10-year replay, but the live scoreboard has to confirm it). "

@@ -65,6 +65,16 @@ def fmt_price(x: float | None) -> str:
     return f"{x:,.2f}"                    # always the exact 0.05-tick price the plan uses (no silent rounding of a stop or trigger)
 
 
+def profit_marks(entry: float, risk_pct: float) -> tuple[float, float, float]:
+    """
+    The prices where a trade bought at `entry` is up 1x, 2x and 3x the amount it risks (+1R, +2R, +3R), rounded up to the tick.
+    Reference points only, shown on the cards as "Profit marks" (added 2026-11-02 at the user's request): the plan has no fixed target - the stop-loss
+    trails up instead - so nothing is sold, logged or scored at them. The same function makes a new pick's marks and an earlier pick's (from its
+    ledger row), so the two can never disagree.
+    """
+    return tuple(tick_up(entry * (1 + k * risk_pct)) for k in (1, 2, 3))
+
+
 def _num(x, digits: int) -> float | None:
     """A rounded float for the CSV, or None when the value is missing or not finite."""
     try:
@@ -187,6 +197,7 @@ class EarlierPick:
     picked: str                 # ISO date of the original signal
     trigger: float              # the buy-stop price of the order that is still waiting
     sessions_left: int          # sessions the order stays valid
+    marks: tuple | None = None  # its profit marks (+1R, +2R, +3R), worked out from the ledger row exactly as the original card had them; None = not known
 
 
 # --------------------------------------------------------------------------- #
@@ -453,6 +464,7 @@ def select_picks(
             max_entry = tick_down(entry * (1.0 + config.MAX_CHASE_PCT))
         risk = plan_probe.risk_pct
         stop = tick_down(entry * (1.0 - risk))
+        marks = profit_marks(entry, risk)
         row = scored.loc[sym]
         dlv = None
         if dlv20 is not None and sym in dlv20.index and pd.notna(dlv20[sym]):
@@ -466,7 +478,7 @@ def select_picks(
             price=f["close"], entry_price=entry, max_entry=max_entry, stop=stop, risk_pct=risk, atr_pct=atr,
             trail_pct=config.TRAIL_ATR_MULT * atr, valid_sessions=config.ENTRY_VALID_SESSIONS,
             max_hold=config.MAX_HOLD_SESSIONS,
-            r1=tick_up(entry * (1 + risk)), r2=tick_up(entry * (1 + 2 * risk)), r3=tick_up(entry * (1 + 3 * risk)),
+            r1=marks[0], r2=marks[1], r3=marks[2],
             quality_pct=float(q), score=float(row["score"]), grade=fp.grade_for_quality(q),
             pivot=f["piv50"], ext_pct=su["ext_pct"], gain_pct=f["gain1d"], vol_ratio=f["rv15"],
             close_pos=f["close_pos"], dist_hi_pct=f["dist_hi"], ret252_pct=f["ret252"], dlv20=dlv,
@@ -524,9 +536,16 @@ def earlier_picks(result: SelectionResult, ledger: pd.DataFrame | None) -> list[
         key = rank_key(info["strong_trend"], info["setup"], info["quality_pct"])
         if best_new is not None and not key < best_new:
             continue                                   # a new pick is at least as strong: the earlier one stays in "Your list"
+        marks = None                                   # the same plan numbers the card had: risk = stop_mult x atr_pct, both stored in the ledger row
+        try:
+            risk = float(r["stop_mult"]) * float(r["atr_pct"])
+            if math.isfinite(risk) and risk > 0:
+                marks = profit_marks(trigger, risk)
+        except (KeyError, TypeError, ValueError):
+            marks = None                               # an older ledger without those columns: the line just has no marks
         found[str(r["symbol"])] = EarlierPick(symbol=str(r["symbol"]), setup=info["setup"], quality_pct=float(info["quality_pct"]),
                                               strong_trend=bool(info["strong_trend"]), picked=str(r["signal_date"]), trigger=trigger,
-                                              sessions_left=left)
+                                              sessions_left=left, marks=marks)
     return sorted(found.values(), key=lambda e: rank_key(e.strong_trend, e.setup, e.quality_pct) + (e.symbol,))
 
 
