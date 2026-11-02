@@ -6,6 +6,7 @@ Files a scan leaves in the repository (what the dashboard and the Markdown summa
     summary_<mode>.md   +  reports/<mode>/summary_<mode>.md   latest, compact table
     reports/<mode>/scan_<date>.md                    dated, with the reasons for each pick
     summary.md                                       both scans, newest section first (trimmed)
+    reports/output/building_up_swing.csv             the swing scan's "building up near a breakout" watch list (every name; the dashboard shows it)
 
 No network access here; every function only writes files.
 """
@@ -20,9 +21,10 @@ from datetime import datetime
 
 import pandas as pd
 
+import config
 from scanner import footprint as fp
 from scanner import session
-from scanner.pipeline import fmt_price
+from scanner.pipeline import BUILDING_UP_COLUMNS, fmt_price
 
 logger = logging.getLogger(__name__)
 
@@ -92,9 +94,22 @@ def _table(picks: list) -> list[str]:
     return lines
 
 
+def _building_up_section(building: list) -> list[str]:
+    """The watch list as a table (every name, not only the few the Telegram message shows)."""
+    near, far = config.PRIMED_NEAR_PCT, config.BUILDING_UP_NEAR_PCT
+    out = [f"**Building up, near a breakout** (watch only - no order yet): strong stocks {near:.0%}-{far:.0%} below their 50-day high; "
+           f"one joins the picks when it gets within {near:.0%} of that high.", "",
+           "| Stock | Quality | Below its 50-day high | 50-day high | 12-month return |", "| :-- | :-: | :-: | --: | :-: |"]
+    for b in building:
+        twelve = b.ret12m_pct if isinstance(b.ret12m_pct, (int, float)) and math.isfinite(b.ret12m_pct) else None
+        out.append(f"| **{b.symbol}**{' 💪' if b.strong_trend else ''} | {b.quality_pct:.0f} | {b.gap_pct:.1%} | {fmt_price(b.high)} | "
+                   f"{f'{twelve:+.0%}' if twelve is not None else 'n/a'} |")
+    return out + [""]
+
+
 def render_summary(scan_mode: str, result, now: datetime, market_line: str = "", tracked_text: str = "",
                    scoreboard_line: str = "", notes: list[str] | None = None, detail: bool = False,
-                   earlier: list | None = None) -> str:
+                   earlier: list | None = None, building: list | None = None) -> str:
     t = now.astimezone(session.IST)
     out = [f"# {_title(scan_mode)} - {t.strftime('%a %d %b %Y, %I:%M %p').replace(' 0', ' ')} IST", "",
            f"*{_basis(result, now)}*", ""]
@@ -115,7 +130,8 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
     out += _table(result.picks)
     out += [""]
     earlier = list(earlier or [])
-    if any(getattr(p, "strong_trend", False) for p in list(result.picks) + earlier):
+    building = list(building or []) if (scan_mode == "swing" and config.BUILDING_UP_MAX > 0) else []     # the afternoon BTST scan never lists them
+    if any(getattr(p, "strong_trend", False) for p in list(result.picks) + earlier + building):
         out += [f"*{fp.strong_trend_legend()}*", ""]
     if earlier:
         out += ["**Earlier picks, still strong** (picked before, order still waiting - no new order):", ""]
@@ -127,6 +143,8 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
         out += [""]
     if result.repeats:
         out += ["Already on your list (not repeated): " + ", ".join(s for s, _ in result.repeats[:20]), ""]
+    if building:
+        out += _building_up_section(building)
     if detail and result.picks:
         out += ["## Plan and reasons", ""]
         for i, p in enumerate(result.picks, 1):
@@ -175,7 +193,8 @@ def prepend_master(section: str, path: str = MASTER_PATH, max_sections: int = MA
 
 
 def write_scan_outputs(scan_mode: str, result, now: datetime, market_line: str = "", tracked_text: str = "",
-                       scoreboard_line: str = "", notes: list[str] | None = None, earlier: list | None = None) -> dict:
+                       scoreboard_line: str = "", notes: list[str] | None = None, earlier: list | None = None,
+                       building: list | None = None) -> dict:
     """Write every file listed in the module docstring. Returns the paths written."""
     folder = _ensure_dirs(scan_mode)
     t = now.astimezone(session.IST)
@@ -188,8 +207,8 @@ def write_scan_outputs(scan_mode: str, result, now: datetime, market_line: str =
     df.to_csv(paths["csv"], index=False)
     df.to_csv(paths["csv_dated"], index=False)
 
-    short = render_summary(scan_mode, result, now, market_line, tracked_text, scoreboard_line, notes, detail=False, earlier=earlier)
-    full = render_summary(scan_mode, result, now, market_line, tracked_text, scoreboard_line, notes, detail=True, earlier=earlier)
+    short = render_summary(scan_mode, result, now, market_line, tracked_text, scoreboard_line, notes, detail=False, earlier=earlier, building=building)
+    full = render_summary(scan_mode, result, now, market_line, tracked_text, scoreboard_line, notes, detail=True, earlier=earlier, building=building)
     paths["summary"] = f"summary_{scan_mode}.md"
     paths["summary_folder"] = f"{folder}/summary_{scan_mode}.md"
     paths["detail"] = f"{folder}/scan_{date_str}.md"
@@ -197,4 +216,9 @@ def write_scan_outputs(scan_mode: str, result, now: datetime, market_line: str =
     _write(paths["summary_folder"], short)
     _write(paths["detail"], full)
     prepend_master(short)
+    if scan_mode == "swing":
+        # the dashboard's table of the watch list; rewritten every swing run (an empty file when nothing is building up, so it never shows yesterday's names)
+        os.makedirs("reports/output", exist_ok=True)
+        paths["building"] = f"reports/output/building_up_{scan_mode}.csv"
+        pd.DataFrame([b.to_row() for b in (building or [])], columns=BUILDING_UP_COLUMNS).to_csv(paths["building"], index=False)
     return paths

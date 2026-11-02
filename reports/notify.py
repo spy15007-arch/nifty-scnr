@@ -204,6 +204,30 @@ def format_earlier_block(earlier: list) -> str:
     return "\n".join(lines)
 
 
+def format_building_up_block(building: list) -> str:
+    """
+    Strong stocks that are a little below their 50-day high, not yet in the "about to break out" band (pipeline.building_up). A WATCH list: it says so in
+    its heading, there is no order and nothing is logged. Two short lines each (symbol, tag, quality, 12-month return / how far below the high), no blank
+    line inside (the splitter keeps the block whole); the best config.BUILDING_UP_MAX, then how many more there are.
+    """
+    if not building or config.BUILDING_UP_MAX <= 0:
+        return ""
+    shown = building[:config.BUILDING_UP_MAX]
+    near, far = config.PRIMED_NEAR_PCT, config.BUILDING_UP_NEAR_PCT
+    lines = ["🔭 <b>BUILDING UP</b> (watch only - no order yet)",
+             f"Strong stocks {near:.0%}-{far:.0%} below their 50-day high. One joins the picks when it gets within {near:.0%} of that high."]
+    for b in shown:
+        tag = " 💪" if getattr(b, "strong_trend", False) else ""
+        twelve = getattr(b, "ret12m_pct", None)
+        twelve_txt = f" · 12-mo {twelve:+.0%}" if isinstance(twelve, (int, float)) and math.isfinite(twelve) else ""
+        lines.append(f"<b>{_e(b.symbol)}</b>{tag} · Quality {b.quality_pct:.0f}/100{twelve_txt}")
+        lines.append(f"{b.gap_pct:.1%} below its 50-day high ({fmt_price(b.high)})")
+    more = len(building) - len(shown)
+    if more > 0:
+        lines.append(f"+{more} more building up (all of them are in the dashboard)")
+    return "\n".join(lines)
+
+
 def _breadth_line(result) -> str:
     b50 = result.breadth.get("breadth50") if result.breadth else None
     if not (isinstance(b50, (int, float)) and math.isfinite(b50)):
@@ -227,14 +251,18 @@ def _no_pick_line(result) -> str:
 
 def format_scan_message(result, scan_mode: str, now: datetime | None = None, market_line: str = "",
                         tracked_block: str = "", scoreboard_line: str = "", notes: list[str] | None = None,
-                        earlier: list | None = None) -> str:
+                        earlier: list | None = None, building: list | None = None) -> str:
     """
     The whole message as a string of blocks separated by blank lines.
     `earlier` = earlier picks that are still strong (pipeline.earlier_picks): shown above the new picks, which then say NEW in their headings
     so the two cannot be mixed up (on a day with no new pick the block follows the "No new pick" line).
+    `building` = strong stocks building up near a breakout (pipeline.building_up): a watch block after the picks, on the swing message only - the
+    afternoon BTST message is about what to buy before the close, so it never carries it.
     """
     earlier = list(earlier or []) if config.EARLIER_PICKS_MAX > 0 else []
     shown_earlier = earlier[:config.EARLIER_PICKS_MAX]
+    building_block = format_building_up_block(list(building or [])) if scan_mode == "swing" else ""
+    shown_building = list(building or [])[:config.BUILDING_UP_MAX] if building_block else []
     now = now or session.now_ist()
     t = now.astimezone(session.IST)
     title = {"btst": "🌙 <b>BTST scan</b>", "swing": "📈 <b>Swing scan</b>"}.get(scan_mode, f"<b>{_e(scan_mode)} scan</b>")
@@ -294,6 +322,8 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
         if hidden > 0:
             blocks.append(f"+{hidden} more qualify but are already on your list.")
 
+    if building_block:
+        blocks.append(building_block)
     if tracked_block:
         blocks.append(tracked_block)
 
@@ -302,7 +332,7 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     footer = (f"ℹ️ <i>{marks_note}Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. "
               f"Risk at most {config.RISK_PER_TRADE_PCT:g}% of your capital per trade, half in a weak market. "
               f"A ranked shortlist, not a guarantee.</i>")
-    if any(getattr(p, "strong_trend", False) for p in list(picks) + shown_earlier):
+    if any(getattr(p, "strong_trend", False) for p in list(picks) + shown_earlier + shown_building):
         footer = f"<i>{_e(fp.strong_trend_legend())}</i>\n" + footer          # the tag is explained only when a card carries it
     if scoreboard_line:
         footer = f"🧾 <i>{_e(scoreboard_line)}</i>\n" + footer
@@ -373,12 +403,13 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
 
 def notify_scan(result, scan_mode: str, bot_token: str, chat_id: str, now: datetime | None = None,
                 market_line: str = "", tracked_block: str = "", scoreboard_line: str = "",
-                notes: list[str] | None = None, save_to: str | None = None, earlier: list | None = None) -> bool:
+                notes: list[str] | None = None, save_to: str | None = None, earlier: list | None = None,
+                building: list | None = None) -> bool:
     """Build the scan message and send it. `save_to`: also keep the exact text that was sent (the run log is not always reachable)."""
     try:
         message = format_scan_message(result, scan_mode, now=now, market_line=market_line,
                                       tracked_block=tracked_block, scoreboard_line=scoreboard_line, notes=notes,
-                                      earlier=earlier)
+                                      earlier=earlier, building=building)
     except Exception:  # noqa: BLE001 - a formatting slip must never cost the whole message
         logger.exception("Could not format the scan message")
         message = _e(f"The {scan_mode.upper()} scan finished, but its message could not be formatted. "

@@ -4,6 +4,7 @@ data pipeline and no import of the scanner package, so it stays a plain, safe vi
 
     scan_results_btst.csv / scan_results_swing.csv   the latest picks, with the whole trade plan
     summary_btst.md / summary_swing.md                the latest scan write-up (market, breadth, reasons)
+    reports/output/building_up_swing.csv              strong stocks building up near a breakout (a watch list, no order)
     tracking/trades.csv                               the scoreboard ledger (every pick, followed by the plan)
 
 REWRITTEN 2026-10-20 for the evidence-based selection: picks are ranked by a QUALITY percentile (a rank, not a
@@ -48,6 +49,9 @@ PICK_COLUMNS = {
     "ext_pct": "Vs breakout level (50-day high)", "dist_52w_high_pct": "Vs 52-week high", "ret_12m_pct": "12-month return",
     "sector": "Sector", "stage": "Setup details",
 }
+BUILDING_COLUMNS = {"symbol": "Stock", "trend": "200-day trend", "quality_pct": "Quality (0-100)", "gap_pct": "Below its 50-day high",
+                    "high_50d": "50-day high (the level to clear)", "price": "Last price", "ret_12m_pct": "12-month return"}
+BUILDING_FORMAT = {"quality_pct": "{:.0f}", "gap_pct": "{:.1%}", "high_50d": "{:,.2f}", "price": "{:,.2f}", "ret_12m_pct": "{:+.0%}"}
 PICK_FORMAT = {"quality_pct": "{:.0f}", "entry_price": "{:,.2f}", "max_entry": "{:,.2f}", "stop_loss": "{:,.2f}",
                "risk_pct": "{:.1%}", "trail_pct": "{:.1%}", "plus_1R": "{:,.2f}", "plus_2R": "{:,.2f}", "plus_3R": "{:,.2f}",
                "delivery_20d_pct": "{:.0f}%", "vol_ratio": "{:.1f}x", "gain_pct": "{:+.1%}",
@@ -82,6 +86,25 @@ def _mtime(path: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
+def render_building_up(mode: str):
+    """The swing scan's watch list: strong stocks a few % below their 50-day high, not close enough to be picks yet. No order, nothing is tracked."""
+    if mode != "swing":
+        return
+    df = _read_csv(f"reports/output/building_up_{mode}.csv")
+    if df is None:
+        return
+    st.subheader("🔭 Building up near a breakout (watch only - no order yet)")
+    show = df.copy()
+    show["trend"] = show["strong_trend"].map(lambda v: "💪 strong" if _is_yes(v) else "rising") if "strong_trend" in show.columns else ""
+    cols = [c_ for c_ in BUILDING_COLUMNS if c_ in show.columns]
+    show = show[cols].rename(columns=BUILDING_COLUMNS)
+    fmt = {BUILDING_COLUMNS[k]: v for k, v in BUILDING_FORMAT.items() if k in cols}
+    _df(show.style.format(fmt, na_rep="–"), height=min(620, 80 + 36 * len(show)))
+    st.caption("Strong stocks (top half by quality, 200-day average rising) that are a few % below their 50-day high - not close enough to be a pick yet. "
+               "A stock joins the picks when it gets within 3% of that high, or breaks above it. This list is a heads-up only: no order is needed, "
+               "nothing here is tracked, and it is not part of the rule that was back-tested. 💪 = the 200-day average is up 5%+ in a month (listed first).")
+
+
 def render_scan_tab(mode: str, label: str):
     path = f"scan_results_{mode}.csv"
     df = _read_csv(path)
@@ -94,6 +117,7 @@ def render_scan_tab(mode: str, label: str):
     if df is None:
         st.info(f"No new {label} pick in the latest run - every pick must be in a breakout setup AND in the top half of stocks "
                 f"by quality, and stocks already on your list are not repeated.")
+        render_building_up(mode)
         return
     st.caption(f"Files last updated: {_mtime(path)}")
 
@@ -126,6 +150,7 @@ def render_scan_tab(mode: str, label: str):
         st.caption("💪 strong = the 200-day average is up 5%+ in a month (listed first; it did better in a 10-year replay, but the live scoreboard has to confirm it). "
                    "⚠️ already spiked = up sharply in the last 5 days: buy in continuation (at the 'Buy at' price), not on a dip.")
     st.download_button(f"Download {label} CSV", df.to_csv(index=False), file_name=f"scan_results_{mode}.csv")
+    render_building_up(mode)
 
 
 # --------------------------------------------------------------------------- #

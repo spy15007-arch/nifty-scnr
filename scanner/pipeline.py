@@ -549,6 +549,69 @@ def earlier_picks(result: SelectionResult, ledger: pd.DataFrame | None) -> list[
     return sorted(found.values(), key=lambda e: rank_key(e.strong_trend, e.setup, e.quality_pct) + (e.symbol,))
 
 
+@dataclass
+class BuildingUp:
+    """A strong stock a little further below its 50-day high than the "about to break out" band: a watch-list name, not a pick (see building_up)."""
+    symbol: str
+    quality_pct: float
+    strong_trend: bool
+    gap_pct: float                          # how far the last price is below the 50-day high (0.034 = 3.4% below)
+    high: float                             # that 50-day high: the level it has to clear
+    price: float                            # last price
+    trend200_pct: float | None = None       # the 200-day average vs its level 20 sessions ago
+    ret12m_pct: float | None = None         # the 12-month return; None when the stock has less than a year of history
+
+    def to_row(self) -> dict:
+        """Flat dict for the dashboard's CSV."""
+        return {"symbol": self.symbol, "quality_pct": round(self.quality_pct, 1), "strong_trend": bool(self.strong_trend),
+                "gap_pct": round(self.gap_pct, 4), "high_50d": round(self.high, 2), "price": round(self.price, 2),
+                "trend_200d_chg": _num(self.trend200_pct, 4), "ret_12m_pct": _num(self.ret12m_pct, 4)}
+
+
+BUILDING_UP_COLUMNS = ["symbol", "quality_pct", "strong_trend", "gap_pct", "high_50d", "price", "trend_200d_chg", "ret_12m_pct"]
+
+
+def building_up(result: SelectionResult, exclude: set[str] | None = None) -> list[BuildingUp]:
+    """
+    Strong stocks that are close to a breakout but not yet in the "about to break out" band: the names that may join the picks in the next sessions.
+
+    A stock is listed when ALL of these hold today (the same numbers and the same tests the picks use, so nothing here is a new indicator):
+      * it is in the top half of the liquid stocks by quality (config.QUALITY_GATE_PCT);
+      * its 200-day average is rising (fp.trend_rising) - a strong uptrend (fp.trend_strong) is tagged 💪 and listed first;
+      * its 12-month return is strong: its score contribution is above config.BUILDING_UP_MIN_RETURN_Z, the very bar the card's "strong 12-mo return"
+        phrase uses (a stock with less than a year of history has none and is left out);
+      * its last price is still below its old 50-day high, but not within config.PRIMED_NEAR_PCT of it (that is an "about to break out" PICK) and
+        not further below it than config.BUILDING_UP_NEAR_PCT (3% .. 6% under the 50-day high, measured exactly as the picks measure it);
+      * it is not already a pick today, not already on the list (`exclude`: waiting orders, bought stocks, the cool-down), not an earlier pick.
+    Best first: strong uptrends, then the nearest to the high, then the highest quality. ALL of them are returned (the message shows the first
+    config.BUILDING_UP_MAX; the dashboard shows every one). A WATCH LIST: nothing is ordered, logged or scored, and it is not part of the back-tested rule
+    (config.py explains what is and is not known). BUILDING_UP_MAX = 0 switches it off.
+    """
+    if config.BUILDING_UP_MAX <= 0:
+        return []
+    feats = result.feats
+    need = ("close", "piv50", "piv_incl", "quality_pct", "sma200_chg", "c_ret252")
+    if feats is None or len(feats) == 0 or any(c not in feats.columns for c in need):
+        return []
+    close, piv, high, quality, trend, return_z = (pd.to_numeric(feats[c], errors="coerce") for c in need)
+    # the exact opposite of fp.detect_setup's "primed" test (close >= (1 - near) x high), so the two bands meet without a gap or an overlap
+    outside_primed = close < (1.0 - config.PRIMED_NEAR_PCT) * high
+    near_enough = close >= (1.0 - config.BUILDING_UP_NEAR_PCT) * high
+    ok = ((quality >= config.QUALITY_GATE_PCT) & (trend >= config.TREND_200D_RISING_MIN) & (return_z > config.BUILDING_UP_MIN_RETURN_Z)
+          & (close <= piv) & outside_primed & near_enough & (close > 0) & (high > 0))
+    skip = set(exclude or ()) | {p.symbol for p in result.picks} | {s for s, _ in result.repeats}
+    out: list[BuildingUp] = []
+    for sym in feats.index[ok.to_numpy()]:
+        if sym in skip:
+            continue
+        r_close, r_high = float(close[sym]), float(high[sym])
+        out.append(BuildingUp(symbol=str(sym), quality_pct=float(quality[sym]), strong_trend=bool(fp.trend_strong(float(trend[sym]))),
+                              gap_pct=1.0 - r_close / r_high, high=r_high, price=r_close, trend200_pct=_num(trend[sym], 6),
+                              ret12m_pct=_num(feats.at[sym, "ret252"], 6) if "ret252" in feats.columns else None))
+    out.sort(key=lambda b: (0 if b.strong_trend else 1, b.gap_pct, -b.quality_pct, b.symbol))
+    return out
+
+
 # --------------------------------------------------------------------------- #
 def build_watchlist(result: SelectionResult, dlv20: pd.Series | None = None,
                     max_n: int | None = None) -> dict | None:

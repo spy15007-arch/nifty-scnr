@@ -403,6 +403,63 @@ class ResearchStudy(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 sp.load(csv)
 
+    def test_the_gap_study_groups_and_arithmetic_on_a_tiny_known_example(self):
+        """Six identical months of 6 signals: the groups must hold exactly the signals they claim and the means must come out by hand."""
+        from backtest import gap_study as gs
+        nan = float("nan")
+        spec = (                                                    # setup, close vs the old 50-day high (+ = above), 200-day trend, status, net
+            ("primed", -0.005, 0.06, "CLOSED", 0.04),               # nearer half (0.5% below), strong uptrend
+            ("primed", -0.025, 0.06, "CLOSED", 0.10),               # further half, strong uptrend
+            ("primed", -0.025, 0.00, "UNFILLED", nan),              # further half, trend not rising, the order never filled
+            ("primed", -0.025, 0.00, "CLOSED", -0.02),              # further half, trend not rising
+            ("fresh", 0.010, 0.06, "CLOSED", 0.50),                 # a fresh breakout: in none of the groups
+            ("primed", 0.004, 0.02, "CLOSED", 0.01),                # closed above the old high, rising but not strong: nearer half
+        )
+        rows = []
+        for m in range(1, 7):
+            for setup, ext, trend, status, net in spec:
+                rows.append({"signal_date": f"2026-{m:02d}-10", "setup": setup, "ext_pct": ext, "sma200_chg": trend, "status": status, "net": net,
+                             "R": net * 10, "fill_date": f"2026-{m:02d}-12" if status == "CLOSED" else ""})
+        df = pd.DataFrame(rows)
+        for c in ("z_run_up", "run_up", "breadth50", "atr_pct", "pb1_net", "pb2_net"):
+            df[c] = 0.0
+        df["regime"], df["pb1_status"], df["pb2_status"] = "mixed", "UNFILLED", "UNFILLED"
+        with tempfile.TemporaryDirectory() as tmp:
+            csv = os.path.join(tmp, "tiny.csv")
+            df.to_csv(csv, index=False)
+            frame = gs.load(csv)
+        g = gs.groups(frame)
+        self.assertEqual({k: int(v.sum()) for k, v in g.items()},
+                         {"primed": 30, "near": 12, "far": 18, "near_strong": 6, "near_rising": 6, "near_flat": 0,
+                          "far_strong": 6, "far_rising": 0, "far_flat": 12, "band0": 6, "band1": 6, "band2": 0, "band3": 18})
+        st = gs.ss.Study(frame, reps=200)
+        self.assertAlmostEqual(st.mean(g["far_strong"], "filled")[0], 0.10)
+        self.assertAlmostEqual(st.mean(g["far_flat"], "filled")[0], -0.02)
+        self.assertAlmostEqual(st.mean(g["far_flat"], "signal")[0], -0.01)                  # the order that never filled counts as 0
+        self.assertAlmostEqual(st.mean(g["far"], "signal")[0], 0.08 / 3)
+        text = "\n".join(gs.analyse(frame, reps=200))
+        for head in ("== 1.", "== 2.", "== 3.", "== 4."):
+            self.assertIn(head, text)
+        self.assertIn("close 0%-1% below the 50-day high", text)
+        self.assertNotIn("1%-2% below the 50-day high", text)                               # a band with no signals is not printed
+
+    def test_the_gap_study_script_runs_and_refuses_an_old_file(self):
+        from backtest import gap_study as gs
+        with tempfile.TemporaryDirectory() as tmp:
+            csv, out, old = (os.path.join(tmp, n) for n in ("trades.csv", "gap.md", "old.csv"))
+            pd.DataFrame(self.trades).to_csv(csv, index=False)
+            text = "\n".join(gs.analyse(gs.load(csv), reps=200))
+            for head in ("== 1.", "== 2.", "== 3.", "== 4."):
+                self.assertIn(head, text)
+            self.assertIn(f"Signals {len(self.trades)}", text)
+            with mock.patch("builtins.print"):
+                self.assertEqual(gs.main([csv, "--write", out]), 0)
+            with open(out, encoding="utf-8") as fh:
+                self.assertIn("How to read it", fh.read())
+            pd.DataFrame([{k: v for k, v in t.items() if k != "ext_pct"} for t in self.trades]).to_csv(old, index=False)
+            with self.assertRaises(SystemExit):
+                gs.load(old)
+
     def test_the_pullback_table_compares_the_same_finished_signals(self):
         def row(a, b, c):
             """a, b, c = (status, net) for the buy-stop, pull-back 1 and pull-back 2."""
@@ -1306,6 +1363,207 @@ class Delivery(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+class BuildingUpWatch(unittest.TestCase):
+    """
+    Strong stocks 3%-6% below their 50-day high are shown as a WATCH list (added 2026-11-02 at the user's request): on the swing message only, with no order,
+    nothing logged and nothing scored. They join the picks only through the normal rule, once they get within 3% of that high.
+    """
+    NOW = at(2026, 10, 13, 17, 0)
+    LEGEND = "strong uptrend = the 200-day average is up 5%+ in a month; these are listed first"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.bars = make_market()
+        cls.res = pl.select_picks("swing", cls.bars, now=cls.NOW, max_picks=1000)
+        cls.building = pl.building_up(cls.res)
+
+    @staticmethod
+    def _result(rows, picks=(), repeats=()):
+        """A selection result whose feature table holds just what building_up reads. rows = {symbol: overrides of the defaults}; the default stock qualifies."""
+        base = {"close": 95.0, "piv50": 100.0, "piv_incl": 100.0, "quality_pct": 80.0, "sma200_chg": 0.02, "c_ret252": 1.0, "ret252": 0.40}
+        feats = pd.DataFrame({s: {**base, **r} for s, r in rows.items()}).T
+        return pl.SelectionResult(list(picks), list(repeats), {}, {}, "healthy", None, feats, [], None, False, 1.0, True)
+
+    @staticmethod
+    def _names(res, **kw):
+        return [b.symbol for b in pl.building_up(res, **kw)]
+
+    @staticmethod
+    def _bu(symbol="AAA", quality=95.4, strong=True, gap=0.034, high=1740.0, ret12m=0.53):
+        return pl.BuildingUp(symbol, quality, strong, gap, high, high * (1 - gap), 0.032, ret12m)
+
+    # ---- who is listed ------------------------------------------------------------------------------------------------
+    def test_the_band_starts_exactly_where_about_to_break_out_ends_and_stops_at_six_percent(self):
+        closes = [round(float(x), 2) for x in np.arange(90.0, 100.01, 0.25)]
+        listed = set(self._names(self._result({f"C{i}": {"close": c} for i, c in enumerate(closes)})))
+        for i, c in enumerate(closes):
+            primed = fp.detect_setup({"close": c, "piv50": 100.0, "piv_incl": 100.0, "high": 100.0})["setup"] == "primed"
+            in_band = (not primed) and c >= (1 - config.BUILDING_UP_NEAR_PCT) * 100.0
+            self.assertEqual(f"C{i}" in listed, in_band, c)
+            self.assertFalse(primed and f"C{i}" in listed, c)                         # never both a pick-to-be and a watch name
+        self.assertTrue(listed and len(listed) < len(closes))                         # some are in the band, the ones nearer and further are not
+
+    def test_each_test_can_keep_a_stock_out_and_the_edges_are_as_documented(self):
+        gate, rising, bar = config.QUALITY_GATE_PCT, config.TREND_200D_RISING_MIN, config.BUILDING_UP_MIN_RETURN_Z
+        res = self._result({
+            "OK": {},
+            "Q_AT_GATE": {"quality_pct": gate}, "Q_BELOW": {"quality_pct": gate - 0.1},
+            "T_AT_RISING": {"sma200_chg": rising}, "T_BELOW": {"sma200_chg": rising - 0.0001}, "T_NAN": {"sma200_chg": np.nan},
+            "R_AT_BAR": {"c_ret252": bar}, "R_ABOVE": {"c_ret252": bar + 0.01}, "R_NAN": {"c_ret252": np.nan},
+            "ABOVE_OLD_HIGH": {"close": 101.0, "piv_incl": 106.0},                    # closed above its old 50-day high (it already broke out): not building up
+            "NO_PRICE": {"close": np.nan},
+        })
+        self.assertEqual(set(self._names(res)), {"OK", "Q_AT_GATE", "T_AT_RISING", "R_ABOVE"})
+
+    def test_a_pick_or_a_stock_already_on_the_list_is_never_listed_twice(self):
+        res = self._result({"A": {}, "B": {}, "C": {}, "D": {}}, picks=[mock.Mock(symbol="B")], repeats=[("C", "primed")])
+        self.assertEqual(self._names(res), ["A", "D"])
+        self.assertEqual(self._names(res, exclude={"D"}), ["A"])                       # a waiting order, a bought stock or the cool-down
+
+    def test_strong_uptrends_come_first_then_the_nearest_to_the_high_then_quality_then_the_name(self):
+        res = self._result({
+            "FAR_STRONG": {"close": 94.5, "sma200_chg": 0.08},
+            "NEAR": {"close": 96.8, "quality_pct": 70}, "NEAR_BETTER": {"close": 96.8, "quality_pct": 90}, "NEAR_B": {"close": 96.8, "quality_pct": 90},
+            "MID": {"close": 95.5},
+        })
+        self.assertEqual(self._names(res), ["FAR_STRONG", "NEAR_B", "NEAR_BETTER", "NEAR", "MID"])
+
+    def test_switched_off_a_missing_column_and_an_empty_table_give_an_empty_list(self):
+        res = self._result({"A": {}})
+        self.assertEqual(self._names(res), ["A"])
+        with mock.patch.object(config, "BUILDING_UP_MAX", 0):
+            self.assertEqual(pl.building_up(res), [])
+        self.assertEqual(pl.building_up(dataclasses.replace(res, feats=res.feats.drop(columns=["c_ret252"]))), [])
+        self.assertEqual(pl.building_up(dataclasses.replace(res, feats=pd.DataFrame())), [])
+        self.assertEqual(pl.building_up(dataclasses.replace(res, feats=None)), [])
+
+    def test_a_listed_stock_carries_its_numbers_and_a_missing_12_month_return_stays_blank(self):
+        (b,) = pl.building_up(self._result({"A": {"close": 96.0, "ret252": 0.53}}))
+        self.assertEqual((b.symbol, b.strong_trend, b.high, b.price), ("A", False, 100.0, 96.0))
+        self.assertAlmostEqual(b.gap_pct, 0.04)
+        self.assertAlmostEqual(b.ret12m_pct, 0.53)
+        self.assertAlmostEqual(b.trend200_pct, 0.02)
+        (blank,) = pl.building_up(self._result({"A": {"ret252": np.nan}}))
+        self.assertIsNone(blank.ret12m_pct)
+        self.assertIsNone(blank.to_row()["ret_12m_pct"])
+        self.assertEqual(list(b.to_row()), pl.BUILDING_UP_COLUMNS)
+
+    # ---- on the synthetic market (real features, real scores) ---------------------------------------------------------------
+    def test_on_the_synthetic_market_every_listed_stock_follows_every_rule_and_is_not_a_pick(self):
+        self.assertTrue(self.building)
+        f, picks = self.res.feats, {p.symbol for p in self.res.picks}
+        for b in self.building:
+            row = f.loc[b.symbol]
+            gap = 1 - row["close"] / row["piv_incl"]
+            self.assertTrue(config.PRIMED_NEAR_PCT < gap <= config.BUILDING_UP_NEAR_PCT + 1e-12, (b.symbol, gap))
+            self.assertAlmostEqual(b.gap_pct, gap)
+            self.assertGreaterEqual(row["quality_pct"], config.QUALITY_GATE_PCT)
+            self.assertTrue(fp.trend_rising(row["sma200_chg"]))
+            self.assertGreater(row["c_ret252"], config.BUILDING_UP_MIN_RETURN_Z)
+            self.assertLessEqual(row["close"], row["piv50"])
+            self.assertNotIn(b.symbol, picks)
+            self.assertEqual(b.strong_trend, fp.trend_strong(row["sma200_chg"]))
+        key = [(0 if b.strong_trend else 1, b.gap_pct, -b.quality_pct) for b in self.building]
+        self.assertEqual(key, sorted(key))
+        self.assertTrue(any(b.strong_trend for b in self.building) and not all(b.strong_trend for b in self.building))   # both kinds in this market
+
+    def test_a_pick_that_slips_below_the_about_to_break_band_moves_to_the_watch_list(self):
+        self.assertIn("S001", [p.symbol for p in self.res.picks])                       # a strong primed pick...
+        self.assertNotIn("S001", [b.symbol for b in self.building])
+        bars = {s: d.copy() for s, d in self.bars.items()}
+        d = bars["S001"]
+        px = float(self.res.feats.at["S001", "piv_incl"]) * 0.955                       # ...that closes 4.5% under its high instead
+        d.iloc[-1, [d.columns.get_loc(c) for c in ("open", "close")]] = px
+        d.iloc[-1, d.columns.get_loc("high")], d.iloc[-1, d.columns.get_loc("low")] = px * 1.002, px * 0.995
+        res = pl.select_picks("swing", bars, now=self.NOW, max_picks=1000)
+        self.assertNotIn("S001", [p.symbol for p in res.picks])
+        mine = next(b for b in pl.building_up(res) if b.symbol == "S001")
+        self.assertTrue(mine.strong_trend)
+        self.assertAlmostEqual(mine.gap_pct, 0.045, delta=0.002)
+        self.assertEqual(pl.building_up(res, exclude={"S001"}) and [b.symbol for b in pl.building_up(res, exclude={"S001"})].count("S001"), 0)
+
+    # ---- the message ----------------------------------------------------------------------------------------------------------
+    def test_the_swing_message_shows_the_block_after_the_picks_and_before_your_list(self):
+        names = [self._bu("AAA"), self._bu("BBB&CO", 77.0, False, 0.052, 8949.5, None)]
+        msg = notify.format_scan_message(self.res, "swing", now=self.NOW, building=names, tracked_block="📒 <b>Your list</b>\nWaiting to buy (1)")
+        block = next(b for b in msg.split("\n\n") if b.startswith("🔭"))
+        self.assertEqual(block.split("\n"), [
+            "🔭 <b>BUILDING UP</b> (watch only - no order yet)",
+            "Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.",
+            "<b>AAA</b> 💪 · Quality 95/100 · 12-mo +53%",
+            "3.4% below its 50-day high (1,740.00)",
+            "<b>BBB&amp;CO</b> · Quality 77/100",
+            "5.2% below its 50-day high (8,949.50)",
+        ])
+        self.assertLess(msg.index("PLACE THESE BUY ORDERS"), msg.index("🔭"))
+        self.assertLess(msg.index("🔭"), msg.index("📒 <b>Your list</b>"))
+        self.assertLess(msg.index("🔭"), msg.index("Trail = keep the stop"))
+        chk = Messages._Check()
+        chk.feed(msg)
+        self.assertEqual((chk.err, chk.stack), ([], []))
+
+    def test_on_a_day_with_no_new_pick_the_block_still_shows_and_nothing_claims_profit_marks(self):
+        none = dataclasses.replace(self.res, picks=[], repeats=[])
+        msg = notify.format_scan_message(none, "swing", now=self.NOW, building=self.building)
+        self.assertLess(msg.index("No new pick"), msg.index("🔭"))
+        self.assertNotIn("Profit marks", msg)                                           # no card carries them, and a watch name has none
+        self.assertEqual(len([b for b in msg.split("\n\n") if b.startswith("🔭")]), 1)   # one piece for the splitter
+        self.assertTrue(all(len(c) <= 4096 for c in notify.split_message(msg)))
+        chk = Messages._Check()
+        chk.feed(msg)
+        self.assertEqual((chk.err, chk.stack), ([], []))
+
+    def test_the_strong_tag_is_explained_when_only_a_watch_name_carries_it(self):
+        none = dataclasses.replace(self.res, picks=[], repeats=[])
+        self.assertEqual(notify.format_scan_message(none, "swing", now=self.NOW, building=[self._bu(strong=True)]).count(self.LEGEND), 1)
+        self.assertNotIn("💪", notify.format_scan_message(none, "swing", now=self.NOW, building=[self._bu(strong=False)]))
+
+    def test_it_shows_only_the_best_few_and_says_how_many_more(self):
+        many = [self._bu(f"S{i:02d}", strong=False, gap=0.031 + i * 0.001) for i in range(8)]
+        block = notify.format_building_up_block(many)
+        self.assertEqual(block.count("<b>S"), config.BUILDING_UP_MAX)
+        self.assertTrue(block.endswith(f"+{8 - config.BUILDING_UP_MAX} more building up (all of them are in the dashboard)"), block)
+        self.assertNotIn("\n\n", block)
+        self.assertNotIn("more building up", notify.format_building_up_block(many[:config.BUILDING_UP_MAX]))
+        self.assertEqual(notify.format_building_up_block([]), "")
+
+    def test_the_afternoon_btst_message_and_a_switched_off_list_carry_no_block(self):
+        names = [self._bu()]
+        self.assertNotIn("BUILDING UP", notify.format_scan_message(self.res, "btst", now=at(2026, 10, 13, 14, 0), building=names))
+        self.assertNotIn("BUILDING UP", notify.format_scan_message(self.res, "swing", now=self.NOW))                     # none given
+        with mock.patch.object(config, "BUILDING_UP_MAX", 0):
+            self.assertNotIn("BUILDING UP", notify.format_scan_message(self.res, "swing", now=self.NOW, building=names))
+
+    # ---- the files ----------------------------------------------------------------------------------------------------------------
+    def test_the_summary_lists_every_name_and_the_dashboard_file_is_written_for_swing_only(self):
+        from reports import summary
+        many = [self._bu(f"S{i:02d}", strong=bool(i % 2), gap=0.031 + i * 0.001, ret12m=None if i == 3 else 0.2) for i in range(8)]
+        text = summary.render_summary("swing", self.res, self.NOW, building=many)
+        self.assertIn("**Building up, near a breakout** (watch only - no order yet)", text)
+        for b in many:
+            self.assertIn(f"| **{b.symbol}**", text)                                       # all eight, not only the five the message shows
+        self.assertIn("| n/a |", text)                                                      # a blank 12-month return is not a made-up number
+        self.assertNotIn("Building up", summary.render_summary("btst", self.res, self.NOW, building=many))
+        self.assertNotIn("Building up", summary.render_summary("swing", self.res, self.NOW))
+        tmp, cwd = tempfile.mkdtemp(), os.getcwd()
+        os.chdir(tmp)
+        try:
+            paths = summary.write_scan_outputs("swing", self.res, self.NOW, building=many)
+            df = pd.read_csv(paths["building"])
+            self.assertEqual(paths["building"], "reports/output/building_up_swing.csv")
+            self.assertEqual(list(df.columns), pl.BUILDING_UP_COLUMNS)
+            self.assertEqual(list(df["symbol"]), [b.symbol for b in many])
+            paths = summary.write_scan_outputs("swing", self.res, self.NOW, building=[])
+            self.assertEqual(len(pd.read_csv(paths["building"])), 0)                        # an empty file: yesterday's names never linger
+            os.remove(paths["building"])
+            paths = summary.write_scan_outputs("btst", self.res, self.NOW, building=many)
+            self.assertNotIn("building", paths)
+            self.assertFalse(os.path.exists("reports/output/building_up_swing.csv"))
+        finally:
+            os.chdir(cwd)
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 class Messages(unittest.TestCase):
     class _Check(HTMLParser):
         def __init__(self):
@@ -1676,6 +1934,30 @@ class Dashboard(unittest.TestCase):
         stats = table_with("Average gain/loss (after costs)")
         self.assertLessEqual({"Win rate", "Average R", "Typical trade (median)", "Profit factor"}, set(stats.columns))
 
+    def test_the_watch_list_has_its_own_plain_table_and_shows_even_when_there_is_no_new_pick(self):
+        self._write_files()
+        os.makedirs("reports/output")
+        names = [pl.BuildingUp("AAA", 95.4, True, 0.034, 1740.0, 1680.84, 0.032, 0.53), pl.BuildingUp("BBB", 77.0, False, 0.052, 8949.5, 8484.0, 0.012, None)]
+        pd.DataFrame([b.to_row() for b in names], columns=pl.BUILDING_UP_COLUMNS).to_csv("reports/output/building_up_swing.csv", index=False)
+        heading = "🔭 Building up near a breakout (watch only - no order yet)"
+        page = self._run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        self.assertIn(heading, [s.value for s in page.subheader])
+        table = next(df.value for df in page.dataframe if "Below its 50-day high" in list(df.value.columns))
+        self.assertEqual(list(table["Stock"]), ["AAA", "BBB"])
+        self.assertEqual(list(table["200-day trend"]), ["💪 strong", "rising"])
+        self.assertAlmostEqual(float(table["50-day high (the level to clear)"].iloc[0]), 1740.0)
+        for jargon in self.JARGON:
+            self.assertNotIn(jargon, self._everything_shown(page), jargon)
+        os.remove("scan_results_swing.csv")                                             # no new pick: the watch list is still there
+        page = self._run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        self.assertIn(heading, [s.value for s in page.subheader])
+        os.remove("reports/output/building_up_swing.csv")                               # no file (or an empty one): no section
+        self.assertNotIn(heading, [s.value for s in self._run().subheader])
+        pd.DataFrame([], columns=pl.BUILDING_UP_COLUMNS).to_csv("reports/output/building_up_swing.csv", index=False)
+        self.assertNotIn(heading, [s.value for s in self._run().subheader])
+
     def test_with_no_files_at_all_it_still_opens(self):
         page = self._run()
         self.assertEqual([str(e.value) for e in page.exception], [])
@@ -1774,6 +2056,38 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertFalse(any("share" in m.lower() or "lakh" in m.lower() for m in self.sent), self.sent)
         with open("summary_swing.md", encoding="utf-8") as fh:
             self.assertNotIn("Shares", fh.read())
+
+    def test_the_swing_run_lists_the_building_up_names_and_a_failure_of_the_list_costs_nothing(self):
+        code, _ = self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        self.assertEqual(code, 0)
+        listed = pd.read_csv("reports/output/building_up_swing.csv")
+        self.assertTrue(len(listed))                                                    # the synthetic market has strong stocks 3%-6% under their high
+        message = "\n".join(self.sent)
+        block = next(b for b in message.split("\n\n") if b.startswith("🔭"))
+        self.assertIn(f"<b>{listed['symbol'].iloc[0]}</b>", block)                       # the best one leads the message block, as it leads the file
+        with open("summary_swing.md", encoding="utf-8") as fh:
+            summary_text = fh.read()
+        for sym in listed["symbol"]:
+            self.assertIn(f"| **{sym}**", summary_text)
+        self.assertFalse(set(listed["symbol"]) & set(pd.read_csv("tracking/trades.csv")["symbol"]))   # watch names are never logged as trades
+        picks = set(pd.read_csv("scan_results_swing.csv")["symbol"])
+        self.assertFalse(set(listed["symbol"]) & picks)
+        # the afternoon BTST message never carries the block and never touches the file
+        nxt = self._next_session()
+        before = open("reports/output/building_up_swing.csv", encoding="utf-8").read()
+        self.sent.clear()
+        self._run(["scan_btst"], at(2026, 10, 14, 14, 0), source="manual", bars=nxt)
+        self.assertTrue(self.sent)
+        self.assertNotIn("BUILDING UP", "\n".join(self.sent))
+        self.assertEqual(open("reports/output/building_up_swing.csv", encoding="utf-8").read(), before)
+        # if working out the list ever fails, the scan still runs and the message goes out without the block
+        self.sent.clear()
+        with mock.patch.object(pl, "building_up", side_effect=RuntimeError("boom")):
+            code, _ = self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=nxt)
+        self.assertEqual(code, 0)
+        self.assertTrue(self.sent)
+        self.assertNotIn("BUILDING UP", "\n".join(self.sent))
+        self.assertEqual(len(pd.read_csv("reports/output/building_up_swing.csv")) if os.path.getsize("reports/output/building_up_swing.csv") > 3 else 0, 0)
 
     def test_the_evening_message_carries_the_stop_list_and_the_afternoon_one_does_not(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))                          # PLANT is logged as a waiting buy-stop

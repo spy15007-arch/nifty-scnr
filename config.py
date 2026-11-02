@@ -73,6 +73,16 @@ MAX_PICKS = {"btst": 8, "swing": 15}  # how many ranked picks a message carries
 # best of them, at most this many (two short lines each), and says how many more there are. It only reminds: nothing is re-picked or re-logged (a stock
 # is not picked again for COOLDOWN_SESSIONS), so the scoreboard is untouched. Set it to 0 to switch the block off.
 EARLIER_PICKS_MAX = 3
+# Stocks BUILDING UP near a breakout (added 2026-11-02 at the user's request): strong stocks a little further below their 50-day high than the
+# "about to break out" band (PRIMED_NEAR_PCT, 3%), up to BUILDING_UP_NEAR_PCT below it. A stock qualifies when it is in the top half by quality (the
+# picks' own filter), its 200-day average is rising (the trait the 10-year replay liked best), its 12-month return is strong (BUILDING_UP_MIN_RETURN_Z
+# below), it is still below its old 50-day high, and it is 3%-6% under that high. The swing message lists the best BUILDING_UP_MAX (strong uptrends
+# first, then the nearest to the high) and says how many more there are; the summary file and the dashboard list them all. It is a WATCH LIST: no
+# order, nothing logged or scored, and NOT part of the rule that was back-tested - it only says which strong stock may join the picks next.
+# Set BUILDING_UP_MAX to 0 to switch it off everywhere.
+BUILDING_UP_NEAR_PCT = 0.06
+BUILDING_UP_MAX = 5
+BUILDING_UP_MIN_RETURN_Z = 0.25      # "strong 12-month return" = at least this many standard deviations above the average stock's: the bar the card's own "strong 12-mo return" phrase uses
 
 # Trade plan (same numbers the research simulated):
 STOP_ATR_MULT = 2.5                  # initial stop = fill price x (1 - 2.5 x ATR%)

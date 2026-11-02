@@ -528,6 +528,17 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     except Exception:  # noqa: BLE001 - a reminder must never cost the scan
         logger.exception("Could not work out which earlier picks are still strong")
 
+    # strong stocks building up just below the "about to break out" band: a watch list for the swing message (no order, nothing logged)
+    building: list = []
+    if scan_mode == "swing":
+        try:
+            building = pl.building_up(result, exclude)
+            if building:
+                logger.info("🔭 Building up near a breakout: " + ", ".join(f"{b.symbol} ({b.gap_pct:.1%} below)" for b in building[:10])
+                            + (f" ... {len(building)} in all" if len(building) > 10 else ""))
+        except Exception:  # noqa: BLE001 - a watch list must never cost the scan
+            logger.exception("Could not work out which strong stocks are building up")
+
     try:
         outcomes.log_new_picks(result.picks, now, regime=result.regime)
     except Exception:  # noqa: BLE001
@@ -537,7 +548,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     _write_fetch_report(scan_mode, ctx, now, result)
     try:
         summary.write_scan_outputs(scan_mode, result, now, market_line=market_line, tracked_text=tracked_block,
-                                   scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier)
+                                   scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier, building=building)
     except Exception:  # noqa: BLE001
         logger.exception("Could not write the report files")
 
@@ -554,7 +565,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
 
     sent = notify.notify_scan(result, scan_mode, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, now=now,
                               market_line=market_line, tracked_block=tracked_block,
-                              scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier,
+                              scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier, building=building,
                               save_to=f"reports/output/last_message_{scan_mode}.txt")
     if not sent:
         logger.warning("The scan message was not delivered to Telegram (not configured, or the send failed) - the files have the full result")
