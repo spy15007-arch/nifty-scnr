@@ -1,6 +1,6 @@
 # On-time scans: the external timer (10 minutes, one time)
 
-**The problem.** GitHub's built-in schedule is not punctual - your scans have started 4 to 9 hours late. A BTST message has to be on your phone before about 2:30 PM, so the scans are now also started by a free outside timer that calls GitHub at the exact minute. GitHub's own schedule stays in place as a backup, and the program makes sure you never get two copies of the same scan.
+**The problem.** GitHub's built-in schedule is not punctual - your scans have started 4 to 9 hours late. A BTST message has to be on your phone in time to act before the 3:30 PM close, so the scans are now also started by a free outside timer that calls GitHub at the exact minute. GitHub's own schedule stays in place as a backup, and the program makes sure you never get two copies of the same scan.
 
 **What you need:** your GitHub account (the one that owns `nifty-scnr`) and a free account at https://cron-job.org. The token below is stored **only** inside cron-job.org - never in the repository, never in chat.
 
@@ -22,10 +22,12 @@ Sign in → **Create cronjob**.
 
 | Field | Value |
 | :-- | :-- |
-| Title | `BTST 2:00 PM IST` |
+| Title | `BTST 2:45 PM IST` |
 | URL | `https://api.github.com/repos/spy15007-arch/nifty-scnr/actions/workflows/btst-scan.yml/dispatches` |
-| Execution schedule | **User-defined**: days **Mon-Fri**, hour **14**, minute **0** |
+| Execution schedule | **User-defined**: days **Mon-Fri**, hour **14**, minute **45** |
 | Time zone | **Asia/Kolkata** (set in the cronjob's *Schedule* / account settings - it must not be UTC) |
+
+> **Changed on 2 Nov 2026: the BTST run moved from 2:00 PM to 2:45 PM.** If you made this job before that date, open it on cron-job.org (**Cronjobs** → the pencil / *Edit* button on the BTST job → **Schedule**), set **hour 14, minute 45** (days Mon-Fri and the Asia/Kolkata time zone stay as they are), rename it `BTST 2:45 PM IST`, and **Save**. Nothing else changes: not the URL, the token or the headers. Until you save it the old 2:00 PM time keeps running; GitHub's backup (now 2:30 PM) stays quiet when a live scan already ran earlier the same day, so you do not get two messages.
 
 Open **Advanced** and set (in the Headers section each header is two boxes: **Key** = the name before the colon, **Value** = everything after it; for `Authorization` the value is the word `Bearer`, one space, then your token):
 
@@ -51,14 +53,14 @@ The Swing scan reads the day's final candles, so it belongs after the close. It 
 
 On cron-job.org press **Test run** on the BTST job. In GitHub → **Actions** you should see a **BTST Scan** run start within a few seconds (during market hours it will send you a real message; outside market hours it sends the "based on the last close" version). If you would rather not get a message, test after the evening scan has run on a non-trading day.
 
-Check tomorrow: the BTST message should arrive around **2:05 PM IST**.
+Check tomorrow: the BTST message should arrive around **2:50 PM IST**.
 
 ---
 
 ## Good to know
 
-* **Two copies never arrive.** If GitHub's own backup schedule or the timer already ran today's scan, the second run stops quietly (the log says why). A BTST run started by GitHub's schedule after 2:20 PM is skipped on purpose - it would be too late to act on.
-* **First day.** The first afternoon BTST has no watchlist yet, so it scans the whole market and stops fetching at 2:25 PM (it still messages on time, from whatever it fetched, and says so). Run **Swing Scan** once from the Actions tab (press *Run workflow*) any time after the market closes - that creates the watchlist and saves its candles, and every later BTST is fast (a few live-quote calls instead of one call per stock).
+* **Two copies never arrive.** If GitHub's own backup schedule or the timer already ran today's scan, the second run stops quietly (the log says why). A BTST run started by GitHub's schedule after 3:00 PM is skipped on purpose - it would be too late to act on - and so is one that starts after a live BTST scan already ran earlier the same day.
+* **First day.** The first afternoon BTST has no watchlist yet, so it scans the whole market and stops fetching at 3:05 PM (it still messages in time, from whatever it fetched, and says so). Run **Swing Scan** once from the Actions tab (press *Run workflow*) any time after the market closes - that creates the watchlist and saves its candles, and every later BTST is fast (a few live-quote calls instead of one call per stock).
 * **How long the scans take.** BTST: about a minute (a few live-quote calls for the watchlist). Swing: about 10 minutes on a quiet day (about 500 stocks, one request each, paced to the broker's limits), but on a busy weekday evening the broker refuses many requests and it took 40 minutes (Wed 28 Oct: all 495 listed stocks still loaded). If the broker is unwell the scan waits and retries, never fetches for more than 45 minutes, and says in its message that it is partial and why. `reports/output/fetch_report_btst.json` and `fetch_report_swing.json` in the repository show what the latest run did.
 * **Market holidays.** The timer fires on exchange holidays too. The message then says the newest price bar is not from today and lists nothing new.
 

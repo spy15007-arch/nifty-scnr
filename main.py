@@ -12,12 +12,12 @@ WHAT A SCAN DOES (rewritten 2026-10-19/20; the evidence behind every rule is in 
   5. every pick gets a full plan: entry (buy now / buy-stop), stop, trailing stop, share count
   6. write the CSV / Markdown files and send the Telegram message
 
-TWO-STAGE BTST (so the BTST message lands before 2:30 PM):
+TWO-STAGE BTST (so the BTST message lands within minutes of the 2:45 PM start, in good time before the 3:30 PM close):
   * an evening full-market run (the Swing scan) saves data_cache/btst_watchlist.json - the ~100
     stocks that are close to breaking out - plus the whole market's scoring yardstick;
   * the afternoon BTST run fetches only those ~100 stocks (about 2 minutes, not 10+), scores them
     against the stored yardstick and messages. With no usable watchlist it falls back to the whole
-    market and stops fetching at 2:25 PM IST.
+    market and stops fetching at 3:05 PM IST (config.BTST_FETCH_DEADLINE_IST).
 
 RUN SOURCES (env TRADING_RUN_SOURCE, set by the workflows): "schedule" = GitHub's own cron, which
 is often hours late - such a run is skipped if it is too late to be useful or has already been done;
@@ -239,7 +239,7 @@ def _delivery(as_of: date | None, fast: bool) -> tuple[pd.Series | None, dict]:
 # Fetching
 # --------------------------------------------------------------------------- #
 def _btst_deadline(now: datetime, source: str) -> datetime:
-    """When the afternoon BTST fetch must stop so the message lands before about 2:30 PM IST."""
+    """When the afternoon BTST fetch must stop (config.BTST_FETCH_DEADLINE_IST, 3:05 PM IST) so the message lands in time to act before the close."""
     h, m = config.BTST_FETCH_DEADLINE_IST
     t = now.astimezone(session.IST)
     deadline = t.replace(hour=h, minute=m, second=0, microsecond=0)
@@ -380,7 +380,7 @@ def fetch_phase(store, modes: list[str], test_limit, source: str, now: datetime)
         if not test_limit:
             symbols = _priority_order(symbols, _must_have_symbols())      # a run cut short still has the stocks that matter most
         if live_btst:
-            logger.info("No usable BTST watchlist - scanning the whole market with a 2:25 PM stop")
+            logger.info("No usable BTST watchlist - scanning the whole market, the fetch stops at %02d:%02d IST" % config.BTST_FETCH_DEADLINE_IST)
     deadline = _btst_deadline(now, source) if live_btst else None
 
     if wl:
@@ -512,7 +512,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     try:
         led = outcomes.load_ledger()
         open_rows = outcomes.open_positions(led).to_dict("records")
-        # the stop list is the evening message's job: stops only change after a completed session, so at 2 PM it would repeat last night
+        # the stop list is the evening message's job: stops only change after a completed session, so in the afternoon it would repeat last night
         tracked_block = notify.format_tracked_block(report["events"], open_rows, snapshot=(scan_mode == "swing"))
         scoreboard_line = outcomes.format_scoreboard_line(led)
     except Exception:  # noqa: BLE001

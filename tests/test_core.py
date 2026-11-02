@@ -493,6 +493,7 @@ class Session(unittest.TestCase):
         self.assertEqual(session.session_state(at(2026, 10, 13, 16, 0)), "closed")
         self.assertEqual(session.session_state(at(2026, 10, 17, 11, 0)), "closed")          # Saturday
         self.assertAlmostEqual(session.volume_fraction(at(2026, 10, 13, 14, 0)), 0.64, places=2)
+        self.assertAlmostEqual(session.volume_fraction(at(2026, 10, 13, 14, 45)), 0.765, places=3)       # the BTST run: halfway from 0.72 (2:30) to 0.81 (3:00)
         self.assertEqual(session.volume_fraction(at(2026, 10, 13, 17, 0)), 1.0)
         self.assertGreaterEqual(session.volume_fraction(at(2026, 10, 13, 9, 16)), 0.05)
 
@@ -511,18 +512,20 @@ class RunGuard(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_manual_always_runs(self):
-        runguard.record_run("btst", at(2026, 10, 13, 14, 0), "manual", 3, path=self.path)
-        self.assertFalse(runguard.should_skip("btst", "manual", at(2026, 10, 13, 15, 0), self.path)[0])
+        runguard.record_run("btst", at(2026, 10, 13, 14, 45), "manual", 3, path=self.path)
+        self.assertFalse(runguard.should_skip("btst", "manual", at(2026, 10, 13, 15, 30), self.path)[0])
 
     def test_late_scheduled_btst_is_skipped_but_on_time_one_runs(self):
-        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 10, 13, 16, 40), self.path)[0])
-        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 10, 13, 14, 25), self.path)[0])
-        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 10, 13, 13, 50), self.path)[0])
-        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 13, 14, 40), self.path)[0])
+        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 10, 13, 16, 40), self.path)[0])     # after the close
+        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 10, 13, 15, 10), self.path)[0])     # market open, but past the 3:00 PM cut-off
+        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 10, 13, 15, 1), self.path)[0])
+        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 10, 13, 15, 0), self.path)[0])     # exactly at the cut-off still runs
+        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 10, 13, 14, 35), self.path)[0])    # GitHub's 2:30 PM backup, a little late
+        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 13, 15, 25), self.path)[0])       # the timer has no cut-off of its own
 
     def test_duplicates_are_skipped_in_both_directions(self):
-        runguard.record_run("btst", at(2026, 10, 13, 13, 47), "schedule", 4, path=self.path, live=True)
-        self.assertTrue(runguard.should_skip("btst", "timer", at(2026, 10, 13, 14, 0), self.path)[0])
+        runguard.record_run("btst", at(2026, 10, 13, 14, 32), "schedule", 4, path=self.path, live=True)
+        self.assertTrue(runguard.should_skip("btst", "timer", at(2026, 10, 13, 14, 45), self.path)[0])
         runguard.record_run("swing", at(2026, 10, 13, 16, 5), "timer", 4, path=self.path)
         self.assertTrue(runguard.should_skip("swing", "schedule", at(2026, 10, 13, 22, 30), self.path)[0])
         self.assertTrue(runguard.should_skip("swing", "schedule", at(2026, 10, 14, 1, 10), self.path)[0])   # after midnight, same session
@@ -531,29 +534,90 @@ class RunGuard(unittest.TestCase):
     def test_a_morning_or_trial_run_never_uses_up_the_afternoon_slot(self):
         # 8:42 AM timer test: market closed, so it is the last-close view and not live
         runguard.record_run("btst", at(2026, 10, 22, 8, 42), "timer", 0, path=self.path, live=False)
-        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
+        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 45), self.path)[0])
+        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 10, 22, 14, 30), self.path)[0])
         # an old marker written before the flag existed behaves the same
         with open(self.path, "w") as f:
             json.dump({"btst": {"at": "2026-10-22 08:42 IST", "key": "2026-10-22", "ok": True, "picks": 0, "source": "timer"}}, f)
-        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
-        # a live trial run at 1:29 PM does not block the 2:00 PM timer run (31 minutes later), nor does one at 1:35 ...
-        for hh, mm in ((13, 29), (13, 35)):
+        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 45), self.path)[0])
+        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 10, 22, 14, 30), self.path)[0])
+        # a live trial run at 2:14 PM does not block the 2:45 PM timer run (31 minutes later), nor does one at 2:20 ...
+        for hh, mm in ((14, 14), (14, 20)):
             runguard.record_run("btst", at(2026, 10, 22, hh, mm), "timer", 2, path=self.path, live=True)
-            self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
-        # ... but a live run 10 minutes earlier does (the 1:45 PM GitHub fallback and the 2:00 PM timer arriving together)
-        runguard.record_run("btst", at(2026, 10, 22, 13, 50), "schedule", 2, path=self.path, live=True)
-        self.assertTrue(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
-        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 10, 22, 14, 5), self.path)[0])
+            self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 45), self.path)[0])
+        # ... but a live run 10 minutes earlier does (the 2:30 PM GitHub fallback and the 2:45 PM timer arriving together)
+        runguard.record_run("btst", at(2026, 10, 22, 14, 35), "schedule", 2, path=self.path, live=True)
+        self.assertTrue(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 45), self.path)[0])
+        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 10, 22, 14, 50), self.path)[0])
         # a starved run (the broker refused most stocks) never blocks a retry, however recent
-        runguard.record_run("btst", at(2026, 10, 22, 13, 55), "timer", 0, ok=False, path=self.path, live=True)
-        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 0), self.path)[0])
+        runguard.record_run("btst", at(2026, 10, 22, 14, 40), "timer", 0, ok=False, path=self.path, live=True)
+        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 10, 22, 14, 45), self.path)[0])
+        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 10, 22, 14, 50), self.path)[0])
         # and a manual run always goes ahead
-        runguard.record_run("btst", at(2026, 10, 22, 13, 58), "timer", 2, path=self.path, live=True)
-        self.assertFalse(runguard.should_skip("btst", "manual", at(2026, 10, 22, 14, 0), self.path)[0])
+        runguard.record_run("btst", at(2026, 10, 22, 14, 43), "timer", 2, path=self.path, live=True)
+        self.assertFalse(runguard.should_skip("btst", "manual", at(2026, 10, 22, 14, 45), self.path)[0])
+
+    def test_the_github_backup_never_repeats_a_live_scan_made_earlier_today(self):
+        """While the timer is moved from 2:00 PM to 2:45 PM (or if it is ever set far from the backup's time) the 2:30 PM backup must not
+        send a second message just because the first one is more than 20 minutes old."""
+        runguard.record_run("btst", at(2026, 11, 3, 14, 0), "timer", 3, path=self.path, live=True)
+        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 11, 3, 14, 30), self.path)[0])      # 30 minutes later: still skipped
+        self.assertTrue(runguard.should_skip("btst", "schedule", at(2026, 11, 3, 14, 58), self.path)[0])
+        self.assertFalse(runguard.should_skip("btst", "timer", at(2026, 11, 3, 14, 45), self.path)[0])        # a timer run keeps the 20-minute rule
+        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 11, 4, 14, 30), self.path)[0])     # and it is only "today"
+        runguard.record_run("btst", at(2026, 11, 3, 14, 0), "timer", 0, ok=False, path=self.path, live=True)  # a starved run does not count
+        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 11, 3, 14, 30), self.path)[0])
+        runguard.record_run("btst", at(2026, 11, 3, 9, 5), "timer", 0, path=self.path, live=False)           # nor does a morning (last-close) run
+        self.assertFalse(runguard.should_skip("btst", "schedule", at(2026, 11, 3, 14, 30), self.path)[0])
 
     def test_failed_run_does_not_block_a_retry(self):
         runguard.record_run("swing", at(2026, 10, 13, 16, 5), "timer", 0, ok=False, path=self.path)
         self.assertFalse(runguard.should_skip("swing", "schedule", at(2026, 10, 13, 20, 0), self.path)[0])
+
+
+class BtstSchedule(unittest.TestCase):
+    """The afternoon BTST time lives in several places (config, GitHub's backup cron, the setup guide, the README); they must say the same thing."""
+
+    @staticmethod
+    def _minutes(hm):
+        return hm[0] * 60 + hm[1]
+
+    @staticmethod
+    def _read(*parts):
+        with open(os.path.join(ROOT, *parts), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_times_are_in_a_sensible_order(self):
+        self.assertEqual(config.BTST_TIMER_IST, (14, 45))                       # 2 Nov 2026: moved from 2:00 PM at the user's request
+        timer, cutoff, deadline = (self._minutes(t) for t in (config.BTST_TIMER_IST, config.BTST_LATE_CUTOFF_IST, config.BTST_FETCH_DEADLINE_IST))
+        close = session.MARKET_CLOSE.hour * 60 + session.MARKET_CLOSE.minute
+        self.assertLess(timer, cutoff)                                          # GitHub's backup may start a little after the timer's own time ...
+        self.assertGreaterEqual(deadline, cutoff + 5)                           # ... and its fetch still gets a few minutes after the last start
+        self.assertGreaterEqual(close - deadline, 20)                           # the message lands at least 20 minutes before the close
+
+    def test_the_github_backup_cron_is_15_minutes_before_the_timer(self):
+        import re
+        m = re.search(r"cron:\s*'(\d+) (\d+) \* \* 1-5'", self._read(".github", "workflows", "btst-scan.yml"))
+        self.assertIsNotNone(m, "no weekday cron line in btst-scan.yml")
+        ist = (int(m.group(2)) * 60 + int(m.group(1)) + 5 * 60 + 30) % (24 * 60)    # the cron is in UTC
+        self.assertEqual(ist, self._minutes(config.BTST_TIMER_IST) - 15)
+
+    def test_the_docs_say_the_same_time(self):
+        h, mi = config.BTST_TIMER_IST
+        clock = f"{h - 12}:{mi:02d} PM"
+        guide = self._read("docs", "TIMER_SETUP.md")
+        self.assertIn(f"`BTST {clock} IST`", guide)
+        self.assertIn(f"hour **{h}**, minute **{mi}**", guide)
+        self.assertNotIn("`BTST 2:00 PM IST`", guide)
+        self.assertIn(f"about {clock} IST", self._read("README.md"))
+        self.assertIn(f"{clock} IST", self._read(".github", "workflows", "btst-scan.yml"))
+
+    def test_the_fetch_deadline_follows_the_config(self):
+        import main as M
+        self.assertEqual(M._btst_deadline(at(2026, 11, 3, 14, 45), "timer").astimezone(IST).strftime("%H:%M"), "15:05")
+        self.assertEqual(M._btst_deadline(at(2026, 11, 3, 14, 58), "schedule").astimezone(IST).strftime("%H:%M"), "15:05")
+        late = at(2026, 11, 3, 15, 4)                                           # a hand-started run past the deadline still gets a fair chance
+        self.assertGreater(M._btst_deadline(late, "manual"), late)
 
 
 class SetupAndPlan(unittest.TestCase):
@@ -583,8 +647,10 @@ class SetupAndPlan(unittest.TestCase):
     def test_live_fresh_is_buy_now_and_partial_volume_is_projected(self):
         live = {s: d.copy() for s, d in self.bars.items()}
         d = live["PLANT"]
-        d.iloc[-1, d.columns.get_loc("volume")] *= 0.64                             # 2:00 PM: 64% of the day's volume so far
-        res = pl.select_picks("btst", live, now=at(2026, 10, 13, 14, 0))
+        now = at(2026, 10, 13, 14, 45)                                              # the afternoon BTST run starts at 2:45 PM
+        self.assertAlmostEqual(session.volume_fraction(now), 0.765, places=3)       # about 77% of the day's volume has traded by then
+        d.iloc[-1, d.columns.get_loc("volume")] *= session.volume_fraction(now)
+        res = pl.select_picks("btst", live, now=now)
         self.assertTrue(res.live)
         p = next(p for p in res.picks if p.symbol == "PLANT")
         self.assertEqual(p.entry_mode, "close")
@@ -1171,7 +1237,7 @@ class EarlierPicks(unittest.TestCase):
         live = Messages._live()
         self.assertTrue(any(p.entry_mode == "close" for p in live.picks))
         e = pl.EarlierPick("ZZZ", "primed", 88.0, True, "2026-10-12", 123.4, 2)
-        msg = notify.format_scan_message(live, "btst", now=at(2026, 10, 13, 14, 0), earlier=[e])
+        msg = notify.format_scan_message(live, "btst", now=at(2026, 10, 13, 14, 45), earlier=[e])
         self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · BUY NOW</b> (near the close"))
         self.assertIn("<b>ZZZ</b> 👀 💪 · Quality 88/100 · picked 12 Oct\nBuy at <b>123.40</b> · order valid 2 more sessions", msg)
 
@@ -1529,7 +1595,7 @@ class BuildingUpWatch(unittest.TestCase):
 
     def test_the_afternoon_btst_message_and_a_switched_off_list_carry_no_block(self):
         names = [self._bu()]
-        self.assertNotIn("BUILDING UP", notify.format_scan_message(self.res, "btst", now=at(2026, 10, 13, 14, 0), building=names))
+        self.assertNotIn("BUILDING UP", notify.format_scan_message(self.res, "btst", now=at(2026, 10, 13, 14, 45), building=names))
         self.assertNotIn("BUILDING UP", notify.format_scan_message(self.res, "swing", now=self.NOW))                     # none given
         with mock.patch.object(config, "BUILDING_UP_MAX", 0):
             self.assertNotIn("BUILDING UP", notify.format_scan_message(self.res, "swing", now=self.NOW, building=names))
@@ -1614,11 +1680,12 @@ class Messages(unittest.TestCase):
     def _live():
         live = {s: d.copy() for s, d in make_market().items()}
         d = live["PLANT"]
-        d.iloc[-1, d.columns.get_loc("volume")] *= 0.64                             # 2:00 PM: 64% of the day's volume so far
-        return pl.select_picks("btst", live, now=at(2026, 10, 13, 14, 0))
+        now = at(2026, 10, 13, 14, 45)                                              # the afternoon BTST run starts at 2:45 PM
+        d.iloc[-1, d.columns.get_loc("volume")] *= session.volume_fraction(now)    # about 77% of the day's volume so far
+        return pl.select_picks("btst", live, now=now)
 
     def _all_messages(self):
-        return [(self._swing(), "swing", at(2026, 10, 13, 17, 0)), (self._live(), "btst", at(2026, 10, 13, 14, 0))]
+        return [(self._swing(), "swing", at(2026, 10, 13, 17, 0)), (self._live(), "btst", at(2026, 10, 13, 14, 45))]
 
     def test_no_share_counts_or_money_amounts_anywhere(self):
         for res, mode, now in self._all_messages():
@@ -1692,7 +1759,7 @@ class Messages(unittest.TestCase):
         self.assertNotIn("BUY-STOP", msg)
 
     def test_the_buy_now_heading_is_plain(self):
-        msg = notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 0))
+        msg = notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 45))
         self.assertIn("<b>BUY NOW</b> (near the close, only if the price is still above its breakout price)", msg)
         self.assertNotIn("holds the breakout level", msg)
 

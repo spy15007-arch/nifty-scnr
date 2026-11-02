@@ -4,7 +4,7 @@ name: Market Direction (Manual)
 # market is leaning (Nifty + Bank Nifty trend and overnight global cues),
 # delivered to Telegram. No stock scan, no option strikes.
 #
-# Manual only on purpose: the scheduled BTST (2:15 PM) and Swing (4:00 PM)
+# Manual only on purpose: the scheduled BTST (about 2:45 PM) and Swing (4:00 PM)
 # scans already open their Telegram message with a one-line market
 # direction, so this needs no schedule of its own. Replaces the old
 # "Index Options Scan (Manual)" workflow (2026-10-17) - strike-level

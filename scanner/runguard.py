@@ -9,17 +9,19 @@ kept only as a fallback. Two things must then hold:
   * If the timer already ran today's scan, the late GitHub run must NOT send a
     second copy.
   * A BTST message is only useful BEFORE the close (it is a same-day decision:
-    buy before 3:30 PM). A scheduled BTST run that GitHub starts after ~2:20 PM
-    is skipped; the evening Swing scan lists the same stocks with buy-stops.
+    buy before 3:30 PM). A scheduled BTST run that GitHub starts after
+    config.BTST_LATE_CUTOFF_IST (3:00 PM) is skipped; the evening Swing scan lists the same stocks with buy-stops.
 
 Skipping rules:
   * schedule (GitHub's cron) and timer runs are skipped when that scan already ran for the same day/session -
     whichever of the two gets there first sends the message, the other stays quiet. For BTST only a COMPLETE
-    LIVE run (market open, most stocks loaded) counts, and only for BTST_DEDUPE_MINUTES: a morning or after-hours
-    run (the last-close view), an earlier trial run or a run the broker starved of data must never use up the real
-    afternoon slot;
+    LIVE run (market open, most stocks loaded) counts, and a TIMER run only for BTST_DEDUPE_MINUTES: a morning
+    or after-hours run (the last-close view), an earlier trial run or a run the broker starved of data must never
+    use up the real afternoon slot. A SCHEDULED run is only a backup, so for it any complete live BTST run made
+    earlier the same day counts (this is what stops a second message on a day the timer and GitHub's cron are
+    set more than BTST_DEDUPE_MINUTES apart, e.g. while the timer is being moved to another time);
   * a scheduled BTST run that starts too late in the day is skipped (the timer run has no time limit of its own,
-    its fetch simply stops at 2:25 PM);
+    its fetch simply stops at config.BTST_FETCH_DEADLINE_IST, 3:05 PM);
   * a manual run (the "Run workflow" button) always goes ahead.
 
 The record of what has run lives in data_cache/run_markers.json, which the
@@ -40,7 +42,7 @@ logger = logging.getLogger(__name__)
 MARKERS_PATH = "data_cache/run_markers.json"
 SWING_READY = time(15, 45)       # from here a weekday's daily candle is final and the swing scan can use it
 BTST_DEDUPE_MINUTES = 20         # a complete live BTST run this recent makes a second scheduled/timer one redundant
-                                 # (GitHub's 1:45 PM fallback and the 2:00 PM timer are 15 minutes apart)
+                                 # (GitHub's 2:30 PM fallback and the 2:45 PM timer are 15 minutes apart)
 
 
 def run_source() -> str:
@@ -96,9 +98,11 @@ def should_skip(scan_mode: str, source: str, now: datetime, path: str = MARKERS_
                           f"this scheduled run would only repeat it")
         t = now.astimezone(session.IST) if now.tzinfo else now.replace(tzinfo=session.IST)
         ran = _parse_at(m.get("at"))
-        if m.get("live") and ran is not None and 0 <= (t - ran).total_seconds() <= BTST_DEDUPE_MINUTES * 60:
-            return True, (f"a live BTST scan already ran today ({m.get('source', '?')} run at {m.get('at', '?')}) - "
-                          f"this scheduled run would only repeat it")
+        if m.get("live") and ran is not None:
+            since = (t - ran).total_seconds()
+            if 0 <= since <= BTST_DEDUPE_MINUTES * 60 or (source == "schedule" and since >= 0):
+                return True, (f"a live BTST scan already ran today ({m.get('source', '?')} run at {m.get('at', '?')}) - "
+                              f"this scheduled run would only repeat it")
     if scan_mode == "btst" and source == "schedule":
         t = now.astimezone(session.IST) if now.tzinfo else now.replace(tzinfo=session.IST)
         cutoff = time(*config.BTST_LATE_CUTOFF_IST)

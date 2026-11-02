@@ -1,7 +1,7 @@
 """
 Yesterday's daily candles for the BTST watchlist, plus the logic that turns them into "today so far".
 
-WHY: the afternoon BTST scan has to finish before about 2:30 PM, and the broker's candle endpoint is slow and
+WHY: the afternoon BTST scan (it starts at 2:45 PM) has to finish within minutes to leave time to act before the 3:30 PM close, and the broker's candle endpoint is slow and
 throttles hard in market hours (one call per stock). But everything except TODAY'S bar is already known the
 evening before. So:
 

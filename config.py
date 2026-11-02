@@ -126,8 +126,14 @@ WATCHLIST_SIZE = 150                 # how many symbols the afternoon run fetche
 WATCHLIST_MIN_QUALITY = 40.0         # a bit looser than the 50 gate: ranks move overnight
 WATCHLIST_BAND = (-0.10, 0.05)       # close vs the 50-day high (incl. today): within 10% below ... 5% above
 WATCHLIST_MAX_AGE_DAYS = 5           # an older watchlist is ignored (falls back to scanning the whole universe)
-BTST_FETCH_DEADLINE_IST = (14, 25)   # the afternoon fetch stops here so the message lands before 2:30 PM
-BTST_LATE_CUTOFF_IST = (14, 20)      # a SCHEDULED btst run that GitHub starts after this time is skipped (too late to act before the close)
+# The afternoon BTST run starts at 2:45 PM IST (moved from 2:00 PM on 2 Nov 2026, at the user's request: more of the day's price and volume
+# has printed by then, so "breaking out today on volume" is better confirmed). The price of waiting is time: the message lands about
+# 2:50 PM, which leaves about 35 minutes before the 3:30 PM close to place the orders. Whether 2:45 beats 2:00 for BTST results cannot be
+# replayed from daily candles - only the live scoreboard can show it. The three times below move together:
+BTST_TIMER_IST = (14, 45)            # the external timer (cron-job.org, docs/TIMER_SETUP.md) starts the run here; GitHub's own backup cron
+                                     # (.github/workflows/btst-scan.yml) is set 15 minutes earlier, 2:30 PM, and tests/ check the two agree
+BTST_LATE_CUTOFF_IST = (15, 0)       # a SCHEDULED (GitHub cron) btst run that starts after this time is skipped: too late to act before the close
+BTST_FETCH_DEADLINE_IST = (15, 5)    # the afternoon fetch stops here, so the message lands by about 3:10 PM, 20 minutes before the close
 
 # --- Scanner thresholds (legacy 7-filter engine; no longer used for selection) ---
 ATR_SQUEEZE_LOOKBACK = 20          # bars used to measure volatility contraction

@@ -1,12 +1,14 @@
 name: BTST Scan
 
-# HOW THIS STARTS (the BTST message has to be on your phone before about 2:30 PM IST):
-#   1. EXTERNAL TIMER (recommended) - a free cron-job.org job calls GitHub at 2:00 PM IST on weekdays, so the run
-#      starts on the dot. GitHub's own cron is often hours late. Setup: docs/TIMER_SETUP.md
+# HOW THIS STARTS (the BTST message has to be on your phone in time to act before the 3:30 PM close):
+#   1. EXTERNAL TIMER (recommended) - a free cron-job.org job calls GitHub at 2:45 PM IST on weekdays (moved from
+#      2:00 PM on 2 Nov 2026), so the run starts on the dot. GitHub's own cron is often hours late.
+#      Setup: docs/TIMER_SETUP.md
 #   2. The "Run workflow" button here (source = manual) - always runs.
-#   3. GitHub's own cron below - kept only as a FALLBACK. If it starts after 2:20 PM IST, or the timer already
-#      sent today's scan, the program skips it on purpose (scanner/runguard.py): a BTST message after the
-#      deadline is useless, and the evening Swing scan lists the same stocks anyway.
+#   3. GitHub's own cron below - kept only as a FALLBACK, set 15 minutes before the timer (2:30 PM IST). If it
+#      starts after 3:00 PM IST, or a live BTST scan already ran today, the program skips it on purpose
+#      (scanner/runguard.py): a BTST message that late is useless, and the evening Swing scan lists the same
+#      stocks anyway. (config.BTST_TIMER_IST, BTST_LATE_CUTOFF_IST and this cron move together; a test checks it.)
 #
 # SPEED: the evening Swing scan saves a ~100-stock watchlist (data_cache/btst_watchlist.json); this run only
 # re-checks those stocks with live prices, which takes minutes instead of the whole market's 10+.
@@ -27,7 +29,7 @@ on:
           - timer
         default: manual
   schedule:
-    - cron: '15 8 * * 1-5'   # 1:45 PM IST fallback
+    - cron: '0 9 * * 1-5'    # 2:30 PM IST fallback (09:00 UTC), 15 minutes before the 2:45 PM timer
 
 # One scan at a time across all scan workflows: they share the tracking ledger and data_cache/ files.
 concurrency:

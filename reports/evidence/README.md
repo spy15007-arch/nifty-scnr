@@ -66,7 +66,7 @@ Signs were stable between the design and validation periods, but the sizes are s
 * **Survivorship and selection:** the panel contains the stocks that still trade; names that were delisted or fell out of the data are missing, which flatters old years. The live universe (NIFTY 500) is narrower than the back-test panel.
 * **Fills:** stops are assumed to fill at the stop (or the open after a gap). Fast markets, circuit limits and illiquid names will fill worse. The 0.35% cost is an average, not a guarantee.
 * **Regimes change:** an edge that was strong in 2019-2023 faded after; nothing guarantees it returns, and nothing guarantees it will not fade further.
-* **Intraday BTST fills** (buying near 2 PM) cannot be replayed from end-of-day data; the live scoreboard is the only honest test of that part.
+* **Intraday BTST fills** (buying near 2:45 PM; the run was moved from 2:00 PM on 2 Nov 2026 at the user's request, in the belief that more of the day having printed gives better BTST picks) cannot be replayed from end-of-day data; the live scoreboard is the only honest test of that part, and no result exists yet for either time.
 * Taxes, brokerage tiers and slippage beyond the 0.35% are not modelled.
 
 ## 7. The "already spiked" and "pull-back" study (30 Oct 2026)

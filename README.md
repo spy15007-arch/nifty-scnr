@@ -8,7 +8,7 @@ It is a **ranked shortlist, not a guarantee.** Replayed on seven years of real N
 
 | Scan | When | What it is |
 | :-- | :-- | :-- |
-| 🌙 **BTST** | about 2:00 PM IST, before the close | Fresh breakouts to **buy now, near the close**, plus stocks about to break out (buy orders that trigger on the way up). Re-checks last evening's watchlist (up to 150 stocks) with live prices: the evening run saves their candles, so the afternoon run needs only a few live-quote calls and finishes in minutes. |
+| 🌙 **BTST** | about 2:45 PM IST, before the close | Fresh breakouts to **buy now, near the close**, plus stocks about to break out (buy orders that trigger on the way up). Re-checks last evening's watchlist (up to 150 stocks) with live prices: the evening run saves their candles, so the afternoon run needs only a few live-quote calls and finishes in minutes. |
 | 📈 **Swing** | about 4:05 PM IST, after the close | The full-market scan on the day's final candles: buy orders for tomorrow (each triggers only if the price rises to its Buy at price). Also builds tomorrow's BTST watchlist (and saves its candles) and refreshes the delivery-% data. It fetches about 500 stocks one by one at the broker's pace: roughly 10 minutes on a quiet day, up to 40 when the broker is busy and refuses many requests. |
 | 🧭 **Market direction** | button | Which way Nifty/Bank Nifty and global cues lean (also a one-line header on both scans). |
 
