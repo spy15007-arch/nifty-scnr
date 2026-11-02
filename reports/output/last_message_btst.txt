@@ -1,18 +1,39 @@
-🌙 <b>BTST scan</b> · Sun 01 Nov · close of Fri 30 Oct
-🧭 <b>Market:</b> 🟡 <b>Sideways / mixed</b> · Nifty +0.4% last session · global hostile
+🌙 <b>BTST scan</b> · Mon 02 Nov, 2:01 PM · live prices
+🧭 <b>Market:</b> 🟢 <b>Bullish</b> · Nifty +0.8% today · global supportive
 📊 Breadth 19% (stocks above their 50-day average) - <b>weak market: half size</b>
 
-<b>No new pick.</b> 495 stocks checked, 31 in a breakout setup, 23 passed the quality filter - all already on your list.
+ℹ️ Quick check of last night's 95-stock watchlist (30 Oct close) with live quotes; breadth is as of that close
 
-⭐ <b>EARLIER PICKS, still strong</b> (picked before, buy-stop still waiting - no new order)
-<b>GLAND</b> 👀 💪 · Quality 94/100 · picked 29 Oct
-Buy-stop <b>3,177.35</b> · 4 sessions left
-<b>ZYDUSLIFE</b> 🔥 · Quality 73/100 · picked 30 Oct
-Buy-stop <b>1,251.40</b> · 5 sessions left
-<b>BHARTIARTL</b> 👀 · Quality 96/100 · picked 27 Oct
-Buy-stop <b>2,009.85</b> · 2 sessions left
-+5 more earlier picks also still qualify (on your list)
+⭐ <b>EARLIER PICKS, still strong</b> (picked before, order still waiting - no new order)
+<b>BHARTIARTL</b> 👀 · Quality 97/100 · picked 27 Oct
+Buy at <b>2,009.85</b> · order valid 2 more sessions
+Profit marks 2,138.70 · 2,267.55 · 2,396.40
+<b>BSE</b> 👀 · Quality 82/100 · picked 27 Oct
+Buy at <b>3,546.50</b> · order valid 2 more sessions
+Profit marks 3,821.75 · 4,096.95 · 4,372.20
 
-🧾 <i>Record since 21 Oct: no trade closed yet</i>
-<i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
-ℹ️ <i>Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. A ranked shortlist, not a guarantee.</i>
+<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
+
+<b>1. GAIL</b> 👀 About to break out (1.3% below the 50-day high) · Quality 81/100 · Energy
+Buy at <b>177.90</b> · skip if it opens above 183.20
+Stop <b>166.70</b> (-6.3%) · trail 12.6%
+Profit marks 189.10 · 200.25 · 211.45
+near 52-wk high · low volatility · delivery ~60%
+
+<b>2. PHOENIXLTD</b> 👀 About to break out (2.2% below the 50-day high) · Quality 72/100 · Realty
+Buy at <b>2,042.40</b> · skip if it opens above 2,103.65
+Stop <b>1,887.45</b> (-7.6%) · trail 15.2%
+Profit marks 2,197.35 · 2,352.25 · 2,507.15
+near 52-wk high · low volatility · delivery ~57%
+
+<b>3. PERSISTENT</b> 👀 At the breakout level (volume not confirmed yet) · Quality 54/100 · IT
+Buy at <b>6,116.75</b> · skip if it opens above 6,300.25
+Stop <b>5,588.30</b> (-8.6%) · trail 17.3%
+Profit marks 6,645.20 · 7,173.60 · 7,702.00
+very liquid · near 52-wk high · delivery ~43%
+
++20 more qualify but are already on your list.
+
+🧾 <i>Record since 21 Oct: no trade sold yet</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. A ranked shortlist, not a guarantee.</i>
