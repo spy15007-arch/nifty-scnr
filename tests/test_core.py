@@ -2065,7 +2065,8 @@ class Dashboard(unittest.TestCase):
              "status": "CLOSED", "trigger": 100.0, "fill_date": "2026-10-21", "fill_px": 100.0, "exit_date": "2026-11-02", "exit_px": 94.0,
              "exit_reason": "trail", "net": 0.05, "R": 1.0, "peak_R": 1.5, "fill_n": 1, "exit_n": 9},
             {**base, **common, "trade_id": "HELD", "symbol": "HELD", "setup": "fresh", "entry_mode": "close", "signal_date": "2026-10-28", "quality_pct": 80,
-             "status": "OPEN", "fill_date": "2026-10-29", "fill_px": 100.0, "trail": 92.5, "last_close": 104.0, "net": 0.03, "R": 0.5, "peak_R": 0.8},
+             "status": "OPEN", "fill_date": "2026-10-29", "fill_px": 100.0, "trail": 92.5, "last_close": 104.0, "net": 0.03, "R": 0.5, "peak_R": 0.8,
+             "init_stop": 92.5, "atr_pct": 0.03, "stop_mult": 2.5, "trail_mult": 5.0, "hc": 105.0},
             {**base, **common, "trade_id": "WAITING", "symbol": "WAITING", "setup": "primed", "entry_mode": "stop", "signal_date": "2026-10-30", "quality_pct": 75,
              "status": "PENDING", "trigger": 250.5, "sessions": 1, "valid_sessions": 5},
             {**base, **common, "trade_id": "NEVER", "symbol": "NEVER", "setup": "primed", "entry_mode": "stop", "signal_date": "2026-10-20", "quality_pct": 60,
@@ -2112,6 +2113,9 @@ class Dashboard(unittest.TestCase):
         holding = table_with("Sell if price falls to")
         self.assertEqual(list(holding["Stock"]), ["HELD"])
         self.assertAlmostEqual(float(holding["Sell if price falls to"].iloc[0]), 92.5)
+        self.assertLessEqual({"Highest close so far", "Stop starts rising above"}, set(holding.columns))      # why a stop may not have moved yet
+        self.assertAlmostEqual(float(holding["Highest close so far"].iloc[0]), 105.0)
+        self.assertAlmostEqual(float(holding["Stop starts rising above"].iloc[0]), 92.5 / (1 - 5 * 0.03), places=6)   # the trail passes the first stop above 108.82
         picks = table_with("Skip if it opens above")
         self.assertLessEqual({"Stock", "Buy at", "Stop-loss", "How to buy", "Trailing stop-loss (% below highest close)", "Profit mark 1"}, set(picks.columns))
         self.assertEqual(set(picks["How to buy"]), {"Place buy order"})

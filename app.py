@@ -206,14 +206,23 @@ def render_open_tab(df: pd.DataFrame | None):
 
     st.subheader("Bought, not sold yet - keep your stop-loss updated")
     if len(openp):
-        t = openp[["symbol", "scan_mode", "setup", "signal_date", "fill_date", "fill_px", "trail", "last_close", "net", "R", "peak_R"]].copy()
+        t = openp[["symbol", "scan_mode", "setup", "signal_date", "fill_date", "fill_px", "trail", "hc", "last_close", "net", "R", "peak_R"]].copy()
         t["setup"] = t["setup"].map(lambda s: SETUP_LABEL.get(s, s))
-        t.columns = ["Stock", "Scan", "Setup", "Picked on", "Bought on", "Bought at", "Sell if price falls to", "Last close",
-                     "Gain / loss so far", "R so far", "Best R so far"]
-        _df(t.style.format({"Bought at": "{:,.2f}", "Sell if price falls to": "{:,.2f}", "Last close": "{:,.2f}", "Gain / loss so far": "{:+.1%}",
+        # the highest close at which the trailing stop-loss passes the first one: init_stop / (1 - trail ATRs x ATR%) - below it the stop sits on its first level
+        first, atr, mult = (pd.to_numeric(openp.get(c), errors="coerce") for c in ("init_stop", "atr_pct", "trail_mult"))
+        room = 1.0 - mult * atr
+        t.insert(8, "starts", (first / room).where(room > 0))
+        t.columns = ["Stock", "Scan", "Setup", "Picked on", "Bought on", "Bought at", "Sell if price falls to", "Highest close so far",
+                     "Stop starts rising above", "Last close", "Gain / loss so far", "R so far", "Best R so far"]
+        _df(t.style.format({"Bought at": "{:,.2f}", "Sell if price falls to": "{:,.2f}", "Highest close so far": "{:,.2f}",
+                            "Stop starts rising above": "{:,.2f}", "Last close": "{:,.2f}", "Gain / loss so far": "{:+.1%}",
                             "R so far": "{:+.2f}", "Best R so far": "{:+.1f}"}, na_rep="–"), hide_index=True)
         st.caption("'Sell if price falls to' is your current stop-loss: the higher of the first stop-loss and the trailing stop-loss "
                    "(5 x the stock's average daily range, ATR, below its highest close). Move your stop-loss up to it when it rises; never lower it. "
+                   "The trailing stop-loss only passes the first one once the stock has closed above 'Stop starts rising above' (roughly 5% to 15% over "
+                   "your buy price, depending on how much the stock swings), so a stock that is up a little can still sit on its first stop-loss. "
+                   "That is on purpose: in a 10-year replay every tighter stop-loss earned less, because ordinary dips shook out stocks that went on "
+                   "to make the big gains (reports/evidence). "
                    "'Gain / loss so far' is marked at the last completed close, after the 0.35% round-trip cost. "
                    "R = the amount you risked on the trade: +1R means it is up as much as you risked.")
     else:
