@@ -290,14 +290,86 @@ class ResearchStudy(unittest.TestCase):
         self.assertGreater(len(self.trades), 30)
         need = {"run_up", "z_run_up", "ret5", "gain1d", "sma200_chg", "ret252", "breadth50",
                 "pb1_status", "pb1_net", "pb1_R", "pb2_status", "pb2_net", "pb2_R"}
+        need |= {f"{name}_{col}" for name, _, _ in self.engine.STOP_VARIANTS for col in ("status", "exit", "net", "R")}
         for t in self.trades:
             self.assertFalse(need - set(t), f"missing {need - set(t)} in {t}")
 
     def test_the_extra_columns_do_not_change_the_real_trades(self):
-        with mock.patch.object(self.engine, "PULLBACKS", ()):
+        with mock.patch.object(self.engine, "PULLBACKS", ()), mock.patch.object(self.engine, "STOP_VARIANTS", ()):
             plain = self.engine.run_backtest(self.bars, "swing", test_days=120)
-        self.assertFalse(any("pb1_status" in t for t in plain))
+        self.assertFalse(any("pb1_status" in t or "tr3_status" in t for t in plain))
         self.assertEqual(self._core(plain), self._core(self.trades))
+
+    def test_the_stop_variants_are_scored_on_the_same_risk_as_the_real_trade(self):
+        """Same entry, same first stop, same risk: R * risk_pct gives the net return back, and an order that never filled is unfilled in every variant."""
+        held = 0
+        for t in self.trades:
+            for name, _, _ in self.engine.STOP_VARIANTS:
+                self.assertEqual(t[f"{name}_status"] == "UNFILLED", t["status"] == "UNFILLED", (name, t))
+                if t[f"{name}_status"] in ("CLOSED", "OPEN"):
+                    held += 1
+                    self.assertAlmostEqual(t[f"{name}_R"] * t["risk_pct"], t[f"{name}_net"], delta=0.0005)
+                else:
+                    self.assertFalse(np.isfinite(t[f"{name}_net"]), t)
+        self.assertGreater(held, 30)
+
+    def test_the_break_even_and_lock_steps_lift_the_stop_after_a_close_reaches_the_mark(self):
+        """Buy 100 with a 5% risk (first stop 95, trail 5 ATR = 10% below the highest close). A close of 106 is +1.2R: the shipped plan's trail
+        is then only 95.4, but the break-even step has lifted the stop to 100 - so a dip to 99 stops that variant out at 100 and not the plan."""
+        def bars(rows):
+            idx = pd.date_range("2026-01-01", periods=len(rows) + 1, freq="B")
+            first = [(99.0, 99.5, 98.5, 99.0)]                                   # the signal bar
+            return pd.DataFrame(first + rows, index=idx, columns=["open", "high", "low", "close"])
+        plan = ts.TradePlan("stop", 100.0, 0.02)
+        self.assertAlmostEqual(plan.risk_pct, 0.05)
+        path = [(100.0, 101.0, 99.5, 100.5),        # the buy-stop fills at 100; stop 95
+                (101.0, 106.5, 100.5, 106.0),       # a close of 106 = +1.2R: plan's trail 95.4, break-even step 100
+                (104.0, 104.5, 99.0, 100.0)]        # dips to 99
+        plain, _, _, _ = self.engine._simulate(plan, bars(path), 0)
+        self.assertEqual(plain.status, ts.OPEN)
+        self.assertAlmostEqual(plain.trail, 95.4, places=6)
+        step, oc, _, _ = self.engine._simulate(plan, bars(path), 0, ((1.0, 0.0),))
+        self.assertEqual((step.status, step.exit_reason), (ts.CLOSED, "trail"))
+        self.assertAlmostEqual(step.exit_px, 100.0, places=6)
+        self.assertAlmostEqual(oc["net"], -config.ROUND_TRIP_COST, places=6)              # out at the buy price: only the cost is lost
+        # +2R: a close of 110.5 lifts the second step to +1R (105); a dip to 104 then exits there, while the one-step variant is still in
+        path2 = path[:2] + [(107.0, 111.0, 106.0, 110.5), (108.0, 109.0, 104.0, 105.0)]
+        one, _, _, _ = self.engine._simulate(plan, bars(path2), 0, ((1.0, 0.0),))
+        two, oc2, _, _ = self.engine._simulate(plan, bars(path2), 0, ((1.0, 0.0), (2.0, 1.0)))
+        self.assertEqual(one.status, ts.OPEN)
+        self.assertEqual((two.status, two.exit_reason), (ts.CLOSED, "trail"))
+        self.assertAlmostEqual(two.exit_px, 105.0, places=6)
+        self.assertAlmostEqual(oc2["net"], 0.05 - config.ROUND_TRIP_COST, places=6)
+        # a close that never reaches the mark changes nothing
+        calm = [(100.0, 101.0, 99.5, 100.5), (100.5, 103.0, 100.0, 103.0), (102.0, 102.5, 96.0, 97.0)]
+        a, _, _, _ = self.engine._simulate(plan, bars(calm), 0)
+        b, _, _, _ = self.engine._simulate(plan, bars(calm), 0, ((1.0, 0.0), (2.0, 1.0)))
+        self.assertEqual((a.status, a.exit_px, a.exit_reason), (b.status, b.exit_px, b.exit_reason))
+
+    def test_the_stop_table_compares_the_same_finished_signals(self):
+        def row(*results):
+            """results = (status, net) for the shipped plan and then for each STOP_VARIANTS entry, in order."""
+            out = {}
+            for prefix, (status, net) in zip([""] + [n for n, _, _ in self.engine.STOP_VARIANTS], results):
+                key = f"{prefix}_" if prefix else ""
+                out[f"{key}status"], out[f"{key}net"], out[f"{key}R"] = status, net, (net * 10 if net == net else np.nan)
+            return out
+        n_var, nan = len(self.engine.STOP_VARIANTS), float("nan")
+        df = pd.DataFrame([
+            row(*[("CLOSED", 0.10)] + [("CLOSED", 0.05)] * n_var),                       # filled and finished in every variant
+            row(*[("CLOSED", -0.04)] + [("CLOSED", -0.02)] * n_var),
+            row(*[("UNFILLED", nan)] * (n_var + 1)),                                     # never filled: counts as 0
+            row(*[("OPEN", nan)] + [("CLOSED", 0.30)] * n_var),                          # unfinished in the shipped plan: left out of every row
+        ])
+        lines = self.engine._stop_table(df)
+        rows = [[c.strip() for c in l.split("|")[2:-1]] for l in lines if l.startswith("| ") and ":--" not in l and "Stop plan" not in l]
+        self.assertEqual(len(rows), n_var + 1, lines)
+        shipped, first = rows[0], rows[1]
+        self.assertEqual((shipped[0], shipped[1], shipped[3]), ("3", "67%", "+3.00%"))      # 3 signals, 2 filled, (10% - 4%) / 2 per filled trade
+        self.assertEqual(shipped[-1], "+2.00%")                                              # 6% over 3 signals, the unfilled one counting as 0
+        self.assertEqual((first[0], first[1], first[3], first[-1]), ("3", "67%", "+1.50%", "+1.00%"))
+        self.assertEqual(self.engine._stop_table(df.iloc[[3]]), [])                         # nothing finished in every variant -> no table
+        self.assertEqual(self.engine._stop_table(pd.DataFrame()), [])
 
     def test_run_up_is_what_the_card_measures(self):
         """A fresh breakout leaves its own breakout day out of the run-up; a coiled stock uses its full 5-day gain."""
@@ -459,6 +531,54 @@ class ResearchStudy(unittest.TestCase):
             pd.DataFrame([{k: v for k, v in t.items() if k != "ext_pct"} for t in self.trades]).to_csv(old, index=False)
             with self.assertRaises(SystemExit):
                 gs.load(old)
+
+    def test_the_stop_study_arithmetic_on_a_tiny_known_example(self):
+        """Six identical months of 4 signals; the plans differ only in how the two filled trades ended."""
+        from backtest import stop_study as ssd
+        nan = float("nan")
+        variants = [n for n, _, _ in self.engine.STOP_VARIANTS]
+        rows = []
+        for m in range(1, 7):
+            for status, base, var, peak in (("CLOSED", 0.10, 0.04, 3.5), ("CLOSED", -0.05, -0.02, 0.2), ("UNFILLED", nan, nan, nan), ("OPEN", nan, 0.30, 0.5)):
+                row = {"signal_date": f"2026-{m:02d}-10", "status": status, "net": base, "R": base * 10, "exit_reason": "time" if base == 0.10 else "stop",
+                       "peak_R": peak}
+                for n in variants:
+                    v_status = "CLOSED" if status in ("CLOSED", "OPEN") else status         # the shipped plan's open trade has closed in the variants
+                    row.update({f"{n}_status": v_status, f"{n}_net": var, f"{n}_R": var * 10, f"{n}_exit": "trail" if var == 0.04 else "stop"})
+                rows.append(row)
+        df = pd.DataFrame(rows)
+        for c in ("z_run_up", "run_up", "sma200_chg", "breadth50", "atr_pct", "pb1_net", "pb2_net"):
+            df[c] = 0.0
+        df["setup"], df["regime"], df["pb1_status"], df["pb2_status"] = "primed", "mixed", "UNFILLED", "UNFILLED"
+        with tempfile.TemporaryDirectory() as tmp:
+            csv = os.path.join(tmp, "tiny.csv")
+            df.to_csv(csv, index=False)
+            frame = ssd.load(csv)
+        fin = ssd.finished(frame)
+        self.assertEqual(int(fin.sum()), 18)                                              # the open trade is unfinished under the shipped plan: left out
+        self.assertAlmostEqual(float(ssd.per_signal(frame, "", "net")[fin].mean()), 0.05 / 3)           # (10% - 5% + 0 for the unfilled order) / 3
+        self.assertAlmostEqual(float(ssd.per_signal(frame, variants[0], "net")[fin].mean()), 0.02 / 3)  # (4% - 2% + 0) / 3
+        text = "\n".join(ssd.analyse(frame, reps=200))
+        for head in ("== 1.", "== 2.", "== 3.", "== 4."):
+            self.assertIn(head, text)
+        line = next(l for l in text.splitlines() if l.startswith(f"{variants[0]:<10}") and " n=" in l and "%" in l)
+        self.assertIn("-1.00%", line)                                                     # (0.02 - 0.05) / 3 per signal, in every month alike
+
+    def test_the_stop_study_script_runs_and_refuses_an_old_file(self):
+        from backtest import stop_study as ssd
+        with tempfile.TemporaryDirectory() as tmp:
+            csv, out, old = (os.path.join(tmp, n) for n in ("trades.csv", "stop.md", "old.csv"))
+            pd.DataFrame(self.trades).to_csv(csv, index=False)
+            text = "\n".join(ssd.analyse(ssd.load(csv), reps=200))
+            for head in ("== 1.", "== 2.", "== 3.", "== 4.", "shipped", "tr3"):
+                self.assertIn(head, text)
+            with mock.patch("builtins.print"):
+                self.assertEqual(ssd.main([csv, "--write", out]), 0)
+            with open(out, encoding="utf-8") as fh:
+                self.assertIn("How to read it", fh.read())
+            pd.DataFrame([{k: v for k, v in t.items() if not k.startswith("tr3_")} for t in self.trades]).to_csv(old, index=False)
+            with self.assertRaises(SystemExit):
+                ssd.load(old)
 
     def test_the_pullback_table_compares_the_same_finished_signals(self):
         def row(a, b, c):

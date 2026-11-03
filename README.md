@@ -157,7 +157,7 @@ Every run also commits `reports/output/fetch_report_<scan>.json` - route used (`
 
 ## Running it
 
-GitHub Actions workflows (all have a **Run workflow** button): **BTST Scan**, **Swing Scan**, **Run All Scans Manual Override**, **Market Direction (Manual)**, **Backtest & Calibrate**. In *Backtest & Calibrate* choose `data_source`: **broker** (about 3 years of Angel One candles; uses the broker, so do not start it while a scan is running) or **yahoo** (10+ years, split-adjusted, about 4 minutes, never touches the broker, safe at any time). The Yahoo run writes `reports/output/backtest_swing_yahoo_<date>.md` and `..._trades.csv`; `python -m backtest.spike_study <that trades file>` turns the csv into the study in `reports/evidence/` (and `python -m backtest.gap_study <that trades file>` into the distance-below-the-high study behind the 🔭 watch list).
+GitHub Actions workflows (all have a **Run workflow** button): **BTST Scan**, **Swing Scan**, **Run All Scans Manual Override**, **Market Direction (Manual)**, **Backtest & Calibrate**. In *Backtest & Calibrate* choose `data_source`: **broker** (about 3 years of Angel One candles; uses the broker, so do not start it while a scan is running) or **yahoo** (10+ years, split-adjusted, about 4 minutes, never touches the broker, safe at any time). The Yahoo run writes `reports/output/backtest_swing_yahoo_<date>.md` and `..._trades.csv`; `python -m backtest.spike_study <that trades file>` turns the csv into the study in `reports/evidence/` (and `python -m backtest.gap_study <that trades file>` into the distance-below-the-high study behind the 🔭 watch list, `python -m backtest.stop_study <that trades file>` into the stop-loss study: every signal is also re-run with five other stop rules).
 
 **On-time scheduling:** GitHub's own cron is often hours late, so an external timer starts the scans on the dot - setup in [docs/TIMER_SETUP.md](docs/TIMER_SETUP.md). GitHub's schedule remains as a backup; the program skips a duplicate or a too-late BTST run (`scanner/runguard.py`).
 
@@ -182,6 +182,7 @@ tracking/outcomes.py      the scoreboard
 backtest/engine.py        replays the rule on broker or Yahoo data; live-scoreboard report
 backtest/spike_study.py   offline study of a Yahoo back-test (spiked or not, 200-day trend, pull-back vs buy-stop)
 backtest/gap_study.py     offline study of the same file: how far below the 50-day high a signal was (behind the 🔭 watch list)
+backtest/stop_study.py    offline study of the same file: does a stop that follows the price more or less closely beat the shipped plan?
 data/yahoo_bars.py        split-adjusted 10-year daily bars from Yahoo Finance - back-test only, the scans never use it
 reports/                  Telegram formatter, file writers, evidence
 app.py                    Streamlit dashboard

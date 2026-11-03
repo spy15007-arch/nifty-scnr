@@ -41,6 +41,17 @@ VOID_GAP = 0.35
 # RESEARCH: pull-back entries tried for EVERY signal next to the real buy-stop entry, to measure whether waiting for a dip beats buying
 # the breakout. (column prefix, ATRs below the trigger the buy-limit sits, sessions the order stays live). They change nothing else.
 PULLBACKS = (("pb1", 1.0, 5), ("pb2", 2.0, 10))
+# RESEARCH: other ways to run the STOP on the very same signals and entries, to measure whether following the price more closely (or less
+# closely) beats the shipped plan (2.5 ATR stop, trail 5 ATR below the highest close, which only overtakes the first stop once a close is about
+# +1.2R above the fill). (column prefix, trail ATRs, ((reach, lock), ...)): once a CLOSE has reached `reach` x the initial risk above the
+# fill, the stop is lifted to at least `lock` x that risk above the fill (0 = the buy price). They change nothing else.
+STOP_VARIANTS = (
+    ("tr3", 3.0, ()),                                          # a tighter trail
+    ("tr4", 4.0, ()),
+    ("tr7", 7.0, ()),                                          # a looser one
+    ("be1", config.TRAIL_ATR_MULT, ((1.0, 0.0),)),             # the shipped trail + break-even once a close is +1R
+    ("lk2", config.TRAIL_ATR_MULT, ((1.0, 0.0), (2.0, 1.0))),  # ... and +1R locked once a close is +2R
+)
 _NEED = ["close", "high", "turn20", "piv50", "piv_incl", "gain1d", "close_pos", "rv15", "dist_hi", "sma200_chg",
          "ret252", "atr_pct", "ema21_x", "ret5", "sma50", "sma200"]
 
@@ -67,8 +78,19 @@ def _prepare(bars: dict, min_bars: int):
     return clean, frames
 
 
-def _simulate(plan: ts.TradePlan, d: pd.DataFrame, pos: int):
-    """Run one trade over the symbol's bars after position `pos`. Returns (state, outcome, exit_pos, void)."""
+def _ratchet(plan: ts.TradePlan, st: ts.TradeState, steps) -> None:
+    """RESEARCH (STOP_VARIANTS): after a completed session, lift the stop to `lock` x the initial risk above the fill once a close has reached
+    `reach` x that risk. The stop only ever moves up, and the lifted level is in force from the next session - the same order of events as the
+    live tracker, which updates the stop after each completed session."""
+    risk = plan.risk_pct
+    for reach, lock in steps:
+        if st.hc >= st.fill_px * (1.0 + reach * risk):
+            st.trail = max(st.trail, st.fill_px * (1.0 + lock * risk))
+
+
+def _simulate(plan: ts.TradePlan, d: pd.DataFrame, pos: int, steps=()):
+    """Run one trade over the symbol's bars after position `pos`. Returns (state, outcome, exit_pos, void).
+    `steps` (research only) are the (reach, lock) stop lifts of a STOP_VARIANTS entry; the default () is the shipped plan."""
     o = d["open"].to_numpy()[pos + 1:]
     h = d["high"].to_numpy()[pos + 1:]
     l = d["low"].to_numpy()[pos + 1:]
@@ -81,7 +103,16 @@ def _simulate(plan: ts.TradePlan, d: pd.DataFrame, pos: int):
     bad = np.nonzero(np.isfinite(gaps) & (np.abs(gaps) > VOID_GAP))[0]
     kv = int(bad[0]) if len(bad) else None
     n = kv if kv is not None else len(c)
-    st = ts.replay(plan, zip(o[:n], h[:n], l[:n], c[:n]))
+    if steps:
+        st = ts.new_state(plan)
+        for o_, h_, l_, c_ in zip(o[:n], h[:n], l[:n], c[:n]):
+            if st.status in (ts.CLOSED, ts.UNFILLED):
+                break
+            ts.step(plan, st, float(o_), float(h_), float(l_), float(c_))
+            if st.status == ts.OPEN:
+                _ratchet(plan, st, steps)
+    else:
+        st = ts.replay(plan, zip(o[:n], h[:n], l[:n], c[:n]))
     if kv is not None and st.status in (ts.PENDING, ts.OPEN):
         return st, None, None, True
     last_close = float(c[n - 1]) if n else float(plan.trigger)
@@ -229,6 +260,11 @@ def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, coo
                 pst, poc, _, pvoid = _simulate(pb, d, pos)
                 rec[f"{name}_status"] = "VOID" if pvoid else pst.status
                 rec[f"{name}_net"], rec[f"{name}_R"] = (poc["net"], poc["R"]) if (poc is not None and not pvoid) else (np.nan, np.nan)
+            for name, trail_mult, steps in STOP_VARIANTS:                  # the same entry, run with another stop (research only)
+                vp = ts.TradePlan("stop", plan.trigger, atr, trail_mult=trail_mult)
+                vst, voc, _, vvoid = _simulate(vp, d, pos, steps)
+                rec[f"{name}_status"], rec[f"{name}_exit"] = ("VOID" if vvoid else vst.status), vst.exit_reason
+                rec[f"{name}_net"], rec[f"{name}_R"] = (voc["net"], voc["R"]) if (voc is not None and not vvoid) else (np.nan, np.nan)
             # block the symbol while the trade is unfinished (the live scan does the same)
             if void:
                 busy_until[sym] = ti
@@ -332,6 +368,47 @@ def _pullback_table(df: pd.DataFrame) -> list[str]:
     return lines + [""]
 
 
+def _stop_label(trail_mult: float, steps=()) -> str:
+    text = f"trail {trail_mult:g} ATR below the highest close"
+    for reach, lock in steps:
+        text += f"; once a close is +{reach:g}R the stop is at least " + ("the buy price" if lock == 0 else f"+{lock:g}R above it")
+    return text
+
+
+def _stop_table(df: pd.DataFrame) -> list[str]:
+    """
+    The shipped stop plan versus the research variants (STOP_VARIANTS), for the SAME signals: only signals finished in every variant (the
+    trade closed, or the order expired / was skipped) are counted, so no variant carries unfinished trades. The last column is the average
+    result per signal, counting an order that never filled as 0.
+    """
+    variants = [("", f"Shipped plan: {_stop_label(config.TRAIL_ATR_MULT)}")] + [
+        (name, _stop_label(tm, steps)[0].upper() + _stop_label(tm, steps)[1:]) for name, tm, steps in STOP_VARIANTS]
+
+    def col(prefix: str, name: str) -> str:
+        return f"{prefix}_{name}" if prefix else name
+
+    status_cols = [col(p, "status") for p, _ in variants]
+    if df.empty or any(c not in df.columns for c in status_cols):
+        return []
+    sub = df[df[status_cols].isin(["CLOSED", "UNFILLED"]).all(axis=1)]
+    n_sig = int(len(sub))
+    if n_sig == 0:
+        return []
+    lines = ["| Stop plan | Signals | Filled | Win rate | Avg after costs (filled) | Avg R | Profit factor | Median trade | Per signal (unfilled = 0) |",
+             "| :-- | --: | --: | --: | --: | --: | --: | --: | --: |"]
+    for prefix, label in variants:
+        closed = sub[col(prefix, "status")] == "CLOSED"
+        net, rr = sub.loc[closed, col(prefix, "net")].to_numpy(float), sub.loc[closed, col(prefix, "R")].to_numpy(float)
+        s = _group_stats(net, rr)
+        if not s.get("n"):
+            lines.append(f"| {label} | {n_sig} | 0% | - | - | - | - | - | +0.00% |")
+            continue
+        pf = "inf" if math.isinf(s["profit_factor"]) else f"{s['profit_factor']:.2f}"
+        lines.append(f"| {label} | {n_sig} | {s['n'] / n_sig:.0%} | {s['win_rate']:.0%} | {s['avg_net']:+.2%} | {s['avg_R']:+.2f} | {pf} | "
+                     f"{s['median_net']:+.2%} | {float(net.sum()) / n_sig:+.2%} |")
+    return lines + [""]
+
+
 def research_tables(trades: list[dict]) -> list[str]:
     """
     Extra tables for the research columns (empty when the trades do not carry them or there are too few closed trades):
@@ -383,6 +460,9 @@ def research_tables(trades: list[dict]) -> list[str]:
             table = _pullback_table(part)
             if table:
                 lines += [f"### {title}", ""] + table
+    table = _stop_table(df)
+    if table:
+        lines += ["### Following the price more or less closely with the stop (the same signals, the same entries, only the stop differs)", ""] + table
     return lines
 
 
