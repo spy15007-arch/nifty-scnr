@@ -1,39 +1,73 @@
-🌙 <b>BTST scan</b> · Mon 02 Nov, 2:01 PM · live prices
-🧭 <b>Market:</b> 🟢 <b>Bullish</b> · Nifty +0.8% today · global supportive
-📊 Breadth 19% (stocks above their 50-day average) - <b>weak market: half size</b>
+🌙 <b>BTST scan</b> · Tue 03 Nov, 2:02 PM · live prices
+🧭 <b>Market:</b> 🟢 <b>Mildly bullish</b> · Nifty +1.2% today · global hostile
+📊 Breadth 24% (stocks above their 50-day average) - <b>weak market: half size</b>
 
-ℹ️ Quick check of last night's 95-stock watchlist (30 Oct close) with live quotes; breadth is as of that close
+ℹ️ Quick check of last night's 107-stock watchlist (2 Nov close) with live quotes; breadth is as of that close
 
 ⭐ <b>EARLIER PICKS, still strong</b> (picked before, order still waiting - no new order)
-<b>BHARTIARTL</b> 👀 · Quality 97/100 · picked 27 Oct
-Buy at <b>2,009.85</b> · order valid 2 more sessions
-Profit marks 2,138.70 · 2,267.55 · 2,396.40
-<b>BSE</b> 👀 · Quality 82/100 · picked 27 Oct
-Buy at <b>3,546.50</b> · order valid 2 more sessions
-Profit marks 3,821.75 · 4,096.95 · 4,372.20
+<b>GLAND</b> 👀 💪 · Quality 97/100 · picked 29 Oct
+Buy at <b>3,177.35</b> · order valid 3 more sessions
+Profit marks 3,449.60 · 3,721.85 · 3,994.10
+
+<b>NEW · BUY NOW</b> (near the close, only if the price is still above its breakout price)
+
+<b>1. MCX</b> 🔥 Fresh breakout (first close above the 50-day high) · Quality 87/100
+Buy near <b>3,509.30</b> · up 8.0% today on 3.9x volume
+Stop <b>3,229.20</b> (-8.0%) · trail 16.0%
+Profit marks 3,789.40 · 4,069.45 · 4,349.50
+near 52-wk high · strong 12-mo return · delivery ~43%
+⚠️ Very large one-day move
+
+<b>2. MARICO</b> 🔥 Fresh breakout (first close above the 50-day high) · Quality 74/100 · FMCG
+Buy near <b>865.25</b> · up 8.4% today on 9.4x volume
+Stop <b>812.10</b> (-6.1%) · trail 12.3%
+Profit marks 918.40 · 971.50 · 1,024.60
+near 52-wk high · low volatility · delivery ~62%
+⚠️ Very large one-day move
 
 <b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. GAIL</b> 👀 About to break out (1.3% below the 50-day high) · Quality 81/100 · Energy
-Buy at <b>177.90</b> · skip if it opens above 183.20
-Stop <b>166.70</b> (-6.3%) · trail 12.6%
-Profit marks 189.10 · 200.25 · 211.45
-near 52-wk high · low volatility · delivery ~60%
+<b>3. ICICIBANK</b> 👀 About to break out (2.0% below the 50-day high) · Quality 99/100 · Bank
+Buy at <b>1,456.95</b> · skip if it opens above 1,500.65
+Stop <b>1,384.65</b> (-5.0%) · trail 9.9%
+Profit marks 1,529.25 · 1,601.55 · 1,673.85
+very liquid · near 52-wk high · delivery ~61%
 
-<b>2. PHOENIXLTD</b> 👀 About to break out (2.2% below the 50-day high) · Quality 72/100 · Realty
-Buy at <b>2,042.40</b> · skip if it opens above 2,103.65
-Stop <b>1,887.45</b> (-7.6%) · trail 15.2%
-Profit marks 2,197.35 · 2,352.25 · 2,507.15
-near 52-wk high · low volatility · delivery ~57%
+<b>4. JSWSTEEL</b> 👀 About to break out (2.3% below the 50-day high) · Quality 81/100 · Metal
+Buy at <b>1,353.75</b> · skip if it opens above 1,394.35
+Stop <b>1,258.70</b> (-7.0%) · trail 14.0%
+Profit marks 1,448.80 · 1,543.80 · 1,638.80
+near 52-wk high · very liquid · delivery ~52%
 
-<b>3. PERSISTENT</b> 👀 At the breakout level (volume not confirmed yet) · Quality 54/100 · IT
-Buy at <b>6,116.75</b> · skip if it opens above 6,300.25
-Stop <b>5,588.30</b> (-8.6%) · trail 17.3%
-Profit marks 6,645.20 · 7,173.60 · 7,702.00
-very liquid · near 52-wk high · delivery ~43%
+<b>5. ULTRACEMCO</b> 👀 About to break out (1.8% below the 50-day high) · Quality 74/100
+Buy at <b>11,843.65</b> · skip if it opens above 12,198.95
+Stop <b>11,141.10</b> (-5.9%) · trail 11.9%
+Profit marks 12,546.20 · 13,248.75 · 13,951.30
+low volatility · very liquid · delivery ~53%
 
-+20 more qualify but are already on your list.
+<b>6. BOSCHLTD</b> 👀 About to break out (1.5% below the 50-day high) · Quality 67/100 · Auto
+Buy at <b>50,601.00</b> · skip if it opens above 52,119.00
+Stop <b>47,686.80</b> (-5.8%) · trail 11.5%
+Profit marks 53,515.20 · 56,429.40 · 59,343.60
+near 52-wk high · low volatility · delivery ~45%
+⚠️ 200-day trend rising, but already spiked 9% in 5 days - buy in continuation, not on a dip
+
+<b>7. GROWW</b> 👀 About to break out (0.4% below the 50-day high) · Quality 67/100
+Buy at <b>205.65</b> · skip if it opens above 211.80
+Stop <b>188.10</b> (-8.5%) · trail 17.1%
+Profit marks 223.20 · 240.75 · 258.30
+very liquid · near 52-wk high · delivery ~51%
+⚠️ 200-day trend rising, but already spiked 10% in 5 days - buy in continuation, not on a dip
+
+<b>8. SHYAMMETL</b> 👀 About to break out (1.9% below the 50-day high) · Quality 60/100
+Buy at <b>1,256.05</b> · skip if it opens above 1,293.70
+Stop <b>1,121.10</b> (-10.7%) · trail 21.5%
+Profit marks 1,391.00 · 1,525.90 · 1,660.80
+near 52-wk high · 200-day trend rising · delivery ~52%
+
++25 more qualify but are already on your list.
 
 🧾 <i>Record since 21 Oct: no trade sold yet</i>
+<i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
 ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. A ranked shortlist, not a guarantee.</i>
