@@ -1,4 +1,78 @@
 <!-- scan-section -->
+# 📈 Swing scan - Tue 3 Nov 2026, 4:48 PM IST
+
+*Based on the close of Tue 03 Nov 2026*
+
+**Market:** 🧭 🟢 Mildly bullish · Nifty +1.6% today · global hostile
+
+**Breadth:** 29% of liquid stocks are above their 50-day average (weak - use half size)
+
+*Funnel: 495 stocks checked → 7 fresh breakouts + 39 about to break → 35 in the top half by quality → 3 listed, 32 already on the list*
+
+| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
+| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
+| 1 | **AUROPHARMA** | 👀 About to break out (2.6% below the 50-day high) | 97 | Buy at 1,743.50 (GTT / stop-limit buy order; skip if it opens above 1,795.80) | 1,629.35 (-6.5%) | 13.1% | 54% |
+| 2 | **HAL** | 👀 About to break out (2.7% below the 50-day high) | 94 | Buy at 5,107.60 (GTT / stop-limit buy order; skip if it opens above 5,260.80) | 4,809.30 (-5.8%) | 11.7% | 51% |
+| 3 | **TRENT** | 👀 About to break out (0.9% below the 50-day high) | 56 | Buy at 3,069.45 (GTT / stop-limit buy order; skip if it opens above 3,161.50) | 2,851.70 (-7.1%) | 14.2% | 42% |
+
+*💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first*
+
+**Earlier picks, still strong** (picked before, order still waiting - no new order):
+
+- **GLAND** 💪 - picked 2026-10-29, buy at 3,177.35 (order still waiting, valid 2 more sessions), quality 96/100, profit marks 3,449.60 · 3,721.85 · 3,994.10
+- **ICICIBANK** - picked 2026-11-03, buy at 1,456.95 (order still waiting, valid 5 more sessions), quality 99/100, profit marks 1,529.25 · 1,601.55 · 1,673.85
+
+Already on your list (not repeated): ADANIGREEN, ADANIPORTS, ANANDRATHI, ATHERENERG, BHARTIARTL, BOSCHLTD, BSE, COFORGE, DIVISLAB, DLF, DRREDDY, ETERNAL, GAIL, GLAND, GROWW, HCLTECH, ICICIBANK, INDHOTEL, JSWSTEEL, KOTAKBANK
+
+**Building up, near a breakout** (watch only - no order yet): strong stocks 3%-6% below their 50-day high; one joins the picks when it gets within 3% of that high.
+
+| Stock | Quality | Below its 50-day high | 50-day high | 12-month return |
+| :-- | :-: | :-: | --: | :-: |
+| **NAVINFLUOR** | 92 | 4.7% | 8,949.50 | +69% |
+| **UNIONBANK** | 93 | 4.7% | 192.33 | +26% |
+| **GLENMARK** | 75 | 5.1% | 2,537.60 | +33% |
+| **LALPATHLAB** | 93 | 5.5% | 2,038.60 | +22% |
+
+## Trades already on your list
+
+Your list
+• BHARTIARTL - bought at 2,009.85 (buy order triggered)
+• BSE - bought at 3,546.50 (buy order triggered)
+• APLAPOLLO - buy order expired; no trade
+• IPCALAB - buy order expired; no trade
+• GAIL - bought at 177.90 (buy order triggered)
+• PHOENIXLTD - bought at 2,042.40 (buy order triggered)
+• PERSISTENT - bought at 6,116.75 (buy order triggered)
+Bought, not sold yet (24) - sell if the price falls to:
+MCX 3,229.25 · MARICO 812.13
+GAIL 166.73 · PHOENIXLTD 1,887.50
+PERSISTENT 5,588.35 · ATHERENERG 1,566.50
+ZYDUSLIFE 1,164.33 · ADANIPORTS 1,741.30
+ETERNAL 317.75 · SONACOMS 776.26
+BHARTIARTL 1,881.01 · GESHIP 1,466.43
+BSE 3,271.28 · DIVISLAB 9,102.21
+NYKAA 321.82 · ACUTAAS 3,501.93
+DLF 649.84 · LAURUSLABS 2,051.41
+KOTAKBANK 427.39 · COFORGE 1,849.51
+ANANDRATHI 2,145.10 · INDHOTEL 728.79↑
+DRREDDY 1,215.98↑ · PVRINOX 1,301.35
+↑ = moved up today
+Waiting to buy (15) - buy when the price rises to:
+ICICIBANK 1,456.95 · JSWSTEEL 1,353.75
+ULTRACEMCO 11,843.65 · BOSCHLTD 50,601.00
+GROWW 205.65 · SHYAMMETL 1,256.05
+POWERGRID 276.55 · ITC 274.50
+MPHASIS 2,623.65 · RELIANCE 1,335.70
+ADANIGREEN 1,380.60 · HCLTECH 1,470.45
+MANKIND 2,564.15 · GLAND 3,177.35
+PNB 125.50
+
+---
+*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
+
+*Record since 21 Oct: no trade sold yet*
+
+<!-- scan-section -->
 # 🌙 BTST scan - Tue 3 Nov 2026, 2:02 PM IST
 
 *Live prices at 2:02 PM IST (today's volume projected to a full day)*
@@ -773,36 +847,3 @@ Waiting for their buy-stop (5): ANANDRATHI ₹2,272.95, INDUSTOWER ₹393.10, CA
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and exit only through the stop, which trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-outs; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
 
 *Scoreboard since 2026-10-21: 0 closed, 2 open, 5 waiting for their buy-stop*
-
-<!-- scan-section -->
-# 📈 Swing scan - Thu 22 Oct 2026, 5:36 PM IST
-
-*Based on the close of Thu 22 Oct 2026*
-
-**Market:** 🧭 🔴 Bearish (score -5/6) · Nifty -0.2% today · global hostile
-
-**Breadth:** 13% of liquid stocks are above their 50-day average (weak - use half size)
-
-*Partial scan: 449 of 501 stocks were loaded (the time limit was reached), so the list may miss some names. Broker said: 'CREDITACC: the broker gave no usable answer after # attempts (last reply: Couldn't parse the JSON response rec' x1; 'NATIONALUM: the broker gave no usable answer after # attempts (last reply: Couldn't parse the JSON response re' x1*
-
-*Funnel: 449 stocks checked → 1 fresh breakouts + 14 about to break → 5 in the top half by quality → 1 listed, 4 already on the list*
-
-| # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |
-| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
-| 1 | **CASTROLIND** | 👀 About to break out (3.0% below the 50-day high) | 82 | Buy-stop 203.85 (skip if opens above 209.95) | 194.30 (-4.7%) | 9.4% | 52 | 59% |
-
-Already on your list (not repeated): DRREDDY, ANANDRATHI, INDUSTOWER, INDHOTEL
-
-## Trades already on your list
-
-Trades already on your list
-• INDHOTEL - buy-stop filled at ₹777.75
-• PVRINOX - buy-stop filled at ₹1,434.90
-Open - current stops (2):
-INDHOTEL ₹727.86 · PVRINOX ₹1,301.35
-Waiting for their buy-stop (4): ANANDRATHI ₹2,272.95, INDUSTOWER ₹393.10, PETRONET ₹301.25, DRREDDY ₹1,255.35
-
----
-*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and exit only through the stop, which trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-outs; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
-
-*Scoreboard since 2026-10-21: 0 closed, 2 open, 4 waiting for their buy-stop*
