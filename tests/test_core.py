@@ -291,8 +291,42 @@ class ResearchStudy(unittest.TestCase):
         need = {"run_up", "z_run_up", "ret5", "gain1d", "sma200_chg", "ret252", "breadth50",
                 "pb1_status", "pb1_net", "pb1_R", "pb2_status", "pb2_net", "pb2_R"}
         need |= {f"{name}_{col}" for name, _, _ in self.engine.STOP_VARIANTS for col in ("status", "exit", "net", "R")}
+        need |= {"path_R"}
         for t in self.trades:
             self.assertFalse(need - set(t), f"missing {need - set(t)} in {t}")
+            if t["status"] in ("UNFILLED", "PENDING", "VOID"):
+                self.assertEqual(t["path_R"], "", t)                      # a trade that never held a position has no path
+
+    def test_the_path_marks_follow_the_trade_every_five_sessions(self):
+        """Buy at 100 with a 5% risk. Marks are in R after the 0.35% cost - (close / 100 - 1 - 0.0035) / 0.05 - at the fill session and every 5th one
+        after it, up to but not including the session the trade was sold; the sale itself is the trade's own R."""
+        def bars(closes):
+            idx = pd.date_range("2026-01-01", periods=len(closes) + 1, freq="B")
+            opens = [100.0] + list(closes[:-1])                                                      # each session opens at the last close (the first at the trigger)
+            rows = [(99.0, 99.5, 98.5, 99.0)] + [(o, c + 0.4, c - 0.3, c) for o, c in zip(opens, closes)]     # the signal bar, then one bar per session
+            return pd.DataFrame(rows, index=idx, columns=["open", "high", "low", "close"])
+        plan = ts.TradePlan("stop", 100.0, 0.02)
+        self.assertAlmostEqual(plan.risk_pct, 0.05)
+        rising =[100.5, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111]                   # sessions 1..12; the buy-stop fills at 100 in session 1
+        d = bars(rising)
+        st, _, _, _ = self.engine._simulate(plan, d, 0)
+        self.assertEqual((st.status, st.fill_n, st.sessions), (ts.OPEN, 1, 12))
+        self.assertEqual(self.engine._path_marks(plan, st, d, 0), "0.03;0.93;1.93")               # sessions 1, 6 and 11 (closes 100.5, 105, 110)
+        # sold in session 8 by the trail (highest close 106, trail 95.4; the low of 90 touches it): only the marks before the sale
+        d2 = bars(rising[:7] + [100.0])
+        d2.iloc[8, d2.columns.get_loc("low")] = 90.0
+        st2, oc2, exit_pos, _ = self.engine._simulate(plan, d2, 0)
+        self.assertEqual((st2.status, st2.exit_reason, st2.exit_n), (ts.CLOSED, "trail", 8))
+        self.assertEqual(self.engine._path_marks(plan, st2, d2, 0), "0.03;0.93")                  # sessions 1 and 6 (8 is the sale)
+        # bought and stopped out the same session: no time between the two for a mark
+        d3 = bars([100.5])
+        d3.iloc[1, d3.columns.get_loc("low")] = 90.0
+        st3, _, _, _ = self.engine._simulate(plan, d3, 0)
+        self.assertEqual((st3.status, st3.exit_reason), (ts.CLOSED, "same_day_stop"))
+        self.assertEqual(self.engine._path_marks(plan, st3, d3, 0), "")
+        # an order that never fills holds nothing
+        st4, _, _, _ = self.engine._simulate(ts.TradePlan("stop", 150.0, 0.02), d, 0)
+        self.assertEqual(self.engine._path_marks(ts.TradePlan("stop", 150.0, 0.02), st4, d, 0), "")
 
     def test_the_extra_columns_do_not_change_the_real_trades(self):
         with mock.patch.object(self.engine, "PULLBACKS", ()), mock.patch.object(self.engine, "STOP_VARIANTS", ()):

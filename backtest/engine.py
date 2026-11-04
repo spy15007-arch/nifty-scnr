@@ -52,6 +52,9 @@ STOP_VARIANTS = (
     ("be1", config.TRAIL_ATR_MULT, ((1.0, 0.0),)),             # the shipped trail + break-even once a close is +1R
     ("lk2", config.TRAIL_ATR_MULT, ((1.0, 0.0), (2.0, 1.0))),  # ... and +1R locked once a close is +2R
 )
+# RESEARCH (portfolio study): every filled trade records where it stood, in R after costs, every PATH_STEP sessions from its fill (column `path_R`),
+# so an account that holds only a few of the signals can be marked to market week by week instead of only when trades end. It changes nothing else.
+PATH_STEP = 5
 _NEED = ["close", "high", "turn20", "piv50", "piv_incl", "gain1d", "close_pos", "rv15", "dist_hi", "sma200_chg",
          "ret252", "atr_pct", "ema21_x", "ret5", "sma50", "sma200"]
 
@@ -119,6 +122,22 @@ def _simulate(plan: ts.TradePlan, d: pd.DataFrame, pos: int, steps=()):
     oc = ts.outcome(plan, st, mark_px=last_close)
     exit_pos = pos + st.exit_n if st.status == ts.CLOSED else None
     return st, oc, exit_pos, False
+
+
+def _path_marks(plan: ts.TradePlan, st: ts.TradeState, d: pd.DataFrame, pos: int) -> str:
+    """RESEARCH: the trade's marks as 'a;b;c' - its result in R after costs at the close of the fill session and then every PATH_STEP sessions, up to but
+    not including the session it was sold (an unfinished trade: up to its latest session). The sale itself is the trade's final R. '' when the trade
+    never held a position or was sold on the day it was bought. Same R as the `R` column (return after the 0.35% cost / the initial risk)."""
+    if st.fill_n < 1 or st.status not in (ts.OPEN, ts.CLOSED) or not math.isfinite(st.fill_px) or plan.risk_pct <= 0:
+        return ""
+    end = st.exit_n if st.status == ts.CLOSED else st.sessions + 1
+    closes = d["close"].to_numpy()
+    marks: list[str] = []
+    s = st.fill_n
+    while s < end and pos + s < len(closes):
+        marks.append(f"{(closes[pos + s] / st.fill_px - 1.0 - plan.cost) / plan.risk_pct:.2f}")
+        s += PATH_STEP
+    return ";".join(marks)
 
 
 def _research_columns(feats: pd.DataFrame, sym: str, su: dict, stats_t: dict, breadth: dict) -> dict:
@@ -254,6 +273,7 @@ def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, coo
             if oc is not None and not void:
                 rec["net"], rec["R"] = oc["net"], oc["R"]
                 rec["peak_R"] = ts.peak_r(plan, st)
+            rec["path_R"] = "" if void else _path_marks(plan, st, d, pos)
             rec.update(_research_columns(feats, sym, su, stats_t, breadth))
             for name, atrs, valid in PULLBACKS:
                 pb = ts.TradePlan("limit", tick_down(plan.trigger * (1.0 - atrs * atr)), atr, valid_sessions=valid)
