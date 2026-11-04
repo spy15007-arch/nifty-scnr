@@ -1,50 +1,59 @@
 {
- "at": "2026-11-03 16:48 IST",
+ "at": "2026-11-04 16:51 IST",
  "budget_s": 2700,
  "kind": "universe",
- "loaded": 495,
+ "loaded": 464,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 485,
- "seconds": 2538,
+ "scored": 457,
+ "seconds": 2707,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    17
+    20
    ]
   ],
-  "failed": 6,
-  "loaded": 495,
+  "failed": 37,
+  "loaded": 464,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
    "EMBASSY",
-   "BIRET",
-   "DUMMYHEG",
-   "STLTECH",
+   "HFCL",
    "BAGMANE",
-   "HFCL"
+   "DUMMYHEG",
+   "BIRET",
+   "STLTECH"
   ],
   "not_found_n": 6,
-  "not_reached": 0,
+  "not_reached": 11,
   "pace": {
-   "calls": 708,
-   "rate_limited": 213,
-   "refused": 213,
-   "slowed_calls": 696,
-   "slowest_calls": 696,
+   "calls": 715,
+   "rate_limited": 251,
+   "refused": 251,
+   "slowed_calls": 712,
+   "slowest_calls": 712,
    "wait_now_s": 2.5
   },
-  "recovered": 17,
-  "refused": [],
-  "refused_n": 0,
+  "recovered": 0,
+  "refused": [
+   "ADANIPORTS",
+   "GAIL",
+   "MANKIND",
+   "IOC",
+   "LENSKART",
+   "PTCIL",
+   "BALKRISIND",
+   "POLICYBZR"
+  ],
+  "refused_n": 20,
   "requested": 501,
-  "seconds": 2538,
-  "stopped": ""
+  "seconds": 2707,
+  "stopped": "time budget"
  }
 }

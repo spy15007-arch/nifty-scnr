@@ -1,79 +1,87 @@
-📈 <b>Swing scan</b> · Tue 03 Nov · today's close
-🧭 <b>Market:</b> 🟢 <b>Mildly bullish</b> · Nifty +1.6% today · global hostile
-📊 Breadth 29% (stocks above their 50-day average) - <b>weak market: half size</b>
+📈 <b>Swing scan</b> · Wed 04 Nov · today's close
+🧭 <b>Market:</b> 🟢 <b>Bullish</b> · Nifty +1.0% today · global supportive
+📊 Breadth 38% (stocks above their 50-day average) - <b>weak market: half size</b>
 
 ⭐ <b>EARLIER PICKS, still strong</b> (picked before, order still waiting - no new order)
-<b>GLAND</b> 👀 💪 · Quality 96/100 · picked 29 Oct
-Buy at <b>3,177.35</b> · order valid 2 more sessions
+<b>GLAND</b> 👀 💪 · Quality 98/100 · picked 29 Oct
+Buy at <b>3,177.35</b> · order valid 1 more session
 Profit marks 3,449.60 · 3,721.85 · 3,994.10
 <b>ICICIBANK</b> 👀 · Quality 99/100 · picked 3 Nov
-Buy at <b>1,456.95</b> · order valid 5 more sessions
+Buy at <b>1,456.95</b> · order valid 4 more sessions
 Profit marks 1,529.25 · 1,601.55 · 1,673.85
+<b>AUROPHARMA</b> 👀 · Quality 97/100 · picked 3 Nov
+Buy at <b>1,743.50</b> · order valid 4 more sessions
+Profit marks 1,857.65 · 1,971.75 · 2,085.90
++2 more earlier picks also still qualify (on your list)
 
 <b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. AUROPHARMA</b> 👀 About to break out (2.6% below the 50-day high) · Quality 97/100 · Pharma
-Buy at <b>1,743.50</b> · skip if it opens above 1,795.80
-Stop <b>1,629.35</b> (-6.5%) · trail 13.1%
-Profit marks 1,857.65 · 1,971.75 · 2,085.90
-near 52-wk high · 200-day trend rising · delivery ~54%
+<b>1. CIPLA</b> 👀 About to break out (2.9% below the 50-day high) · Quality 84/100 · Pharma
+Buy at <b>1,446.50</b> · skip if it opens above 1,489.85
+Stop <b>1,373.35</b> (-5.1%) · trail 10.1%
+Profit marks 1,519.65 · 1,592.80 · 1,665.95
+low volatility · near 52-wk high · delivery ~58%
 
-<b>2. HAL</b> 👀 About to break out (2.7% below the 50-day high) · Quality 94/100
-Buy at <b>5,107.60</b> · skip if it opens above 5,260.80
-Stop <b>4,809.30</b> (-5.8%) · trail 11.7%
-Profit marks 5,405.90 · 5,704.20 · 6,002.50
-near 52-wk high · low volatility · delivery ~51%
+<b>2. ABBOTINDIA</b> 👀 About to break out (2.6% below the 50-day high) · Quality 56/100 · Pharma
+Buy at <b>27,905.70</b> · skip if it opens above 28,742.85
+Stop <b>26,187.65</b> (-6.2%) · trail 12.3%
+Profit marks 29,623.75 · 31,341.75 · 33,059.75
+low volatility · near 52-wk high · delivery ~55%
 
-<b>3. TRENT</b> 👀 About to break out (0.9% below the 50-day high) · Quality 56/100
-Buy at <b>3,069.45</b> · skip if it opens above 3,161.50
-Stop <b>2,851.70</b> (-7.1%) · trail 14.2%
-Profit marks 3,287.20 · 3,504.95 · 3,722.65
-very liquid · near 52-wk high · delivery ~42%
-⚠️ Already spiked 8% in 5 days - buy in continuation, not on a dip
+<b>3. INDIGO</b> 👀 About to break out (2.6% below the 50-day high) · Quality 52/100
+Buy at <b>5,290.60</b> · skip if it opens above 5,449.30
+Stop <b>4,947.10</b> (-6.5%) · trail 13.0%
+Profit marks 5,634.10 · 5,977.60 · 6,321.10
+very liquid · low volatility · delivery ~47%
+⚠️ Already spiked 10% in 5 days - buy in continuation, not on a dip
 
-+30 more qualify but are already on your list.
+<b>4. BANKBARODA</b> 👀 About to break out (2.2% below the 50-day high) · Quality 51/100 · Bank
+Buy at <b>251.40</b> · skip if it opens above 258.90
+Stop <b>236.30</b> (-6.0%) · trail 12.0%
+Profit marks 266.50 · 281.60 · 296.65
+low volatility · very liquid · delivery ~49%
+
++31 more qualify but are already on your list.
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>NAVINFLUOR</b> · Quality 92/100 · 12-mo +69%
-4.7% below its 50-day high (8,949.50)
-<b>UNIONBANK</b> · Quality 93/100 · 12-mo +26%
-4.7% below its 50-day high (192.33)
-<b>GLENMARK</b> · Quality 75/100 · 12-mo +33%
-5.1% below its 50-day high (2,537.60)
-<b>LALPATHLAB</b> · Quality 93/100 · 12-mo +22%
-5.5% below its 50-day high (2,038.60)
+<b>NUVAMA</b> · Quality 56/100 · 12-mo +24%
+3.3% below its 50-day high (1,908.40)
+<b>UNIONBANK</b> · Quality 93/100 · 12-mo +25%
+4.4% below its 50-day high (192.33)
+<b>FLUOROCHEM</b> · Quality 59/100 · 12-mo +29%
+5.4% below its 50-day high (4,887.90)
 
 📒 <b>Your list</b>
-• <b>BHARTIARTL</b> - bought at 2,009.85 (buy order triggered)
-• <b>BSE</b> - bought at 3,546.50 (buy order triggered)
-• <b>APLAPOLLO</b> - buy order expired; no trade
-• <b>IPCALAB</b> - buy order expired; no trade
-• <b>GAIL</b> - bought at 177.90 (buy order triggered)
-• <b>PHOENIXLTD</b> - bought at 2,042.40 (buy order triggered)
-• <b>PERSISTENT</b> - bought at 6,116.75 (buy order triggered)
-<b>Bought, not sold yet (24) - sell if the price falls to:</b>
+• <b>ITC</b> - bought at 274.50 (buy order triggered)
+• <b>ADANIGREEN</b> - bought at 1,380.60 (buy order triggered)
+• <b>BOSCHLTD</b> - bought at 50,601.00 (buy order triggered)
+• <b>GROWW</b> - bought at 206.00 (buy order triggered)
+• <b>SHYAMMETL</b> - bought at 1,256.05 (buy order triggered)
+<b>Bought, not sold yet (29) - sell if the price falls to:</b>
 MCX 3,229.25 · MARICO 812.13
-GAIL 166.73 · PHOENIXLTD 1,887.50
-PERSISTENT 5,588.35 · ATHERENERG 1,566.50
-ZYDUSLIFE 1,164.33 · ADANIPORTS 1,741.30
-ETERNAL 317.75 · SONACOMS 776.26
-BHARTIARTL 1,881.01 · GESHIP 1,466.43
-BSE 3,271.28 · DIVISLAB 9,102.21
-NYKAA 321.82 · ACUTAAS 3,501.93
-DLF 649.84 · LAURUSLABS 2,051.41
-KOTAKBANK 427.39 · COFORGE 1,849.51
-ANANDRATHI 2,145.10 · INDHOTEL 728.79↑
-DRREDDY 1,215.98↑ · PVRINOX 1,301.35
-↑ = moved up today
-<b>Waiting to buy (15) - buy when the price rises to:</b>
+BOSCHLTD 47,686.81 · GROWW 188.43
+SHYAMMETL 1,121.14 · GAIL 166.73
+PHOENIXLTD 1,887.50 · PERSISTENT 5,588.35
+ITC 261.01 · ADANIGREEN 1,270.37
+ATHERENERG 1,566.50 · ZYDUSLIFE 1,164.33
+ADANIPORTS 1,741.30 · ETERNAL 317.75
+SONACOMS 776.26 · BHARTIARTL 1,881.01
+GESHIP 1,466.43 · BSE 3,271.28
+DIVISLAB 9,102.21 · NYKAA 321.82
+ACUTAAS 3,501.93 · DLF 649.84
+LAURUSLABS 2,051.41 · KOTAKBANK 427.39
+...and 5 more in the dashboard
+<b>Waiting to buy (19) - buy when the price rises to:</b>
+NAVINFLUOR 8,967.40 · LALPATHLAB 2,042.70
+GLENMARK 2,542.70 · HDFCBANK 750.80
+NHPC 80.15 · TATACONSUM 1,086.90
 ICICIBANK 1,456.95 · JSWSTEEL 1,353.75
-ULTRACEMCO 11,843.65 · BOSCHLTD 50,601.00
-GROWW 205.65 · SHYAMMETL 1,256.05
-POWERGRID 276.55 · ITC 274.50
-MPHASIS 2,623.65 · RELIANCE 1,335.70
-ADANIGREEN 1,380.60 · HCLTECH 1,470.45
+ULTRACEMCO 11,843.65 · AUROPHARMA 1,743.50
+HAL 5,107.60 · TRENT 3,069.45
+POWERGRID 276.55 · MPHASIS 2,623.65
+RELIANCE 1,335.70 · HCLTECH 1,470.45
 MANKIND 2,564.15 · GLAND 3,177.35
 PNB 125.50
 
