@@ -41,7 +41,7 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 
 import config
-from data import history_cache, nse_eod
+from data import history_cache, nse_eod, snapshots
 from reports import notify, summary
 from scanner import pipeline as pl
 from scanner import runguard, session
@@ -507,6 +507,19 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
                 f"{f['primed']} primed setups -> {f['passed_quality']} in the top half by quality -> "
                 f"{f['repeats']} already on the list -> {f['picks']} picks | breadth {b50_text} ({result.regime})")
 
+    # --- the BTST snapshot log (data/snapshots.py, research only - nothing reads it back into a scan): the live afternoon run saves what each watchlist stock
+    # showed and what the scan assumed about the day's volume; any later run on completed days fills in how those days really ended
+    try:
+        if scan_mode == "btst" and result.live:
+            n_snap = snapshots.record(bars, now, result.vol_fraction, result.picks, via=str(fetch.get("via") or ""))
+            logger.info(f"📸 Snapshot log: {n_snap} stocks saved at {now:%H:%M} IST (the scan assumed {result.vol_fraction:.0%} of the day's volume had traded)")
+        elif not result.live and result.ref_date:
+            n_snap = snapshots.complete(bars, result.ref_date)
+            if n_snap:
+                logger.info(f"📸 Snapshot log: {n_snap} saved snapshots completed with how their day ended")
+    except Exception:  # noqa: BLE001 - a research log must never cost the scan
+        logger.exception("Snapshot log: could not update it")
+
     # --- 4. messages and files -----------------------------------------------------------------------------
     led = None
     try:
@@ -544,6 +557,17 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     except Exception:  # noqa: BLE001
         logger.exception("Scoreboard: could not log the new picks")
 
+    # what the whole list - today's picks included - would need of one account's capital: the footer says so when it is more than all of it
+    list_load = None
+    try:
+        import capital_plan                      # a plain pandas calculator at the repository root; the dashboard shows the same number
+        list_load = capital_plan.list_load(outcomes.load_ledger(), config.RISK_PER_TRADE_PCT)
+        if list_load > 1.0:
+            logger.info(f"💼 The whole list (bought + waiting) would need about {list_load:.0%} of one account's capital at "
+                        f"{config.RISK_PER_TRADE_PCT:g}% risk per trade (half in a weak market)")
+    except Exception:  # noqa: BLE001 - a note in the footer must never cost the scan
+        logger.exception("Could not work out how much capital the whole list needs")
+
     market_line = _market_line(ctx)
     _write_fetch_report(scan_mode, ctx, now, result)
     try:
@@ -565,7 +589,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
 
     sent = notify.notify_scan(result, scan_mode, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, now=now,
                               market_line=market_line, tracked_block=tracked_block,
-                              scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier, building=building,
+                              scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier, building=building, list_load=list_load,
                               save_to=f"reports/output/last_message_{scan_mode}.txt")
     if not sent:
         logger.warning("The scan message was not delivered to Telegram (not configured, or the send failed) - the files have the full result")

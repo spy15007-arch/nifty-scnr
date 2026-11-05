@@ -12,17 +12,27 @@ probability) and every pick carries entry, stop, trailing stop and size. The sco
 have been SOLD (stopped out / time limit); buy orders that never triggered are shown separately and are neither wins
 nor losses.
 
+ADDED 2026-11-04: a capital plan on the "Your list" tab (capital_plan.py: how much of the list one account can hold), and on the Scoreboard tab how the
+trades still held stand right now (not final) and how far the record is from the 30 sold trades it needs.
+
 REWORDED 2026-11-01 in plain words, at the user's request (the Telegram "Your list" headings were confusing, then the same was asked of the
 rest): "bought / sold / waiting to buy / stop-loss / buy order" instead of "open / closed / pending / buy-stop", readable column names instead
 of the raw file names (symbol, entry_mode, plus_1R ...), and a few one-line explanations (R, ATR, profit factor). The files and the ledger
 columns are unchanged: only what is shown on this page changed.
 """
 import os
+import sys
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import capital_plan                      # a plain pandas calculator at the repository root (it imports nothing from the scanner)
+except Exception:  # noqa: BLE001 - the calculator is optional: without it the rest of the page must still open
+    capital_plan = None
 
 st.set_page_config(page_title="NIFTY Scanner Dashboard", layout="wide")
 st.title("📊 NIFTY Scanner Dashboard")
@@ -192,6 +202,72 @@ STATS_FMT = {"Win rate": "{:.0%}", "Average gain/loss (after costs)": "{:+.2%}",
              "Profit factor": "{:.2f}", "Best R": "{:+.1f}", "Worst R": "{:+.1f}"}
 
 
+PLAN_STATUS = {"OPEN": "Bought", "PENDING": "Waiting"}
+
+
+def render_capital_plan(df: pd.DataFrame):
+    """How much of the list can ONE account hold? The list only grows, the messages say 'risk 1% per trade', and at that size the whole list needs several
+    times the capital - so the reader enters their own numbers and sees which stocks fit, in the scanner's order of preference."""
+    if capital_plan is None or not capital_plan.listed(df):
+        return
+    with st.expander("💼 Capital plan - how much of this list can your account hold?"):
+        c = st.columns(3)
+        capital = c[0].number_input("Your trading capital (₹)", min_value=10_000, max_value=10_000_000_000, value=1_000_000, step=50_000)
+        risk = c[1].number_input("Risk per trade (% of your capital)", min_value=0.1, max_value=5.0, value=1.0, step=0.1,
+                                 help="The money you accept to lose if the stock falls from your buy price to its first stop-loss. The messages say at most 1%, "
+                                      "half of that when the market was weak on the pick day (that halving is applied here too).")
+        rooms = c[2].number_input("Most stocks to hold at once", min_value=1, max_value=60, value=10, step=1,
+                                  help="Bought stocks plus buy orders still waiting. Fewer stocks means bigger positions in each.")
+        every = sorted(set(df.loc[df["status"].isin(["OPEN", "PENDING"]), "symbol"]))
+        held = st.multiselect("Stocks you already hold, or have a buy order placed for", options=every)
+        rows, tot = capital_plan.plan(df, float(capital), float(risk), int(rooms), held)
+        m = st.columns(4)
+        m[0].metric("The whole list would need", f"{tot['all_money']:.0%} of your capital",
+                    help="Every bought and waiting stock on the list, each sized by the 'risk per trade' rule above. Above 100% means nobody can hold all of it.")
+        m[1].metric("Lost if every stop-loss were hit", f"-{tot['all_risk']:.1%}", help="Of your capital, if ALL the stocks on the list fell to their first stop-loss.")
+        m[2].metric("Held or to take", f"{tot['rooms']} of {int(rooms)}", help="Stocks you said you hold, plus the ones below marked Take.")
+        m[3].metric("Money in them", f"{tot['money']:.0%} of your capital")
+        if tot["held_money"] > 1.0:
+            st.warning(f"The stocks you hold would need {tot['held_money']:.0%} of your capital at this risk setting - hold fewer, or lower the risk per trade.")
+        if tot["left_out"]:
+            st.caption(f"{tot['left_out']} stock(s) on the list cannot be sized and are not shown below: a price or the stock's average daily range is "
+                       "missing, or even one share would risk more than the amount you accept to lose.")
+        if rows.empty:
+            st.info("Nothing on the list can be sized with these numbers.")
+            return
+        t = rows.copy()
+        t["tags"] = [" ".join(x for x in ("💪" if sg else "", {"fresh": "🔥", "primed": "👀"}.get(su, "")) if x) for sg, su in zip(t["strong"], t["setup"])]
+        t["status"] = t["status"].map(PLAN_STATUS)
+        t["scan_mode"] = t["scan_mode"].map({"btst": "🌙 BTST", "swing": "📈 Swing"}).fillna(t["scan_mode"])
+        t.insert(0, "n", range(1, len(t) + 1))
+        t = t[["n", "symbol", "scan_mode", "status", "tags", "buy", "stop", "shares", "money", "share_of_capital", "running", "verdict"]]
+        t.columns = ["#", "Stock", "Scan", "Status", "Tags", "Buy at", "First stop-loss", "Shares", "Money (₹)", "% of capital", "Running total", "What to do"]
+        _df(t.style.format({"Buy at": "{:,.2f}", "First stop-loss": "{:,.2f}", "Shares": "{:,.0f}", "Money (₹)": "{:,.0f}",
+                            "% of capital": "{:.1%}", "Running total": "{:.0%}"}, na_rep="–"), hide_index=True, height=min(620, 80 + 36 * len(t)))
+        st.caption("Shares = the money you accept to lose / (buy price - first stop-loss). Stocks you hold come first; the rest follow the scanner's order "
+                   "(💪 strong uptrend, then 🔥 fresh breakouts, then 👀 about-to-break, then quality) and are marked Take while a room is free and the money "
+                   "fits - no borrowing. That order is a tidy way to choose, not a proven edge: in a 10-year replay of an account that could hold only a "
+                   "few stocks it was not clearly better than a random choice among the same signals (reports/evidence). Sizes are what the rule suggests "
+                   "today; what you actually bought may differ. 💪 is only known for picks logged since 31 Oct.")
+
+
+def _open_now(df: pd.DataFrame) -> pd.DataFrame | None:
+    """How the trades still held stand at the last completed close, after costs: by scan and together. Not a result - they can still go either way."""
+    held = df[df["status"] == "OPEN"].copy()
+    held["net"] = pd.to_numeric(held["net"], errors="coerce")
+    held["R"] = pd.to_numeric(held["R"], errors="coerce")
+    held = held.dropna(subset=["net"])
+    if held.empty:
+        return None
+    rows = {}
+    for label, g in (("🌙 BTST", held[held["scan_mode"] == "btst"]), ("📈 Swing", held[held["scan_mode"] == "swing"]), ("Both scans", held)):
+        if len(g):
+            rows[label] = {"Bought, not sold yet": len(g), "Up": int((g["net"] > 0).sum()), "Down": int((g["net"] <= 0).sum()),
+                           "Average so far": g["net"].mean(), "Typical (median)": g["net"].median(), "Average R": g["R"].mean(),
+                           "Best": g["net"].max(), "Worst": g["net"].min()}
+    return pd.DataFrame(rows).T
+
+
 def render_open_tab(df: pd.DataFrame | None):
     """'Your list' - the same two lists as the Telegram message: bought and not sold yet, and buy orders still waiting."""
     if df is None:
@@ -203,6 +279,7 @@ def render_open_tab(df: pd.DataFrame | None):
     c[0].metric("Bought, not sold yet", len(openp))
     c[1].metric("Waiting to buy", len(pend))
     c[2].metric("Average so far (in R)", f"{openp['R'].mean():+.2f}R" if len(openp) and openp["R"].notna().any() else "–", help=R_HELP)
+    render_capital_plan(df)
 
     st.subheader("Bought, not sold yet - keep your stop-loss updated")
     if len(openp):
@@ -257,6 +334,18 @@ def render_scoreboard_tab(df: pd.DataFrame | None):
     c[4].metric("Never bought", int((df["status"] == "UNFILLED").sum()), help="The buy order expired, or the stock opened too far above the buy price.")
     c[5].metric("Dropped (split?)", int((df["status"] == "VOID").sum()), help="The price jumped as if from a split / bonus / demerger, so the trade can no longer be scored.")
 
+    try:
+        st.progress(min(len(closed) / 30.0, 1.0), text=f"{len(closed)} of 30 sold trades - the number at which the record starts to mean something")
+    except TypeError:                                                          # an older Streamlit has no text argument
+        st.progress(min(len(closed) / 30.0, 1.0))
+    now = _open_now(df)
+    if now is not None:
+        st.subheader("How the trades you still hold stand right now (not final)")
+        _df(now.style.format({"Bought, not sold yet": "{:.0f}", "Up": "{:.0f}", "Down": "{:.0f}", "Average so far": "{:+.1%}", "Typical (median)": "{:+.1%}",
+                              "Average R": "{:+.2f}", "Best": "{:+.1%}", "Worst": "{:+.1%}"}, na_rep="–"))
+        st.caption("Marked at the last completed close, after the 0.35% round-trip cost. This is not a result: these trades can still go either way, and the "
+                   "record below counts only SOLD trades. In the 2016-2026 replay about 6 trades in 10 lost, a few big winners paid for them, and the average "
+                   "trade only turned clearly positive after weeks - so a good (or bad) start says little.")
     if closed.empty:
         st.info("No trade has finished yet. Results appear when a trade is sold: its stop-loss is hit or it reaches the 60-session limit.")
     else:

@@ -350,20 +350,50 @@ def _short_date(iso: str) -> str:
         return str(iso)
 
 
+def open_now(df: pd.DataFrame | None = None, scan_mode: str | None = None) -> dict:
+    """
+    How the trades that are bought and not sold yet stand at the last completed close, after the 0.35% cost. NOT a result: they can still go either way,
+    and the record counts only sold trades. Added 2026-11-04: with trades held for weeks, the record said "no trade sold yet" for a fortnight while 16 of
+    the 24 open ones were up - true, but it hid how the list was doing. {"n": 0} when nothing held has a price yet.
+    """
+    df = load_ledger() if df is None else df
+    if scan_mode:
+        df = df[df["scan_mode"] == scan_mode]
+    held = df[df["status"] == "OPEN"]
+    net = pd.to_numeric(held["net"], errors="coerce").dropna()
+    if net.empty:
+        return {"n": 0}
+    r = pd.to_numeric(held.loc[net.index, "R"], errors="coerce")
+    return {"n": int(len(net)), "up": int((net > 0).sum()), "avg_net": float(net.mean()), "median_net": float(net.median()),
+            "avg_R": float(r.mean()) if r.notna().any() else float("nan")}
+
+
+def format_open_line(df: pd.DataFrame | None = None, scan_mode: str | None = None) -> str:
+    """'Open now: 16 of 24 up, average +2.1% after costs (not final)' - or '' when nothing held has a price yet."""
+    o = open_now(df, scan_mode)
+    if not o["n"]:
+        return ""
+    return f"Open now: {o['up']} of {o['n']} up, average {o['avg_net']:+.1%} after costs (not final)"
+
+
 def format_scoreboard_line(df: pd.DataFrame | None = None, scan_mode: str | None = None) -> str:
-    """One honest line for the message footer: only sold (finished) trades count - ones still held are not wins or losses yet.
-    "sold" rather than "closed" since 2026-11-01, the word the Telegram list and the dashboard use."""
+    """The record for the message footer: only sold (finished) trades count - ones still held are not wins or losses yet - and, on a second line, how
+    the ones still held stand right now (marked as not final). "sold" rather than "closed" since 2026-11-01, the word the Telegram list and the
+    dashboard use."""
+    df = load_ledger() if df is None else df
     s = scoreboard(df, scan_mode=scan_mode)
     if s["total"] == 0:
         return "Record: nothing tracked yet - results appear as picks are bought and sold"
     since = f" since {_short_date(s['first_signal'])}" if s["first_signal"] else ""
     if not s["closed"]:
-        return f"Record{since}: no trade sold yet"
-    line = (f"Record{since}: {s['closed']} sold, {s['win_rate']:.0%} won, average {s['avg_R']:+.2f}R "
-            f"({s['avg_net']:+.1%} per trade after costs)")
-    if s["closed"] < 30:
-        line += " - too few to judge yet (need 30+)"
-    return line
+        line = f"Record{since}: no trade sold yet"
+    else:
+        line = (f"Record{since}: {s['closed']} sold, {s['win_rate']:.0%} won, average {s['avg_R']:+.2f}R "
+                f"({s['avg_net']:+.1%} per trade after costs)")
+        if s["closed"] < 30:
+            line += " - too few to judge yet (need 30+)"
+    held = format_open_line(df, scan_mode)
+    return f"{line}\n{held}" if held else line
 
 
 def open_positions(df: pd.DataFrame | None = None) -> pd.DataFrame:

@@ -251,9 +251,11 @@ def _no_pick_line(result) -> str:
 
 def format_scan_message(result, scan_mode: str, now: datetime | None = None, market_line: str = "",
                         tracked_block: str = "", scoreboard_line: str = "", notes: list[str] | None = None,
-                        earlier: list | None = None, building: list | None = None) -> str:
+                        earlier: list | None = None, building: list | None = None, list_load: float | None = None) -> str:
     """
     The whole message as a string of blocks separated by blank lines.
+    `list_load` = what the whole list (bought + waiting) would need as a fraction of the capital at the risk rule stated in the footer (capital_plan.
+    list_load): above 1.0 the footer says so in one sentence, because a reader who follows every card cannot hold them all (added 2026-11-05).
     `earlier` = earlier picks that are still strong (pipeline.earlier_picks): shown above the new picks, which then say NEW in their headings
     so the two cannot be mixed up (on a day with no new pick the block follows the "No new pick" line).
     `building` = strong stocks building up near a breakout (pipeline.building_up): a watch block after the picks, on the swing message only - the
@@ -329,8 +331,12 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
 
     marks_note = ("Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). "
                   if (picks or shown_earlier) else "")                          # explained only when a card carries them, like the 💪 tag
+    load_note = ""
+    if list_load is not None and math.isfinite(list_load) and list_load > 1.0:
+        load_note = (f"Your whole list now needs about {int(round(list_load * 100, -1))}% of your capital at that rule, so it cannot all be held - "
+                     f"choose which to hold (dashboard: Capital plan). ")
     footer = (f"ℹ️ <i>{marks_note}Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. "
-              f"Risk at most {config.RISK_PER_TRADE_PCT:g}% of your capital per trade, half in a weak market. "
+              f"Risk at most {config.RISK_PER_TRADE_PCT:g}% of your capital per trade, half in a weak market. {load_note}"
               f"A ranked shortlist, not a guarantee.</i>")
     if any(getattr(p, "strong_trend", False) for p in list(picks) + shown_earlier + shown_building):
         footer = f"<i>{_e(fp.strong_trend_legend())}</i>\n" + footer          # the tag is explained only when a card carries it
@@ -404,12 +410,12 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
 def notify_scan(result, scan_mode: str, bot_token: str, chat_id: str, now: datetime | None = None,
                 market_line: str = "", tracked_block: str = "", scoreboard_line: str = "",
                 notes: list[str] | None = None, save_to: str | None = None, earlier: list | None = None,
-                building: list | None = None) -> bool:
+                building: list | None = None, list_load: float | None = None) -> bool:
     """Build the scan message and send it. `save_to`: also keep the exact text that was sent (the run log is not always reachable)."""
     try:
         message = format_scan_message(result, scan_mode, now=now, market_line=market_line,
                                       tracked_block=tracked_block, scoreboard_line=scoreboard_line, notes=notes,
-                                      earlier=earlier, building=building)
+                                      earlier=earlier, building=building, list_load=list_load)
     except Exception:  # noqa: BLE001 - a formatting slip must never cost the whole message
         logger.exception("Could not format the scan message")
         message = _e(f"The {scan_mode.upper()} scan finished, but its message could not be formatted. "

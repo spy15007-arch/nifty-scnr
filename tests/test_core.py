@@ -614,6 +614,29 @@ class ResearchStudy(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 ssd.load(old)
 
+    def test_the_portfolio_study_runs_on_the_replay_output_and_refuses_an_old_file(self):
+        from backtest import portfolio_study as ps
+        with tempfile.TemporaryDirectory() as tmp:
+            csv, out, old = (os.path.join(tmp, n) for n in ("trades.csv", "portfolio.md", "old.csv"))
+            pd.DataFrame(self.trades).to_csv(csv, index=False)
+            frame = ps.load(csv)
+            self.assertTrue(ps.Book(frame).has_path)
+            text = "\n".join(ps.analyse(frame, seeds=3))
+            for head in ("== 1.", "== 2.", "== 3.", "== 4.", "== 5.", "If every signal were bought"):
+                self.assertIn(head, text)
+            self.assertNotIn("no weekly path column", text)
+            with mock.patch("builtins.print"):
+                self.assertEqual(ps.main([csv, "--write", out]), 0)
+            with open(out, encoding="utf-8") as fh:
+                self.assertIn("How to read it", fh.read())
+            # a file from before the weekly path column still works, and says its drawdowns leave out open losses
+            no_path = os.path.join(tmp, "no_path.csv")
+            pd.DataFrame([{k: v for k, v in t.items() if k != "path_R"} for t in self.trades]).to_csv(no_path, index=False)
+            self.assertIn("no weekly path column", "\n".join(ps.analyse(ps.load(no_path), seeds=2)))
+            pd.DataFrame([{k: v for k, v in t.items() if k != "risk_pct"} for t in self.trades]).to_csv(old, index=False)
+            with self.assertRaises(SystemExit):
+                ps.load(old)
+
     def test_the_pullback_table_compares_the_same_finished_signals(self):
         def row(a, b, c):
             """a, b, c = (status, net) for the buy-stop, pull-back 1 and pull-back 2."""
@@ -638,6 +661,470 @@ class ResearchStudy(unittest.TestCase):
         self.assertEqual((pb2[0], pb2[1], pb2[2], pb2[5]), ("2", "50%", "-5.00%", "-2.50%"))
         self.assertEqual(self.engine._pullback_table(df.iloc[2:]), [])                   # nothing finished in every style -> no table
         self.assertEqual(self.engine._pullback_table(pd.DataFrame()), [])
+
+
+class PortfolioStudy(unittest.TestCase):
+    """The account simulation of backtest/portfolio_study.py on tiny, hand-worked books. Every trade here risks a 5% stop distance, so with 1% of an
+    account of 100 at risk the money in a stock is 1 / 0.05 = 20, and a trade of +2R adds 2.0 to the account."""
+
+    @staticmethod
+    def book(rows, with_path=True):
+        from backtest import portfolio_study as ps
+        out = []
+        for r in rows:
+            row = {"symbol": r["symbol"], "signal_date": r["signal"], "fill_date": r.get("fill", ""), "exit_date": r.get("exit", ""),
+                   "status": "CLOSED" if r.get("exit") else "UNFILLED", "R": r.get("R", float("nan")), "net": r.get("R", 0.0) * 0.05,
+                   "risk_pct": r.get("rf", 0.05), "regime": r.get("regime", "healthy"), "setup": r.get("setup", "primed"),
+                   "quality_pct": r.get("q", 70.0), "sma200_chg": r.get("trend", 0.0), "path_R": r.get("path", "")}
+            out.append(row)
+        df = pd.DataFrame(out)
+        if not with_path:
+            df = df.drop(columns=["path_R"])
+        for c in ("signal_date", "fill_date", "exit_date"):
+            df[c] = pd.to_datetime(df[c], errors="coerce")                                      # a blank (never filled / not sold) becomes NaT
+        return ps.Book(df)
+
+    def jan5(self):
+        """Monday 5 Jan 2026: A (strong uptrend, quality 60) is bought on the 6th and sold on the 20th for +2R; B (quality 90) is bought on the 7th and
+        sold on the 12th for -1R; C (quality 95) never fills (its order lapses on the 12th). Then D on the 8th: bought on the 9th, sold on 10 Feb for +1R."""
+        return self.book([
+            {"symbol": "A", "signal": "2026-01-05", "fill": "2026-01-06", "exit": "2026-01-20", "R": 2.0, "q": 60.0, "trend": 0.06, "path": "0.5;1.0;1.5"},
+            {"symbol": "B", "signal": "2026-01-05", "fill": "2026-01-07", "exit": "2026-01-12", "R": -1.0, "q": 90.0, "path": "-0.4"},
+            {"symbol": "C", "signal": "2026-01-05", "q": 95.0},
+            {"symbol": "D", "signal": "2026-01-08", "fill": "2026-01-09", "exit": "2026-02-10", "R": 1.0, "q": 80.0, "path": "0.0;0.2;0.4;0.6;0.8;1.0"},
+        ])
+
+    def test_rooms_decide_which_signals_become_orders_and_the_order_of_preference_decides_who_gets_them(self):
+        from backtest import portfolio_study as ps
+        book = self.jan5()
+        self.assertEqual((book.n, int(book.closed.sum())), (4, 3))
+        # two rooms, scanner's order: the strong uptrend A first, then C (quality 95) before B (90); B finds no room -> A +2 on 100 at 1% = +2.0
+        r = ps.simulate(book, "shipped", max_stocks=2, risk=0.01)
+        self.assertEqual((r["placed"], r["closed"], r["unfilled"], r["full"], r["cash"]), (2, 1, 1, 2, 0))      # B on the 5th, and D on the 8th (A and C still hold both rooms)
+        self.assertAlmostEqual(r["realised"], 102.0)
+        # the same two rooms worked through by quality alone: C and B; B is sold at -1R for -1.0
+        q = ps.simulate(book, "quality", max_stocks=2, risk=0.01)
+        self.assertEqual((q["placed"], q["closed"]), (2, 1))
+        self.assertAlmostEqual(q["realised"], 99.0)
+        # three rooms take A, B and C; D (8th) finds them all taken (C's order lapses only on the 12th): 100 + 2 - 1 = 101
+        three = ps.simulate(book, "shipped", max_stocks=3, risk=0.01)
+        self.assertEqual((three["placed"], three["full"]), (3, 1))
+        self.assertAlmostEqual(three["realised"], 101.0)
+        # four rooms also take D, sized on the account of 100 it saw on the 8th: +1.0 more
+        four = ps.simulate(book, "shipped", max_stocks=4, risk=0.01)
+        self.assertEqual(four["placed"], 4)
+        self.assertAlmostEqual(four["realised"], 102.0)
+
+    def test_an_order_that_does_not_fit_the_money_is_skipped_even_when_a_room_is_free(self):
+        from backtest import portfolio_study as ps
+        book = self.book([
+            {"symbol": "X", "signal": "2026-02-02", "fill": "2026-02-03", "exit": "2026-02-10", "R": 1.0, "q": 90.0},
+            {"symbol": "Y", "signal": "2026-02-02", "fill": "2026-02-03", "exit": "2026-02-10", "R": 1.0, "q": 80.0},
+        ])
+        # 5% of the account at risk with a 5% stop distance = all of the account in one stock: the second cannot be paid for
+        r = ps.simulate(book, "shipped", max_stocks=5, risk=0.05)
+        self.assertEqual((r["placed"], r["cash"], r["full"]), (1, 1, 0))
+        self.assertAlmostEqual(r["realised"], 100.0 + 5.0 * 1.0)                              # 5 at risk x +1R
+        ok = ps.simulate(book, "shipped", max_stocks=5, risk=0.01)                           # 1%: 20 of 100 in each, both fit
+        self.assertEqual((ok["placed"], ok["cash"]), (2, 0))
+        self.assertAlmostEqual(ok["realised"], 102.0)
+
+    def test_a_weak_market_halves_the_size_and_money_comes_back_when_a_stock_is_sold(self):
+        from backtest import portfolio_study as ps
+        book = self.book([
+            {"symbol": "W", "signal": "2026-03-02", "fill": "2026-03-03", "exit": "2026-03-06", "R": 2.0, "regime": "weak"},
+            {"symbol": "H", "signal": "2026-03-09", "fill": "2026-03-10", "exit": "2026-03-13", "R": 2.0, "regime": "healthy"},
+        ])
+        r = ps.simulate(book, "shipped", max_stocks=1, risk=0.01)
+        # W: half size = 0.5 at risk -> +1.0 (equity 101); H sized on 101: 1.01 at risk -> +2.02
+        self.assertEqual((r["placed"], r["full"]), (2, 0))
+        self.assertAlmostEqual(r["realised"], 101.0 + 2.02)
+        full = ps.simulate(book, "shipped", max_stocks=1, risk=0.01, weak_half=False)
+        self.assertAlmostEqual(full["realised"], 102.0 + 2.0 * 1.02)
+
+    def test_the_account_is_marked_to_market_every_friday_from_the_weekly_marks(self):
+        from backtest import portfolio_study as ps
+        book = self.book([{"symbol": "A", "signal": "2026-01-05", "fill": "2026-01-06", "exit": "2026-01-20", "R": 2.0, "path": "0.5;1.0;1.5"}])
+        r = ps.simulate(book, "shipped", max_stocks=1, risk=0.01)
+        eq = r["equity"]
+        at = lambda d: float(eq[pd.Timestamp(d)])                                              # noqa: E731
+        self.assertAlmostEqual(at("2026-01-05"), 100.0)                                        # the start
+        self.assertAlmostEqual(at("2026-01-09"), 100.5)                                        # Friday, 3 sessions after the fill: the first mark, +0.5R of 1.0 at risk
+        self.assertAlmostEqual(at("2026-01-16"), 101.0)                                        # 8 sessions after the fill: the second mark, +1.0R
+        self.assertAlmostEqual(at("2026-01-20"), 102.0)                                        # sold: the trade's own +2R
+        self.assertAlmostEqual(r["held"], 2 / 3)                                               # held on two of the three marked dates after the start (not the first)
+        # the same account without the marks is only marked at the sale
+        flat = ps.simulate(self.book([{"symbol": "A", "signal": "2026-01-05", "fill": "2026-01-06", "exit": "2026-01-20", "R": 2.0}], with_path=False),
+                           "shipped", max_stocks=1, risk=0.01)["equity"]
+        self.assertAlmostEqual(float(flat[pd.Timestamp("2026-01-09")]), 100.0)
+        self.assertAlmostEqual(float(flat[pd.Timestamp("2026-01-20")]), 102.0)
+
+    def test_the_curve_metrics_on_a_steady_climb_and_on_a_dip(self):
+        from backtest import portfolio_study as ps
+        idx = pd.date_range("2024-01-05", periods=120, freq="W-FRI")
+        steady = pd.Series(100.0 * 1.005 ** np.arange(120), index=idx)
+        m = ps.metrics(steady)
+        self.assertAlmostEqual(m["max_dd"], 0.0)
+        self.assertAlmostEqual(m["w12_worst"], 1.005 ** 52 - 1, places=6)
+        self.assertEqual((m["w12_neg"], m["longest_under_weeks"]), (0.0, 0))
+        self.assertAlmostEqual(m["cagr"], (1.005 ** 119) ** (365.25 / (119 * 7)) - 1, places=3)
+        dip = steady.copy()
+        dip.iloc[60:70] = dip.iloc[59] * 0.80                                                  # a 20% drop that lasts ten weeks, then the climb resumes
+        d = ps.metrics(dip)
+        self.assertAlmostEqual(d["max_dd"], -0.20, places=6)
+        self.assertGreaterEqual(d["longest_under_weeks"], 10)
+        self.assertGreater(d["w12_neg"], 0.0)
+        years = ps.by_year(pd.Series([100.0, 110.0, 99.0, 120.0], index=pd.to_datetime(["2025-06-06", "2025-12-26", "2026-03-06", "2026-12-25"])))
+        self.assertEqual(sorted(years), [2025, 2026])
+        self.assertAlmostEqual(years[2025], 0.10)                                              # the first year counts from its first mark
+        self.assertAlmostEqual(years[2026], 120.0 / 110.0 - 1.0)                               # later years from the last mark of the year before
+
+    def test_if_every_signal_were_bought_the_stocks_open_at_once_and_the_money_they_need(self):
+        from backtest import portfolio_study as ps
+        book = self.book([
+            {"symbol": "X", "signal": "2026-01-05", "fill": "2026-01-06", "exit": "2026-01-08", "R": 1.0},
+            {"symbol": "Y", "signal": "2026-01-06", "fill": "2026-01-07", "exit": "2026-01-09", "R": 1.0},
+        ])
+        c = ps.concurrency(book)
+        # open on the 6th: X; on the 7th and 8th: X and Y; on the 9th: Y   -> 1, 2, 2, 1; each is 1% / 5% = 20% of the capital
+        self.assertAlmostEqual(c["avg"], 1.5)
+        self.assertEqual(c["peak"], 2)
+        self.assertAlmostEqual(c["money_avg"], 0.30, places=6)
+
+
+class CapitalPlan(unittest.TestCase):
+    """capital_plan.py (the dashboard's calculator of how much of the list one account can hold) on a hand-worked list. Capital 1,000,000 and risk 1% =
+    10,000 at risk in a full-size trade; shares = money at risk / (buy price - first stop)."""
+
+    @staticmethod
+    def ledger(extra=()):
+        base = {c: "" for c in outcomes.COLUMNS}
+        rows = [
+            # bought at 100; first stop 2.5 x 2% = 5% below it: 10,000 / 5 = 2,000 shares = 200,000 (20% of the capital)
+            {**base, "trade_id": "S1", "symbol": "S1", "scan_mode": "swing", "status": "OPEN", "setup": "primed", "regime": "healthy", "fill_px": 100.0,
+             "atr_pct": 0.02, "stop_mult": 2.5, "strong_trend": 1, "quality_pct": 70},
+            # waiting at 200; stop 2.5 x 4% = 10% below it: 10,000 / 20 = 500 shares = 100,000 (10%)
+            {**base, "trade_id": "S2", "symbol": "S2", "scan_mode": "swing", "status": "PENDING", "setup": "fresh", "regime": "healthy", "trigger": 200.0,
+             "atr_pct": 0.04, "stop_mult": 2.5, "strong_trend": 0, "quality_pct": 90},
+            # a BTST pick made in a weak market: half the risk, 5,000 / 2.5 = 2,000 shares at 50 = 100,000 (10%); no 200-day-trend mark (logged before 31 Oct)
+            {**base, "trade_id": "S3", "symbol": "S3", "scan_mode": "btst", "status": "PENDING", "setup": "primed", "regime": "weak", "trigger": 50.0,
+             "atr_pct": 0.02, "stop_mult": 2.5, "quality_pct": 80},
+            # sold: not part of the list
+            {**base, "trade_id": "S4", "symbol": "S4", "scan_mode": "swing", "status": "CLOSED", "setup": "primed", "regime": "healthy", "fill_px": 10.0,
+             "atr_pct": 0.02, "stop_mult": 2.5},
+        ] + list(extra)
+        return pd.DataFrame(rows, columns=outcomes.COLUMNS)
+
+    def row(self, symbol, status="OPEN", price=100.0, atr=0.02, setup="primed", q=70, strong=0, regime="healthy"):
+        base = {c: "" for c in outcomes.COLUMNS}
+        return {**base, "trade_id": symbol, "symbol": symbol, "scan_mode": "swing", "status": status, "setup": setup, "regime": regime,
+                "fill_px" if status == "OPEN" else "trigger": price, "atr_pct": atr, "stop_mult": 2.5, "strong_trend": strong, "quality_pct": q}
+
+    def test_each_stock_is_sized_by_the_messages_own_rule_and_listed_in_the_scanners_order(self):
+        import capital_plan as cp
+        s = cp.sized_list(self.ledger(), 1_000_000, 1.0)
+        self.assertEqual(list(s["symbol"]), ["S1", "S2", "S3"])                                   # strong uptrend, then fresh, then the primed one
+        self.assertEqual([int(x) for x in s["shares"]], [2000, 500, 2000])
+        np.testing.assert_allclose(s["money"], [200_000, 100_000, 100_000])
+        np.testing.assert_allclose(s["share_of_capital"], [0.20, 0.10, 0.10])
+        np.testing.assert_allclose(s["stop"], [95.0, 180.0, 47.5])
+        np.testing.assert_allclose(s["risk_share"], [0.01, 0.01, 0.005])                          # S3: weak market on the pick day -> half
+        self.assertEqual(list(s["status"]), ["OPEN", "PENDING", "PENDING"])
+        self.assertEqual(cp.listed(self.ledger()), 3)                                             # the sold trade is not part of the list
+        # the order: 💪 first, then fresh before primed, then quality, then the name
+        order = cp.sized_list(pd.DataFrame([self.row("A", q=99), self.row("B", setup="fresh", q=50), self.row("C", q=60, strong=1),
+                                            self.row("D", setup="fresh", q=50)], columns=outcomes.COLUMNS), 1_000_000, 1.0)
+        self.assertEqual(list(order["symbol"]), ["C", "B", "D", "A"])
+
+    def test_rooms_and_money_decide_which_stocks_to_take(self):
+        import capital_plan as cp
+        rows, tot = cp.plan(self.ledger(), 1_000_000, 1.0, 5)
+        self.assertEqual(list(rows["verdict"]), [cp.TAKE, cp.TAKE, cp.TAKE])
+        np.testing.assert_allclose(rows["running"], [0.2, 0.3, 0.4])
+        self.assertAlmostEqual(tot["all_money"], 0.40)
+        self.assertAlmostEqual(tot["all_risk"], 0.025)                                            # 1% + 1% + half of 1%
+        self.assertEqual((tot["n"], tot["take"], tot["rooms"], tot["left_out"]), (3, 3, 3, 0))
+        # two rooms: the third stock finds none, however small it is
+        rows, tot = cp.plan(self.ledger(), 1_000_000, 1.0, 2)
+        self.assertEqual(list(rows["verdict"]), [cp.TAKE, cp.TAKE, cp.NO_ROOM])
+        self.assertEqual((tot["take"], tot["rooms"]), (2, 2))
+        self.assertAlmostEqual(tot["money"], 0.30)
+        self.assertEqual(cp.NO_ROOM, "Skip - every room is taken")
+        # at 3% risk the three need 60% + 30% + 30%: the third no longer fits in the money although a room is free
+        rows, tot = cp.plan(self.ledger(), 1_000_000, 3.0, 5)
+        self.assertEqual(list(rows["verdict"]), [cp.TAKE, cp.TAKE, cp.NO_MONEY])
+        self.assertAlmostEqual(tot["money"], 0.90)
+        self.assertAlmostEqual(tot["all_money"], 1.20)                                            # the whole list would need more than the whole account
+        self.assertEqual(cp.NO_MONEY, "Skip - the money does not fit")
+
+    def test_stocks_you_hold_come_first_and_use_up_rooms_and_money(self):
+        import capital_plan as cp
+        rows, tot = cp.plan(self.ledger(), 1_000_000, 1.0, 2, held={"S3"})
+        self.assertEqual(list(rows["symbol"]), ["S3", "S1", "S2"])                                # held first, the rest in the usual order
+        self.assertEqual(list(rows["verdict"]), [cp.HELD, cp.TAKE, cp.NO_ROOM])
+        np.testing.assert_allclose(rows["running"], [0.1, 0.3, 0.3])
+        self.assertEqual((tot["take"], tot["rooms"]), (1, 2))
+        self.assertAlmostEqual(tot["held_money"], 0.10)
+        # holding more than the money allows is reported as the money held, for the page to warn about
+        _, tot = cp.plan(self.ledger(), 1_000_000, 3.0, 5, held={"S1", "S2", "S3"})
+        self.assertAlmostEqual(tot["held_money"], 1.20)
+        # a name that is not on the list changes nothing
+        rows, tot = cp.plan(self.ledger(), 1_000_000, 1.0, 5, held={"NOT_THERE"})
+        self.assertEqual(list(rows["verdict"]), [cp.TAKE] * 3)
+        self.assertEqual(tot["held_money"], 0.0)
+
+    def test_nothing_is_ever_bought_with_money_the_account_does_not_have(self):
+        import capital_plan as cp
+        # a stop only 0.25% below the price would need 40,000 shares (4,000,000) for 10,000 at risk: the account can pay for 10,000 shares at most
+        tight = cp.sized_list(pd.DataFrame([self.row("TIGHT", atr=0.001)], columns=outcomes.COLUMNS), 1_000_000, 1.0)
+        self.assertEqual(int(tight["shares"].iloc[0]), 10_000)
+        self.assertAlmostEqual(float(tight["share_of_capital"].iloc[0]), 1.0)
+
+    def test_a_stock_that_cannot_be_sized_is_left_out_and_counted(self):
+        import capital_plan as cp
+        extra = [self.row("NOATR", atr=float("nan")),                                           # no average daily range recorded
+                 self.row("HUGE", status="PENDING", price=1_000_000.0)]                          # one share risks 50,000: more than the 10,000 accepted
+        ledger = self.ledger(extra)
+        rows, tot = cp.plan(ledger, 1_000_000, 1.0, 10)
+        self.assertEqual(list(rows["symbol"]), ["S1", "S2", "S3"])
+        self.assertEqual((tot["n"], tot["left_out"], cp.listed(ledger)), (3, 2, 5))
+
+    def test_the_load_of_the_whole_list_is_the_sum_of_the_stock_sizes(self):
+        import capital_plan as cp
+        self.assertAlmostEqual(cp.list_load(self.ledger(), 1.0), 0.40, places=6)               # 20% + 10% + 10%
+        self.assertAlmostEqual(cp.list_load(self.ledger(), 3.0), 1.20, places=6)
+        self.assertEqual(cp.list_load(None, 1.0), 0.0)
+        self.assertEqual(cp.list_load(self.ledger().iloc[3:], 1.0), 0.0)                       # only a sold trade
+        _, tot = cp.plan(self.ledger(), 1_000_000, 1.0, 10)
+        self.assertAlmostEqual(cp.list_load(self.ledger(), 1.0), tot["all_money"], places=6)  # the page and the message give the same number
+
+    def test_an_empty_list_gives_an_empty_plan(self):
+        import capital_plan as cp
+        sold_only = self.ledger().iloc[3:]
+        for ledger in (None, pd.DataFrame(columns=outcomes.COLUMNS), sold_only, pd.DataFrame({"x": [1]})):
+            rows, tot = cp.plan(ledger, 1_000_000, 1.0, 10)
+            self.assertTrue(rows.empty)
+            self.assertEqual((tot["n"], tot["take"], tot["money"], tot["left_out"]), (0, 0, 0.0, 0))
+        rows, tot = cp.plan(self.ledger(), 0, 1.0, 10)                                            # no capital: nothing can be sized
+        self.assertTrue(rows.empty)
+        self.assertEqual(tot["left_out"], 3)
+
+
+class SnapshotLog(unittest.TestCase):
+    """data/snapshots.py: the research log of what the afternoon BTST scan saw and how those days ended. Nothing reads it back into a scan."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.path = os.path.join(self.tmp, "snap.csv.gz")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    @staticmethod
+    def bars(days, closes, vols=None):
+        """Daily bars on the given dates: open = close - 1, high = close + 1, low = close - 2."""
+        idx = pd.DatetimeIndex(pd.to_datetime(days)).tz_localize("Asia/Kolkata")
+        c = np.array(closes, float)
+        v = np.array(vols if vols is not None else [1000.0] * len(days), float)
+        return pd.DataFrame({"open": c - 1, "high": c + 1, "low": c - 2, "close": c, "volume": v}, index=idx)
+
+    def test_one_row_per_stock_whose_newest_bar_is_todays_forming_bar(self):
+        from data import snapshots as sn
+        bars = {
+            "AAA": self.bars(["2026-10-13", "2026-10-14"], [100.0, 103.0], [5000, 700]),            # today's bar = the quote the scan saw
+            "BBB": self.bars(["2026-10-12", "2026-10-13"], [50.0, 51.0]),                           # newest bar is yesterday's: no quote came -> no snapshot
+            "CCC": self.bars(["2026-10-14"], [20.0]),                                               # no previous close to compare with
+            "DDD": self.bars(["2026-10-13", "2026-10-14"], [10.0, float("nan")]),                   # an unusable quote
+        }
+        picks = [types.SimpleNamespace(symbol="AAA", setup="fresh")]
+        self.assertEqual(sn.record(bars, at(2026, 10, 14, 14, 46), 0.7651, picks, via="quotes", path=self.path), 1)
+        df = sn.load(self.path)
+        self.assertEqual(list(df["symbol"]), ["AAA"])
+        row = df.iloc[0]
+        self.assertEqual((row["date"], row["time_ist"], row["via"], row["setup"], int(row["pick"])), ("2026-10-14", "14:46", "quotes", "fresh", 1))
+        self.assertEqual((row["open"], row["high"], row["low"], row["last"], row["volume"], row["prev_close"]), (102.0, 104.0, 101.0, 103.0, 700, 100.0))
+        self.assertAlmostEqual(row["assumed_frac"], 0.7651)
+        self.assertTrue(np.isnan(row["final_close"]) and np.isnan(row["next_close"]) and row["next_date"] == "")       # the day has not ended
+        self.assertEqual(list(df.columns), list(sn.COLUMNS))
+        self.assertEqual(sn.record({}, at(2026, 10, 14, 14, 46), 0.76, path=os.path.join(self.tmp, "none.csv.gz")), 0)
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "none.csv.gz")))                                      # nothing to write: no empty file
+
+    def test_a_stock_that_is_not_a_pick_is_logged_too_and_says_so(self):
+        from data import snapshots as sn
+        bars = {s: self.bars(["2026-10-13", "2026-10-14"], [100.0, 101.0]) for s in ("AAA", "BBB")}
+        sn.record(bars, at(2026, 10, 14, 14, 46), 0.76, [types.SimpleNamespace(symbol="BBB", setup="primed")], path=self.path)
+        df = sn.load(self.path).set_index("symbol")
+        self.assertEqual((int(df.loc["AAA", "pick"]), df.loc["AAA", "setup"], int(df.loc["BBB", "pick"]), df.loc["BBB", "setup"]), (0, "", 1, "primed"))
+
+    def test_another_minute_adds_rows_the_same_minute_replaces_them_and_old_days_roll_off(self):
+        from data import snapshots as sn
+
+        def run(day, close, hh, mm):
+            sn.record({"AAA": self.bars([f"2026-10-{day - 1:02d}", f"2026-10-{day:02d}"], [100.0, close])}, at(2026, 10, day, hh, mm), 0.76, path=self.path)
+
+        run(14, 103.0, 14, 46)
+        run(14, 104.0, 14, 46)                                                                     # the same minute again: replaced
+        self.assertEqual(list(sn.load(self.path)["last"]), [104.0])
+        run(14, 105.0, 15, 2)                                                                      # another minute: added
+        self.assertEqual(list(sn.load(self.path)["time_ist"]), ["14:46", "15:02"])
+        with mock.patch.object(sn, "KEEP_SESSIONS", 2):
+            for day in (15, 16, 19):
+                run(day, 101.0, 14, 46)
+        self.assertEqual(sorted(set(sn.load(self.path)["date"])), ["2026-10-16", "2026-10-19"])    # only the newest two sessions are kept
+
+    def test_the_evening_run_fills_in_how_the_day_ended_and_the_next_evening_the_next_session(self):
+        from data import snapshots as sn
+        live = {"AAA": self.bars(["2026-10-13", "2026-10-14"], [100.0, 103.0], [5000, 700]),
+                "BBB": self.bars(["2026-10-13", "2026-10-14"], [50.0, 49.0], [900, 90])}
+        sn.record(live, at(2026, 10, 14, 14, 46), 0.75, path=self.path)
+        # that evening: the finished bar of the 14th for AAA only (BBB was not loaded)
+        evening = {"AAA": self.bars(["2026-10-13", "2026-10-14"], [100.0, 104.0], [5000, 1000])}
+        self.assertEqual(sn.complete(evening, date(2026, 10, 14), path=self.path), 1)
+        df = sn.load(self.path).set_index("symbol")
+        self.assertEqual([df.loc["AAA", c] for c in sn.FINAL], [103.0, 105.0, 102.0, 104.0, 1000.0])
+        self.assertTrue(np.isnan(df.loc["AAA", "next_close"]) and np.isnan(df.loc["BBB", "final_close"]))
+        self.assertEqual(df.loc["AAA", "last"], 103.0)                                              # what the scan saw is never touched
+        self.assertEqual(sn.complete(evening, date(2026, 10, 14), path=self.path), 0)               # nothing new to add
+        # the next evening: the 15th completes AAA's next session; BBB is loaded now and gets both
+        later = {"AAA": self.bars(["2026-10-14", "2026-10-15"], [999.0, 106.0], [1, 1200]),          # a different 14th: the filled values are not overwritten
+                 "BBB": self.bars(["2026-10-13", "2026-10-14", "2026-10-15"], [50.0, 48.0, 47.0], [900, 400, 300])}
+        self.assertEqual(sn.complete(later, date(2026, 10, 15), path=self.path), 2)
+        df = sn.load(self.path).set_index("symbol")
+        self.assertEqual((df.loc["AAA", "final_close"], df.loc["AAA", "final_volume"]), (104.0, 1000.0))
+        self.assertEqual((df.loc["AAA", "next_date"], df.loc["AAA", "next_open"], df.loc["AAA", "next_high"], df.loc["AAA", "next_low"],
+                          df.loc["AAA", "next_close"]), ("2026-10-15", 105.0, 107.0, 104.0, 106.0))
+        self.assertEqual((df.loc["BBB", "final_close"], df.loc["BBB", "final_volume"], df.loc["BBB", "next_date"], df.loc["BBB", "next_close"]),
+                         (48.0, 400.0, "2026-10-15", 47.0))
+
+    def test_a_day_after_the_newest_completed_session_is_never_filled(self):
+        from data import snapshots as sn
+        sn.record({"AAA": self.bars(["2026-10-13", "2026-10-14"], [100.0, 103.0])}, at(2026, 10, 14, 14, 46), 0.75, path=self.path)
+        bars = {"AAA": self.bars(["2026-10-13", "2026-10-14", "2026-10-15"], [100.0, 104.0, 106.0])}
+        self.assertEqual(sn.complete(bars, date(2026, 10, 13), path=self.path), 0)                  # the 14th is not complete in a run whose newest session is the 13th
+        self.assertEqual(sn.complete(bars, date(2026, 10, 14), path=self.path), 1)                  # the 14th is: its close is filled, the 15th (a bar that may be forming) is not
+        df = sn.load(self.path)
+        self.assertEqual(df.loc[0, "final_close"], 104.0)
+        self.assertTrue(np.isnan(df.loc[0, "next_close"]))
+
+    def test_a_missing_or_unreadable_file_is_an_empty_log_and_costs_nothing(self):
+        from data import snapshots as sn
+        self.assertTrue(sn.load(self.path).empty)
+        self.assertEqual(sn.complete({"AAA": self.bars(["2026-10-14"], [100.0])}, date(2026, 10, 14), path=self.path), 0)
+        with open(self.path, "wb") as fh:
+            fh.write(b"this is not a gzip file")
+        self.assertTrue(sn.load(self.path).empty)
+        self.assertEqual(sn.complete({}, date(2026, 10, 14), path=self.path), 0)
+        sn.record({"AAA": self.bars(["2026-10-13", "2026-10-14"], [100.0, 103.0])}, at(2026, 10, 14, 14, 46), 0.75, path=self.path)   # and it is written afresh
+        self.assertEqual(list(sn.load(self.path)["symbol"]), ["AAA"])
+
+
+class SnapshotStudy(unittest.TestCase):
+    """backtest/snapshot_study.py on hand-worked logs."""
+
+    @staticmethod
+    def log(rows):
+        from data import snapshots as sn
+        base = {"date": "2026-10-14", "time_ist": "14:45", "symbol": "S", "open": 99.0, "high": 102.0, "low": 98.0, "last": 100.0, "volume": 700.0,
+                "prev_close": 99.0, "assumed_frac": 0.75, "pick": 0, "setup": "", "via": "quotes", "final_open": np.nan, "final_high": np.nan,
+                "final_low": np.nan, "final_close": np.nan, "final_volume": np.nan, "next_date": "", "next_open": np.nan, "next_high": np.nan,
+                "next_low": np.nan, "next_close": np.nan}
+        df = pd.DataFrame([{**base, **r} for r in rows])
+        assert list(df.columns) == list(sn.COLUMNS)
+        return df
+
+    def volumes(self, assumed, shares=(0.60, 0.70, 0.80, 0.90), days=("2026-10-14", "2026-10-15", "2026-10-16")):
+        """Four stocks on each of three days; the day's final volume is 1000 for every stock and the volume so far is share x 1000."""
+        return self.log([{"date": d, "symbol": f"S{i}", "volume": 1000.0 * s, "final_volume": 1000.0, "assumed_frac": assumed}
+                         for d in days for i, s in enumerate(shares)])
+
+    def test_a_projection_that_is_right_is_called_right(self):
+        from backtest import snapshot_study as ss
+        text = "\n".join(ss.volume_section(self.volumes(0.75), min_rows=4, min_days=2))
+        line = next(ln for ln in text.splitlines() if ln.startswith("14:45"))
+        self.assertIn("   3      12", line)                                                           # three days, twelve stocks
+        self.assertIn("75%", line)                                                                    # assumed 75% and the median real share 75%
+        self.assertIn("1.00", line)                                                                   # projected / actual: median of 0.80, 0.93, 1.07, 1.20 over the days
+        self.assertIn("within 10%", text)
+        self.assertNotIn("PROJECTS", text.upper().replace("UNDER-PROJECTS", "").replace("OVER-PROJECTS", ""))
+
+    def test_a_projection_that_is_off_says_which_way_and_by_how_much(self):
+        from backtest import snapshot_study as ss
+        under = "\n".join(ss.volume_section(self.volumes(0.85), min_rows=4, min_days=2))             # assumes 85%, the median stock had 75%: projected / actual 0.88
+        self.assertIn("UNDER-projects", under)
+        self.assertIn("0.88", under)
+        self.assertIn("assumes 85%", under)
+        self.assertIn("the median stock had 75%", under)
+        over = "\n".join(ss.volume_section(self.volumes(0.65), min_rows=4, min_days=2))              # assumes 65%: projected / actual 1.15
+        self.assertIn("OVER-projects", over)
+        self.assertIn("1.15", over)
+
+    def test_few_days_or_few_stocks_are_never_judged(self):
+        from backtest import snapshot_study as ss
+        text = "\n".join(ss.volume_section(self.volumes(0.85, days=("2026-10-14", "2026-10-15")), min_rows=4, min_days=5))
+        self.assertIn("too few to judge the profile", text)
+        self.assertNotIn("UNDER-projects", text)
+        text = "\n".join(ss.volume_section(self.volumes(0.85), min_rows=40, min_days=2))
+        self.assertIn("too few to judge the profile", text)
+
+    def test_volume_that_exceeds_the_final_volume_is_flagged_as_a_data_problem(self):
+        from backtest import snapshot_study as ss
+        text = "\n".join(ss.volume_section(self.volumes(0.75, shares=(1.3, 1.4, 1.5, 0.7)), min_rows=4, min_days=2))
+        self.assertIn("CHECK THE DATA", text)
+        self.assertIn("75%", text)                                                                    # 3 of the 4 stocks (75%) have more volume at the scan than at the end of the day
+
+    def test_nothing_finished_yet_says_so_in_each_section(self):
+        from backtest import snapshot_study as ss
+        df = self.log([{"symbol": "A"}, {"symbol": "B"}])
+        self.assertIn("No finished day yet", "\n".join(ss.volume_section(df)))
+        self.assertIn("No finished day yet", "\n".join(ss.move_section(df)))
+        self.assertIn("empty", ss.analyse(pd.DataFrame())[0])
+
+    def test_the_moves_from_the_snapshot_price_and_the_costs(self):
+        from backtest import snapshot_study as ss
+        picks = [{"symbol": f"P{i}", "pick": 1, "last": 100.0, "final_close": 101.0, "next_open": 102.35, "next_close": 99.0, "next_date": "2026-10-15"} for i in range(4)]
+        rest = [{"symbol": f"R{i}", "pick": 0, "last": 100.0, "final_close": 99.0, "next_open": 100.0, "next_close": 101.0, "next_date": "2026-10-15"} for i in range(4)]
+        df = self.log(picks + rest)
+        moves, dropped = ss._moves(df)
+        self.assertEqual(dropped, 0)
+        np.testing.assert_allclose(moves["to_close"][:4], 0.01)
+        np.testing.assert_allclose(moves["to_next_open"][:4], 0.0235)
+        np.testing.assert_allclose(moves["to_next_close"][4:], 0.01)
+        lines = ss.move_section(df, min_rows=4, min_days=5)
+        row = next(ln for ln in lines if ln.startswith("the picks") and "next open" in ln)
+        self.assertIn("+2.0%", row)                                                                   # +2.35% before costs, +2.00% after the 0.35%
+        self.assertIn("100%", row)                                                                    # every pick was up
+        row = next(ln for ln in lines if ln.startswith("the rest of the watchlist") and "the close" in ln)
+        self.assertIn("-1.0%", row)
+        self.assertTrue(next(ln for ln in lines if "the close" in ln and ln.startswith("the picks")).rstrip().endswith("-"))      # the close has no cost column
+        self.assertTrue(any("Only 1 day(s) have a next session" in ln for ln in lines))
+        # a group under min_rows is not summarised
+        few = ss.move_section(self.log(picks[:2] + rest), min_rows=4)
+        self.assertTrue(any(ln.startswith("the picks") and "too few" in ln for ln in few))
+
+    def test_a_move_no_real_stock_makes_is_dropped_and_counted(self):
+        from backtest import snapshot_study as ss
+        rows = [{"symbol": f"S{i}", "last": 100.0, "final_close": 101.0, "next_open": 100.0, "next_close": 101.0, "next_date": "2026-10-15"} for i in range(4)]
+        rows.append({"symbol": "SPLIT", "last": 1000.0, "final_close": 1005.0, "next_open": 500.0, "next_close": 505.0, "next_date": "2026-10-15"})     # a 1:2 split overnight
+        moves, dropped = ss._moves(self.log(rows))
+        self.assertEqual(dropped, 2)                                                                  # the -50% open and the -49.5% close
+        self.assertTrue(np.isnan(moves["to_next_open"].iloc[-1]))
+        self.assertAlmostEqual(float(moves["to_close"].iloc[-1]), 0.005)                              # its same-day move is fine and stays
+        self.assertTrue(any("dropped as a split" in ln for ln in ss.move_section(self.log(rows), min_rows=4)))
+
+    def test_the_script_runs_and_writes_its_report(self):
+        from backtest import snapshot_study as ss
+        from data import snapshots as sn
+        with tempfile.TemporaryDirectory() as tmp:
+            path, out = os.path.join(tmp, "snap.csv.gz"), os.path.join(tmp, "study.md")
+            sn._save(self.volumes(0.75), path)
+            with mock.patch("sys.stdout", new=types.SimpleNamespace(write=lambda s: len(s), flush=lambda: None)):
+                self.assertEqual(ss.main([path, "--write", out]), 0)
+            text = open(out, encoding="utf-8").read()
+            self.assertIn("# BTST snapshot study", text)
+            self.assertIn("== 1. How much of the day's volume had traded", text)
+            self.assertIn("== 3. Read this before relying on any of it ==", text)
+            with mock.patch("sys.stdout", new=types.SimpleNamespace(write=lambda s: len(s), flush=lambda: None)):
+                self.assertEqual(ss.main([os.path.join(tmp, "missing.csv.gz")]), 0)                  # no log yet: a plain message, not a crash
 
 
 class Session(unittest.TestCase):
@@ -1971,6 +2458,26 @@ class Messages(unittest.TestCase):
         self.assertIn("Breadth 18%", msg)
         self.assertIn("half in a weak market", msg)                                  # the footer says it as a rule
 
+    def test_the_footer_says_when_the_whole_list_needs_more_than_the_capital(self):
+        # added 2026-11-05: 24 bought + 18 waiting stocks need about 300% of one account at the 1% rule the footer states, and nothing said so
+        res, now = self._swing(), at(2026, 10, 13, 17, 0)
+        note = "Your whole list now needs about"
+        for quiet in (None, 0.0, 0.8, 1.0, float("nan"), float("inf")):
+            self.assertNotIn(note, notify.format_scan_message(res, "swing", now=now, list_load=quiet), quiet)
+        msg = notify.format_scan_message(res, "swing", now=now, list_load=3.04)
+        self.assertIn("Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 300% of your capital at that rule, "
+                      "so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>", msg)
+        self.assertEqual(msg.count(note), 1)
+        self.assertIn("about 170% of your capital", notify.format_scan_message(res, "swing", now=now, list_load=1.66))     # rounded to the nearest 10
+        low = msg.lower()
+        for bad in ("share", "lakh", "crore", "₹", "position cap", "reference level", "risks ≈", "capital of"):             # still no money amounts
+            self.assertNotIn(bad, low, bad)
+        chk = self._Check()
+        chk.feed(msg)
+        self.assertEqual((chk.err, chk.stack), ([], []))
+        self.assertLess(len(msg) - len(notify.format_scan_message(res, "swing", now=now)), 160)      # one short sentence, nothing more
+        self.assertIn(note, notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 45), list_load=2.0))   # the afternoon message too
+
     def test_tracked_block_lists_stops_only_in_the_evening_message(self):
         events = [{"kind": "trail_raised", "symbol": "AAA", "old": 100.0, "new": 105.0},
                   {"kind": "filled", "symbol": "BBB", "price": 50.0},
@@ -2059,6 +2566,37 @@ class Messages(unittest.TestCase):
         line = outcomes.format_scoreboard_line(two)
         self.assertEqual(line, "Record since 21 Oct: 2 sold, 50% won, average +0.50R (+2.5% per trade after costs) - too few to judge yet (need 30+)")
 
+    def test_the_record_also_says_how_the_trades_still_held_stand_and_that_it_is_not_final(self):
+        """Two lines: the record of SOLD trades, then 'Open now' for the ones still held (marked at the last close, after costs). The second line is
+        left out when nothing held has a price yet, so the sold-trade line is exactly what it was."""
+        def frame(rows):
+            return pd.DataFrame([{"status": s, "net": n, "R": r, "signal_date": "2026-10-21", "scan_mode": m, "setup": "primed", "exit_n": -1, "fill_n": 1}
+                                 for s, n, r, m in rows])
+        held = frame([("OPEN", 0.10, 2.0, "btst"), ("OPEN", 0.02, 0.4, "swing"), ("OPEN", -0.03, -0.6, "btst"), ("OPEN", -0.01, -0.2, "swing"),
+                      ("PENDING", np.nan, np.nan, "swing")])
+        self.assertEqual(outcomes.format_scoreboard_line(held),
+                         "Record since 21 Oct: no trade sold yet\nOpen now: 2 of 4 up, average +2.0% after costs (not final)")
+        o = outcomes.open_now(held)
+        self.assertEqual((o["n"], o["up"]), (4, 2))
+        self.assertAlmostEqual(o["avg_net"], 0.02)
+        self.assertAlmostEqual(o["median_net"], 0.005)
+        self.assertAlmostEqual(o["avg_R"], 0.4)
+        only_btst = outcomes.open_now(held, scan_mode="btst")                                    # the BTST ones alone: +10% and -3%
+        self.assertEqual((only_btst["n"], only_btst["up"]), (2, 1))
+        self.assertAlmostEqual(only_btst["avg_net"], 0.035)
+        # with sold trades as well, both lines; a trade that is exactly flat after costs is not "up"
+        both = pd.concat([frame([("CLOSED", 0.10, 2.0, "swing"), ("CLOSED", -0.05, -1.0, "swing"), ("OPEN", 0.0, 0.0, "swing")])], ignore_index=True)
+        text = outcomes.format_scoreboard_line(both)
+        self.assertEqual(text.splitlines()[0], "Record since 21 Oct: 2 sold, 50% won, average +0.50R (+2.5% per trade after costs) - too few to judge yet (need 30+)")
+        self.assertEqual(text.splitlines()[1], "Open now: 0 of 1 up, average +0.0% after costs (not final)")
+        # nothing held has a price: no second line
+        self.assertEqual(outcomes.format_open_line(frame([("PENDING", np.nan, np.nan, "swing")])), "")
+        self.assertEqual(outcomes.open_now(pd.DataFrame(columns=["status", "net", "R", "scan_mode"])), {"n": 0})
+        # and the footer of the Telegram message carries both lines inside the italic record
+        res = pl.select_picks("swing", make_market(), now=at(2026, 10, 13, 17, 0))
+        msg = notify.format_scan_message(res, "swing", now=at(2026, 10, 13, 17, 0), scoreboard_line=outcomes.format_scoreboard_line(held))
+        self.assertIn("🧾 <i>Record since 21 Oct: no trade sold yet\nOpen now: 2 of 4 up, average +2.0% after costs (not final)</i>", msg)
+
 
 # --------------------------------------------------------------------------- #
 @unittest.skipUnless(importlib.util.find_spec("streamlit"), "streamlit is not installed")
@@ -2102,7 +2640,7 @@ class Dashboard(unittest.TestCase):
              "status": "OPEN", "fill_date": "2026-10-29", "fill_px": 100.0, "trail": 92.5, "last_close": 104.0, "net": 0.03, "R": 0.5, "peak_R": 0.8,
              "init_stop": 92.5, "atr_pct": 0.03, "stop_mult": 2.5, "trail_mult": 5.0, "hc": 105.0},
             {**base, **common, "trade_id": "WAITING", "symbol": "WAITING", "setup": "primed", "entry_mode": "stop", "signal_date": "2026-10-30", "quality_pct": 75,
-             "status": "PENDING", "trigger": 250.5, "sessions": 1, "valid_sessions": 5},
+             "status": "PENDING", "trigger": 250.5, "sessions": 1, "valid_sessions": 5, "atr_pct": 0.02, "stop_mult": 2.5},
             {**base, **common, "trade_id": "NEVER", "symbol": "NEVER", "setup": "primed", "entry_mode": "stop", "signal_date": "2026-10-20", "quality_pct": 60,
              "status": "UNFILLED", "trigger": 80.0, "exit_reason": "expired"},
         ]
@@ -2182,6 +2720,86 @@ class Dashboard(unittest.TestCase):
         self.assertNotIn(heading, [s.value for s in self._run().subheader])
         pd.DataFrame([], columns=pl.BUILDING_UP_COLUMNS).to_csv("reports/output/building_up_swing.csv", index=False)
         self.assertNotIn(heading, [s.value for s in self._run().subheader])
+
+    @staticmethod
+    def _plan_table(page):
+        return next(df.value for df in page.dataframe if "What to do" in list(df.value.columns))
+
+    def test_the_capital_plan_sizes_the_list_by_the_readers_own_numbers(self):
+        self._write_files()
+        page = self._run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        plan = self._plan_table(page)
+        self.assertEqual(list(plan["Stock"]), ["HELD", "WAITING"])
+        # weak market on the pick day = half of 1% at risk = 5,000 of 1,000,000: HELD 5,000 / (100 x 7.5%) = 666 shares, WAITING 5,000 / (250.5 x 5%) = 399
+        self.assertEqual([int(x) for x in plan["Shares"]], [666, 399])
+        self.assertEqual(list(plan["What to do"]), ["Take", "Take"])
+        self.assertEqual(list(plan["Status"]), ["Bought", "Waiting"])
+        self.assertAlmostEqual(float(plan["First stop-loss"].iloc[0]), 92.5)
+        self.assertAlmostEqual(float(plan["Buy at"].iloc[1]), 250.5)
+        metrics = {m.label: m.value for m in page.metric}
+        self.assertEqual(metrics["The whole list would need"], "17% of your capital")           # (66,600 + 99,949.5) / 1,000,000
+        self.assertEqual(metrics["Lost if every stop-loss were hit"], "-1.0%")                  # 0.5% + 0.5%
+        self.assertEqual(metrics["Held or to take"], "2 of 10")
+        for jargon in self.JARGON:
+            self.assertNotIn(jargon, self._everything_shown(page), jargon)
+        # one room only: the second stock finds none
+        next(n for n in page.number_input if n.label == "Most stocks to hold at once").set_value(1)
+        page = page.run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        self.assertEqual(list(self._plan_table(page)["What to do"]), ["Take", "Skip - every room is taken"])
+        # a stock the reader already holds comes first and uses the room
+        next(m for m in page.multiselect if m.label.startswith("Stocks you already hold")).set_value(["WAITING"])
+        page = page.run()
+        plan = self._plan_table(page)
+        self.assertEqual(list(plan["Stock"]), ["WAITING", "HELD"])
+        self.assertEqual(list(plan["What to do"]), ["Held", "Skip - every room is taken"])
+        # a stock with a tight stop-loss (2.5% below its price) at the top risk setting takes all the money (2.5% at risk / 2.5% = 100%): the other no
+        # longer fits although a room is free
+        ledger = pd.read_csv("tracking/trades.csv")
+        ledger.loc[ledger["symbol"] == "WAITING", "atr_pct"] = 0.01
+        ledger.to_csv("tracking/trades.csv", index=False)
+        page = self._run()
+        next(n for n in page.number_input if n.label == "Risk per trade (% of your capital)").set_value(5.0)
+        next(m for m in page.multiselect if m.label.startswith("Stocks you already hold")).set_value(["WAITING"])
+        page = page.run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        plan = self._plan_table(page)
+        self.assertEqual(list(plan["Stock"]), ["WAITING", "HELD"])
+        self.assertEqual(list(plan["What to do"]), ["Held", "Skip - the money does not fit"])
+
+    def test_the_capital_plan_is_left_out_when_nothing_is_bought_or_waiting(self):
+        self._write_files()
+        ledger = pd.read_csv("tracking/trades.csv")
+        ledger[ledger["status"].isin(["CLOSED", "UNFILLED"])].assign(status="CLOSED").to_csv("tracking/trades.csv", index=False)
+        page = self._run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        self.assertFalse(any("What to do" in list(df.value.columns) for df in page.dataframe))
+
+    def test_the_scoreboard_shows_how_the_held_trades_stand_and_how_far_the_record_is_from_30_sold_trades(self):
+        self._write_files()
+        page = self._run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        bars = page.get("progress")
+        self.assertEqual(len(bars), 1)
+        self.assertTrue(bars[0].proto.text.startswith("1 of 30 sold trades"), bars[0].proto.text)
+        self.assertEqual(bars[0].proto.value, 3)
+        heading = "How the trades you still hold stand right now (not final)"
+        self.assertIn(heading, [s.value for s in page.subheader])
+        table = next(df.value for df in page.dataframe if "Typical (median)" in list(df.value.columns))
+        self.assertEqual(list(table.index), ["📈 Swing", "Both scans"])                                  # no BTST trade is held in the fixture
+        self.assertEqual((int(table.loc["Both scans", "Bought, not sold yet"]), int(table.loc["Both scans", "Up"]), int(table.loc["Both scans", "Down"])), (1, 1, 0))
+        self.assertAlmostEqual(float(table.loc["Both scans", "Average so far"]), 0.03)
+        self.assertAlmostEqual(float(table.loc["Both scans", "Average R"]), 0.5)
+        for jargon in self.JARGON:
+            self.assertNotIn(jargon, self._everything_shown(page), jargon)
+        # a held trade with no price yet is not a result of any kind: no table
+        ledger = pd.read_csv("tracking/trades.csv")
+        ledger.loc[ledger["status"] == "OPEN", "net"] = float("nan")
+        ledger.to_csv("tracking/trades.csv", index=False)
+        page = self._run()
+        self.assertEqual([str(e.value) for e in page.exception], [])
+        self.assertNotIn(heading, [s.value for s in page.subheader])
 
     def test_with_no_files_at_all_it_still_opens(self):
         page = self._run()
@@ -2313,6 +2931,21 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertTrue(self.sent)
         self.assertNotIn("BUILDING UP", "\n".join(self.sent))
         self.assertEqual(len(pd.read_csv("reports/output/building_up_swing.csv")) if os.path.getsize("reports/output/building_up_swing.csv") > 3 else 0, 0)
+
+    def test_the_note_about_the_whole_list_reaches_the_message_and_a_failure_of_it_costs_nothing(self):
+        import capital_plan
+        with mock.patch.object(capital_plan, "list_load", return_value=3.04):
+            code, _ = self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
+        self.assertEqual(code, 0)
+        self.assertIn("Your whole list now needs about 300% of your capital at that rule", "\n".join(self.sent))
+        with open("reports/output/last_message_swing.txt", encoding="utf-8") as fh:
+            self.assertIn("about 300% of your capital", fh.read())
+        self.sent.clear()
+        with mock.patch.object(capital_plan, "list_load", side_effect=RuntimeError("boom")):
+            code, _ = self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=self._next_session())
+        self.assertEqual(code, 0)
+        self.assertTrue(self.sent)
+        self.assertNotIn("Your whole list now needs", "\n".join(self.sent))
 
     def test_the_evening_message_carries_the_stop_list_and_the_afternoon_one_does_not(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))                          # PLANT is logged as a waiting buy-stop
@@ -2604,6 +3237,46 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertFalse(any("sell if the price falls to" in m or "Waiting to buy" in m for m in self.sent))   # the afternoon message has no stop list
         doc = _load_json("reports/output/fetch_report_btst.json")
         self.assertEqual((doc["kind"], doc["route"], doc["loaded"] == doc["requested"]), ("watchlist", "quotes", True))
+
+    def test_the_live_run_logs_a_snapshot_of_the_watchlist_and_the_evening_run_completes_it(self):
+        from data import snapshots
+        wl = self._evening()
+        code, _ = self._run(["scan_btst"], at(2026, 10, 14, 14, 45), bars=self.nxt, quotes=self.quotes_from(self.nxt))
+        self.assertEqual(code, 0)
+        snap = snapshots.load()
+        self.assertEqual(set(snap["symbol"]), set(wl["symbols"]))                                       # every stock the scan looked at, picks or not
+        self.assertEqual((set(snap["date"]), set(snap["time_ist"]), set(snap["via"])), ({"2026-10-14"}, {"14:45"}, {"quotes"}))
+        self.assertTrue((abs(snap["assumed_frac"] - session.volume_fraction(at(2026, 10, 14, 14, 45))) < 1e-3).all())
+        picked = set(pd.read_csv("scan_results_btst.csv")["symbol"]) if os.path.exists("scan_results_btst.csv") else set()
+        self.assertEqual(set(snap.loc[snap["pick"] == 1, "symbol"]), picked)
+        self.assertTrue(snap["final_close"].isna().all() and snap["next_close"].isna().all())          # the day has not ended
+        for r in snap.itertuples():                                                                    # what the scan saw is what the quote said
+            today = self.nxt[r.symbol].iloc[-1]
+            self.assertAlmostEqual((r.last, r.volume), (round(float(today["close"]), 2), round(float(today["volume"]))), places=2)
+        # a second live run on the same minute replaces, a morning run (not live) adds nothing; then the evening run on the finished day fills it in
+        self.sent.clear()
+        self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=self.nxt)
+        done = snapshots.load().set_index("symbol")
+        self.assertEqual(len(done), len(snap))
+        self.assertTrue(done["final_close"].notna().all())
+        for sym in wl["symbols"][:5]:
+            d = self.nxt[sym].iloc[-1]
+            self.assertEqual((done.loc[sym, "final_close"], done.loc[sym, "final_volume"]), (float(d["close"]), float(d["volume"])))
+            self.assertAlmostEqual(done.loc[sym, "last"], round(float(d["close"]), 2))                  # the synthetic quote is the final bar, so the two agree
+
+    def test_a_failure_of_the_snapshot_log_never_costs_the_scan(self):
+        from data import snapshots
+        self._evening()
+        with mock.patch.object(snapshots, "record", side_effect=OSError("disk full")):
+            code, _ = self._run(["scan_btst"], at(2026, 10, 14, 14, 45), bars=self.nxt, quotes=self.quotes_from(self.nxt))
+        self.assertEqual(code, 0)
+        self.assertTrue(self.sent)
+        self.assertFalse(os.path.exists("data_cache/btst_snapshots.csv.gz"))
+        self.sent.clear()
+        with mock.patch.object(snapshots, "complete", side_effect=OSError("disk full")):
+            code, _ = self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=self.nxt)
+        self.assertEqual(code, 0)
+        self.assertTrue(self.sent)
 
     def test_quote_failure_falls_back_to_candles(self):
         wl = self._evening()
