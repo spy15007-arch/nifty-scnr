@@ -1,15 +1,15 @@
 {
- "at": "2026-11-04 14:46 IST",
- "budget_s": 1130,
+ "at": "2026-11-05 14:47 IST",
+ "budget_s": 1136,
  "kind": "watchlist",
- "loaded": 120,
+ "loaded": 136,
  "market_line_source": "^NSEI",
  "quote_note": "",
- "requested": 120,
+ "requested": 136,
  "route": "quotes",
  "scan": "btst",
- "scored": 120,
- "seconds": 43,
+ "scored": 136,
+ "seconds": 65,
  "store": {
   "cooldowns": 0,
   "errors": [
@@ -19,25 +19,25 @@
    ]
   ],
   "failed": 0,
-  "loaded": 2,
+  "loaded": 4,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [],
   "not_found_n": 0,
   "not_reached": 0,
   "pace": {
-   "calls": 6,
-   "rate_limited": 4,
-   "refused": 4,
-   "slowed_calls": 4,
-   "slowest_calls": 4,
+   "calls": 11,
+   "rate_limited": 7,
+   "refused": 7,
+   "slowed_calls": 9,
+   "slowest_calls": 9,
    "wait_now_s": 2.5
   },
   "recovered": 1,
   "refused": [],
   "refused_n": 0,
-  "requested": 2,
-  "seconds": 32,
+  "requested": 4,
+  "seconds": 55,
   "stopped": ""
  }
 }
