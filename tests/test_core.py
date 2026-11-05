@@ -2738,9 +2738,11 @@ class Dashboard(unittest.TestCase):
         self.assertAlmostEqual(float(plan["First stop-loss"].iloc[0]), 92.5)
         self.assertAlmostEqual(float(plan["Buy at"].iloc[1]), 250.5)
         metrics = {m.label: m.value for m in page.metric}
-        self.assertEqual(metrics["The whole list would need"], "17% of your capital")           # (66,600 + 99,949.5) / 1,000,000
-        self.assertEqual(metrics["Lost if every stop-loss were hit"], "-1.0%")                  # 0.5% + 0.5%
+        self.assertEqual(metrics["Whole list needs (of your capital)"], "17%")                  # (66,600 + 99,949.5) / 1,000,000
+        self.assertEqual(metrics["Lost if every stop-loss hit"], "-1.0%")                       # 0.5% + 0.5%
         self.assertEqual(metrics["Held or to take"], "2 of 10")
+        self.assertEqual(metrics["Money in them (of your capital)"], "17%")
+        self.assertTrue(all(len(v) <= 12 for k, v in metrics.items() if "capital" in k or k.startswith("Lost")))     # short values: long ones are cut off with "..."
         for jargon in self.JARGON:
             self.assertNotIn(jargon, self._everything_shown(page), jargon)
         # one room only: the second stock finds none

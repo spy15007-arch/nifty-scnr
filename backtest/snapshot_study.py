@@ -111,23 +111,23 @@ def move_section(df: pd.DataFrame, min_rows: int = MIN_ROWS, min_days: int = MIN
     d, dropped = _moves(df)
     if not d[["to_close", "to_next_open", "to_next_close"]].notna().any().any():
         return out + ["No finished day yet - the evening run fills in the close, and the evening after that the next session."]
-    out.append(f"{'who':<22}{'from the snapshot to':<22}{'stocks':>7}{'days':>6}{'mean':>9}{'median':>9}{'up':>6}{'mean after 0.35% cost':>24}")
+    out.append(f"{'who':<27}{'from the snapshot to':<22}{'stocks':>7}{'days':>6}{'mean':>9}{'median':>9}{'up':>6}{'mean after 0.35% cost':>24}")
     groups = (("the picks", d[d["pick"] == 1]), ("the rest of the watchlist", d[d["pick"] != 1]), ("all", d))
     for who, g in groups:
         for label, col, costed in (("the close", "to_close", False), ("next open", "to_next_open", True), ("next close", "to_next_close", True)):
             x = g[g[col].notna()]
             if len(x) < min_rows:
-                out.append(f"{who:<22}{label:<22}{len(x):>7}{x['date'].nunique():>6}{'too few':>9}")
+                out.append(f"{who:<27}{label:<22}{len(x):>7}{x['date'].nunique():>6}{'too few':>9}")
                 continue
             net = _pct(float(x[col].mean() - COST), True) if costed else "-"
-            out.append(f"{who:<22}{label:<22}{len(x):>7}{x['date'].nunique():>6}{_pct(float(x[col].mean()), True):>9}{_pct(float(x[col].median()), True):>9}"
+            out.append(f"{who:<27}{label:<22}{len(x):>7}{x['date'].nunique():>6}{_pct(float(x[col].mean()), True):>9}{_pct(float(x[col].median()), True):>9}"
                        f"{_pct(float((x[col] > 0).mean())):>6}{net:>24}")
     if dropped:
         out.append(f"({dropped} move(s) over +-{IMPLAUSIBLE:.0%} dropped as a split, bonus or bad data.)")
     days = int(d.loc[d["to_next_close"].notna(), "date"].nunique())
     if days < min_days:
-        out.append(f"Only {days} day(s) have a next session so far: read nothing into a mean until there are {min_days}+ days - one market-wide up or down day "
-                   f"decides it.")
+        have = "No day has a next session yet" if days == 0 else f"Only {days} day(s) have a next session so far"
+        out.append(f"{have}: read nothing into a mean until there are {min_days}+ days - one market-wide up or down day decides it.")
     return out
 
 

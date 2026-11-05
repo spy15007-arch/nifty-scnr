@@ -222,11 +222,13 @@ def render_capital_plan(df: pd.DataFrame):
         held = st.multiselect("Stocks you already hold, or have a buy order placed for", options=every)
         rows, tot = capital_plan.plan(df, float(capital), float(risk), int(rooms), held)
         m = st.columns(4)
-        m[0].metric("The whole list would need", f"{tot['all_money']:.0%} of your capital",
-                    help="Every bought and waiting stock on the list, each sized by the 'risk per trade' rule above. Above 100% means nobody can hold all of it.")
-        m[1].metric("Lost if every stop-loss were hit", f"-{tot['all_risk']:.1%}", help="Of your capital, if ALL the stocks on the list fell to their first stop-loss.")
+        # short labels and values: a long value ("364% of your capital") is cut off with "..." in a narrow column
+        m[0].metric("Whole list needs (of your capital)", f"{tot['all_money']:.0%}",
+                    help="Every bought and waiting stock on the list, each sized by the 'risk per trade' rule above, as a share of your capital. "
+                         "Above 100% means nobody can hold all of it.")
+        m[1].metric("Lost if every stop-loss hit", f"-{tot['all_risk']:.1%}", help="Of your capital, if ALL the stocks on the list fell to their first stop-loss.")
         m[2].metric("Held or to take", f"{tot['rooms']} of {int(rooms)}", help="Stocks you said you hold, plus the ones below marked Take.")
-        m[3].metric("Money in them", f"{tot['money']:.0%} of your capital")
+        m[3].metric("Money in them (of your capital)", f"{tot['money']:.0%}", help="What the stocks you hold and the ones marked Take cost, as a share of your capital.")
         if tot["held_money"] > 1.0:
             st.warning(f"The stocks you hold would need {tot['held_money']:.0%} of your capital at this risk setting - hold fewer, or lower the risk per trade.")
         if tot["left_out"]:
