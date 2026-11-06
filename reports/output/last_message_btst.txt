@@ -1,62 +1,46 @@
-🌙 <b>BTST scan</b> · Thu 05 Nov, 2:47 PM · live prices
-🧭 <b>Market:</b> 🟢 <b>Bullish</b> · Nifty +2.5% today · global supportive
-📊 Breadth 38% (stocks above their 50-day average) - <b>weak market: half size</b>
+🌙 <b>BTST scan</b> · Fri 06 Nov, 2:46 PM · live prices
+🧭 <b>Market:</b> 🟢 <b>Bullish</b> · Nifty +1.3% today · global hostile
+📊 Breadth 46% (stocks above their 50-day average) - mixed market
 
-ℹ️ Quick check of last night's 136-stock watchlist (4 Nov close) with live quotes; breadth is as of that close
+ℹ️ Quick check of last night's 150-stock watchlist (5 Nov close) with live quotes; breadth is as of that close
 
-<b>PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+⭐ <b>EARLIER PICKS, still strong</b> (picked before, order still waiting - no new order)
+<b>NAVINFLUOR</b> 👀 · Quality 95/100 · picked 4 Nov
+Buy at <b>8,967.40</b> · order valid 4 more sessions
+Profit marks 9,787.25 · 10,607.05 · 11,426.85
+<b>CIPLA</b> 👀 · Quality 89/100 · picked 4 Nov
+Buy at <b>1,446.50</b> · order valid 4 more sessions
+Profit marks 1,519.65 · 1,592.80 · 1,665.95
+<b>LT</b> 👀 · Quality 88/100 · picked 5 Nov
+Buy at <b>4,133.60</b> · order valid 5 more sessions
+Profit marks 4,353.75 · 4,573.90 · 4,794.05
++4 more earlier picks also still qualify (on your list)
+
+<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. AXISBANK</b> 👀 About to break out (1.5% below the 50-day high) · Quality 96/100 · Bank
-Buy at <b>1,302.60</b> · skip if it opens above 1,341.65
-Stop <b>1,232.30</b> (-5.4%) · trail 10.8%
-Profit marks 1,372.90 · 1,443.20 · 1,513.50
-very liquid · low volatility · delivery ~61%
+<b>1. SBILIFE</b> 👀 About to break out (2.9% below the 50-day high) · Quality 77/100
+Buy at <b>1,802.50</b> · skip if it opens above 1,856.55
+Stop <b>1,699.55</b> (-5.7%) · trail 11.4%
+Profit marks 1,905.45 · 2,008.40 · 2,111.35
+low volatility · very liquid · delivery ~59%
 
-<b>2. UNIONBANK</b> 👀 About to break out (2.1% below the 50-day high) · Quality 92/100 · Bank
-Buy at <b>192.75</b> · skip if it opens above 198.50
-Stop <b>180.20</b> (-6.5%) · trail 13.0%
-Profit marks 205.30 · 217.80 · 230.30
-near 52-wk high · very liquid · delivery ~49%
+<b>2. SAILIFE</b> 👀 At the breakout level (volume not confirmed yet) · Quality 75/100 · Pharma
+Buy at <b>1,818.55</b> · skip if it opens above 1,873.10
+Stop <b>1,657.85</b> (-8.8%) · trail 17.7%
+Profit marks 1,979.25 · 2,139.95 · 2,300.65
+strong 12-mo return · near 52-wk high · delivery ~53%
+⚠️ 200-day trend rising, but already spiked 15% in 5 days - buy in continuation, not on a dip
 
-<b>3. MOTHERSON</b> 👀 About to break out (1.2% below the 50-day high) · Quality 91/100 · Auto
-Buy at <b>171.05</b> · skip if it opens above 176.15
-Stop <b>158.70</b> (-7.2%) · trail 14.4%
-Profit marks 183.40 · 195.75 · 208.10
-near 52-wk high · strong 12-mo return · delivery ~51%
+<b>3. BAJFINANCE</b> 👀 About to break out (2.9% below the 50-day high) · Quality 74/100
+Buy at <b>1,109.25</b> · skip if it opens above 1,142.50
+Stop <b>1,026.05</b> (-7.5%) · trail 15.0%
+Profit marks 1,192.45 · 1,275.60 · 1,358.80
+very liquid · near 52-wk high · delivery ~62%
+⚠️ Already spiked 14% in 5 days - buy in continuation, not on a dip
 
-<b>4. LT</b> 👀 About to break out (2.1% below the 50-day high) · Quality 87/100
-Buy at <b>4,133.60</b> · skip if it opens above 4,257.60
-Stop <b>3,913.45</b> (-5.3%) · trail 10.7%
-Profit marks 4,353.75 · 4,573.90 · 4,794.05
-very liquid · low volatility · delivery ~55%
++38 more qualify but are already on your list.
 
-<b>5. TVSMOTOR</b> 👀 About to break out (1.1% below the 50-day high) · Quality 87/100 · Auto
-Buy at <b>4,499.00</b> · skip if it opens above 4,633.95
-Stop <b>4,190.45</b> (-6.9%) · trail 13.7%
-Profit marks 4,807.55 · 5,116.10 · 5,424.65
-near 52-wk high · very liquid · delivery ~50%
-
-<b>6. HONASA</b> 👀 About to break out (2.2% below the 50-day high) · Quality 74/100
-Buy at <b>494.00</b> · skip if it opens above 508.80
-Stop <b>452.75</b> (-8.3%) · trail 16.7%
-Profit marks 535.25 · 576.50 · 617.75
-200-day trend rising · strong 12-mo return · delivery ~47%
-
-<b>7. LGEINDIA</b> 👀 About to break out (2.0% below the 50-day high) · Quality 73/100
-Buy at <b>1,839.70</b> · skip if it opens above 1,894.85
-Stop <b>1,710.50</b> (-7.0%) · trail 14.0%
-Profit marks 1,968.90 · 2,098.05 · 2,227.20
-near 52-wk high · low volatility · delivery ~53%
-
-<b>8. MAHABANK</b> 👀 About to break out (2.6% below the 50-day high) · Quality 71/100 · PSU Bank
-Buy at <b>87.70</b> · skip if it opens above 90.30
-Stop <b>80.65</b> (-8.0%) · trail 16.1%
-Profit marks 94.75 · 101.80 · 108.85
-near 52-wk high · 200-day trend rising · delivery ~42%
-
-+34 more qualify but are already on your list.
-
-🧾 <i>Record since 21 Oct: no trade sold yet
-Open now: 22 of 29 up, average +1.8% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 430% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+🧾 <i>Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
+Open now: 27 of 39 up, average +2.3% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 500% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
