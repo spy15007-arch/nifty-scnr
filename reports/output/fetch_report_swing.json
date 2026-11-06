@@ -1,59 +1,50 @@
 {
- "at": "2026-11-05 16:51 IST",
+ "at": "2026-11-06 16:48 IST",
  "budget_s": 2700,
  "kind": "universe",
- "loaded": 471,
+ "loaded": 495,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 464,
- "seconds": 2706,
+ "scored": 487,
+ "seconds": 2541,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    24
+    13
    ]
   ],
-  "failed": 30,
-  "loaded": 471,
+  "failed": 6,
+  "loaded": 495,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "HFCL",
-   "BAGMANE",
-   "EMBASSY",
    "STLTECH",
+   "EMBASSY",
+   "HFCL",
    "DUMMYHEG",
-   "BIRET"
+   "BIRET",
+   "BAGMANE"
   ],
   "not_found_n": 6,
   "not_reached": 0,
   "pace": {
-   "calls": 720,
-   "rate_limited": 249,
-   "refused": 249,
-   "slowed_calls": 704,
-   "slowest_calls": 704,
-   "wait_now_s": 2.5
+   "calls": 701,
+   "rate_limited": 206,
+   "refused": 206,
+   "slowed_calls": 663,
+   "slowest_calls": 663,
+   "wait_now_s": 0.4
   },
-  "recovered": 0,
-  "refused": [
-   "GLAND",
-   "ITC",
-   "TRENT",
-   "UNIONBANK",
-   "IPCALAB",
-   "ONGC",
-   "SRF",
-   "RUBICON"
-  ],
-  "refused_n": 24,
+  "recovered": 13,
+  "refused": [],
+  "refused_n": 0,
   "requested": 501,
-  "seconds": 2706,
+  "seconds": 2541,
   "stopped": ""
  }
 }
