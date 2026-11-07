@@ -47,6 +47,17 @@ def _e(x) -> str:
     return html.escape(str(x), quote=False)
 
 
+def _heading(text: str) -> str:
+    """
+    A heading of a Telegram message: bold AND in CAPITALS. Asked for on 6 Nov 2026: stock names are bold too, so a bold heading in ordinary letters
+    ("Bought, not sold yet", "Your list", "Market:") got lost among them. The capitals come before the escaping, never after (the entity &amp; must stay
+    lower-case for Telegram). Only the heading itself is bold and in capitals: what explains it follows in ordinary letters. A test
+    (Messages.test_every_heading_is_bold_and_in_capitals) fails on any bold text with a lower-case letter that is not on its short list of values, so a
+    new heading cannot be added in the old style.
+    """
+    return f"<b>{_e(str(text).upper())}</b>"
+
+
 def _pct(x: float, signed: bool = False) -> str:
     return f"{x:+.1%}" if signed else f"{x:.1%}"
 
@@ -118,6 +129,8 @@ def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bo
     repeat last night.
     Plain words on purpose (changed 2026-11-01 at the user's request, the old headings "Open - current stops" and "Buy-stops still waiting" were
     confusing): "bought" / "sold" / "buy order" / "stop-loss"; the same words are used in the earlier-picks block.
+    The headings are bold and in CAPITALS (2026-11-06, at the user's request: they were getting lost among the bold stock names), with the
+    instruction after them in ordinary letters, and a blank line sets each heading apart from the lines above it.
     """
     holding = [r for r in open_rows if r.get("status") == "OPEN"]
     waiting = [r for r in open_rows if r.get("status") == "PENDING"]
@@ -150,7 +163,9 @@ def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bo
     if snapshot and holding:
         up = any(r["symbol"] in raised for r in holding[:MAX_STOPS_SHOWN])
         items = [f"{_e(r['symbol'])} {fmt_price(r['trail'])}{'↑' if r['symbol'] in raised else ''}" for r in holding[:MAX_STOPS_SHOWN]]
-        lines.append(f"<b>Bought, not sold yet ({len(holding)}) - sell if the price falls to:</b>")
+        if lines:
+            lines.append("")
+        lines.append(f"{_heading(f'Bought, not sold yet ({len(holding)})')} - sell if the price falls to:")
         lines.extend(_rows(items))
         if up:
             lines.append("↑ = moved up today")
@@ -163,13 +178,15 @@ def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bo
         for r in waiting[:MAX_WAITING_SHOWN]:
             px = _price_or_none(r.get("trigger"))
             items.append(f"{_e(r['symbol'])} {fmt_price(px)}" if px is not None else _e(r["symbol"]))
-        lines.append(f"<b>Waiting to buy ({len(waiting)}) - buy when the price rises to:</b>")
+        if lines:
+            lines.append("")
+        lines.append(f"{_heading(f'Waiting to buy ({len(waiting)})')} - buy when the price rises to:")
         lines.extend(_rows(items))
         if len(waiting) > MAX_WAITING_SHOWN:
             lines.append(f"...and {len(waiting) - MAX_WAITING_SHOWN} more in the dashboard")
     if not lines:
         return ""
-    return "📒 <b>Your list</b>\n" + "\n".join(lines)
+    return f"📒 {_heading('Your list')}\n" + "\n".join(lines)
 
 
 def _short_iso(iso: str) -> str:
@@ -188,7 +205,7 @@ def format_earlier_block(earlier: list) -> str:
     if not earlier or config.EARLIER_PICKS_MAX <= 0:
         return ""
     shown = earlier[:config.EARLIER_PICKS_MAX]
-    lines = ["⭐ <b>EARLIER PICKS, still strong</b> (picked before, order still waiting - no new order)"]
+    lines = [f"⭐ {_heading('Earlier picks, still strong')} (picked before, order still waiting - no new order)"]
     for e in shown:
         # the setup emoji is what puts a lower-quality fresh breakout above a higher-quality about-to-break stock (the order of the whole list)
         marks = " ".join(m for m in (STAGE_EMOJI.get(e.setup, ""), "💪" if getattr(e, "strong_trend", False) else "") if m)
@@ -214,7 +231,7 @@ def format_building_up_block(building: list) -> str:
         return ""
     shown = building[:config.BUILDING_UP_MAX]
     near, far = config.PRIMED_NEAR_PCT, config.BUILDING_UP_NEAR_PCT
-    lines = ["🔭 <b>BUILDING UP</b> (watch only - no order yet)",
+    lines = [f"🔭 {_heading('Building up')} (watch only - no order yet)",
              f"Strong stocks {near:.0%}-{far:.0%} below their 50-day high. One joins the picks when it gets within {near:.0%} of that high."]
     for b in shown:
         tag = " 💪" if getattr(b, "strong_trend", False) else ""
@@ -233,7 +250,7 @@ def _breadth_line(result) -> str:
     if not (isinstance(b50, (int, float)) and math.isfinite(b50)):
         return ""
     verdict = {"weak": "<b>weak market: half size</b>", "healthy": "healthy market"}.get(result.regime, "mixed market")
-    return f"📊 Breadth {b50:.0%} (stocks above their 50-day average) - {verdict}"
+    return f"📊 {_heading('Breadth')} {b50:.0%} (stocks above their 50-day average) - {verdict}"
 
 
 def _no_pick_line(result) -> str:
@@ -245,7 +262,7 @@ def _no_pick_line(result) -> str:
     tail = ""
     if repeats:
         tail = " - all already on your list" if repeats >= passed else f" - {repeats} of them already on your list"
-    return (f"<b>No new pick.</b> {f.get('loaded', 0)} stocks checked, {setups} in a breakout setup, "
+    return (f"{_heading('No new pick.')} {f.get('loaded', 0)} stocks checked, {setups} in a breakout setup, "
             f"{passed} passed the quality filter{tail}.")
 
 
@@ -267,7 +284,7 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     shown_building = list(building or [])[:config.BUILDING_UP_MAX] if building_block else []
     now = now or session.now_ist()
     t = now.astimezone(session.IST)
-    title = {"btst": "🌙 <b>BTST scan</b>", "swing": "📈 <b>Swing scan</b>"}.get(scan_mode, f"<b>{_e(scan_mode)} scan</b>")
+    title = {"btst": f"🌙 {_heading('BTST scan')}", "swing": f"📈 {_heading('Swing scan')}"}.get(scan_mode, _heading(f"{scan_mode} scan"))
     if result.live:
         when, basis = t.strftime("%a %d %b") + ", " + t.strftime("%I:%M %p").lstrip("0"), "live prices"
     else:
@@ -302,7 +319,7 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     stops = [p for p in picks if p.entry_mode != "close"]
     n = 0
     if buy_now:
-        blocks.append(f"<b>{new}BUY NOW</b> (near the close, only if the price is still above its breakout price)")
+        blocks.append(f"{_heading(f'{new}BUY NOW')} (near the close, only if the price is still above its breakout price)")
         for p in buy_now:
             n += 1
             blocks.append(format_pick(p, n))
@@ -310,7 +327,7 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
         # plain words (changed 2026-11-01 at the user's request; the old heading was "BUY-STOP ORDERS (GTT / stop-limit, valid 5 sessions)").
         # The second line keeps the one thing that matters: a plain limit order at "Buy at" would fill at once, below the trigger, so it has to be a
         # GTT / stop-limit order that only triggers when the price rises to that price. One block, no blank line inside, so the splitter keeps it whole.
-        blocks.append(f"<b>{new}PLACE THESE BUY ORDERS</b> (valid {stops[0].valid_sessions} sessions)\n"
+        blocks.append(f"{_heading(f'{new}PLACE THESE BUY ORDERS')} (valid {stops[0].valid_sessions} sessions)\n"
                       f"Set each as a GTT / stop-limit order: it buys only if the price rises to its \"Buy at\" price.")
         for p in stops:
             n += 1
@@ -443,15 +460,15 @@ def _targets_compact(targets: list[float]) -> str:
 
 def format_options_message(plans: list) -> str:
     if not plans:
-        return "📈 <b>Index options scan complete</b> — no setups today."
+        return f"📈 {_heading('Index options scan complete')} — no setups today."
 
     by_index: dict[str, list] = {}
     for plan in plans:
         by_index.setdefault(plan.index, []).append(plan)
 
-    lines = [f"📈 <b>Index Options Scan</b> — {len(plans)} setup(s)\n"]
+    lines = [f"📈 {_heading('Index options scan')} — {len(plans)} setup(s)\n"]
     for index_symbol, index_plans in by_index.items():
-        lines.append(f"<b>{html.escape(index_symbol)}</b>")
+        lines.append(_heading(index_symbol))
         for idx, plan in enumerate(index_plans, 1):
             emoji = "🟢" if "CE" in plan.direction else "🔴"
             dir_clean = html.escape(plan.direction)

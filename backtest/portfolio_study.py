@@ -86,6 +86,7 @@ class Book:
         # a buy order is live for ENTRY_VALID_SESSIONS sessions after the signal: its room is free again when the last of them has passed
         self.expiry = np.busday_offset(self.sig, config.ENTRY_VALID_SESSIONS, roll="forward")
         self.R = np.where(self.closed, d["R"].to_numpy(float), 0.0)
+        self.net = np.where(self.closed, d["net"].to_numpy(float), 0.0)                   # the trade's own result after costs, as a share of its price
         self.rf = d["risk_pct"].to_numpy(float)
         self.weak = (d["regime"] == "weak").to_numpy()
         self.strong = (d["sma200_chg"].to_numpy(float) >= ss.STRONG_TREND)
@@ -119,15 +120,44 @@ def _mark(book: Book, i: int, d) -> float:
     return float(p[min(max(b, 0) // PATH_STEP, len(p) - 1)])
 
 
-def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float = 0.01, seed: int = 0, weak_half: bool = True) -> dict:
-    """Run the account over the whole file. Returns the weekly marked-to-market equity and the counts."""
+def issued_mask(book: Book, cap: int | None, how: str = "shipped", seed: int = 0) -> np.ndarray:
+    """
+    Which signals a scan that lists at most `cap` new picks a day would have issued: the first `cap` of each day in the order of `how` ("shipped" =
+    the scanner's own order, "random" = `cap` drawn at random, which is what a cap would do if the order carried no information). Every signal when
+    `cap` is None. Used by backtest/pick_cap_study.py (a cap on the picks per day is a rule change, so it is replayed before it is considered).
+    """
+    if cap is None:
+        return np.ones(book.n, dtype=bool)
+    rng = np.random.default_rng(seed)
+    mask = np.zeros(book.n, dtype=bool)
+    for idx in book.by_day:
+        mask[book.order(idx, how, rng)[:max(int(cap), 0)]] = True
+    return mask
+
+
+def day_ranks(book: Book) -> np.ndarray:
+    """Each signal's place (1 = first) among its own day's signals in the scanner's order of preference."""
+    rank = np.zeros(book.n, dtype=int)
+    for idx in book.by_day:
+        for place, i in enumerate(book.order(idx, "shipped", None), start=1):
+            rank[i] = place
+    return rank
+
+
+def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float = 0.01, seed: int = 0, weak_half: bool = True,
+             cap: int | None = None) -> dict:
+    """
+    Run the account over the whole file. Returns the weekly marked-to-market equity and the counts.
+    `cap` = the scan lists at most that many new picks a day (the first `cap` of the day's signals in the order `how`); the rest never reach the
+    account and are counted in out["capped"]. None = every signal of the file, as before.
+    """
     rng = np.random.default_rng(seed)
     equity = 100.0                                   # realised: the start plus the profit of every trade sold so far
     committed = 0.0                                  # money in bought-or-waiting stocks
     active: dict[int, tuple[float, float]] = {}      # trade -> (money risked, money in the stock)
     exits: list[tuple[int, int]] = []                # (day sold, trade) for bought stocks
     expiries: list[tuple[int, int]] = []             # (day the buy order lapses, trade)
-    out = {"placed": 0, "closed": 0, "unfilled": 0, "full": 0, "cash": 0, "signals": book.n, "sum_R": 0.0}
+    out = {"placed": 0, "closed": 0, "unfilled": 0, "full": 0, "cash": 0, "capped": 0, "signals": book.n, "sum_R": 0.0}
     if not book.n:
         return {**out, "equity": pd.Series(dtype=float), "held": 0.0, "invested": 0.0}
     fridays = pd.date_range(pd.Timestamp(book.start), pd.Timestamp(book.end), freq="W-FRI").to_numpy("datetime64[D]")
@@ -154,7 +184,11 @@ def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float
         dn = np.datetime64(d, "D")
         release(int(dn.astype(np.int64)))
         if d in signal_at:
-            for i in book.order(book.by_day[signal_at[d]], how, rng):
+            day = book.order(book.by_day[signal_at[d]], how, rng)
+            if cap is not None and len(day) > cap:
+                out["capped"] += len(day) - max(int(cap), 0)
+                day = day[:max(int(cap), 0)]
+            for i in day:
                 if len(active) >= max_stocks:
                     out["full"] += 1
                     continue
@@ -220,10 +254,10 @@ def by_year(eq: pd.Series) -> dict:
     return out
 
 
-def concurrency(book: Book) -> dict:
+def concurrency(book: Book, mask: np.ndarray | None = None) -> dict:
     """If EVERY filled signal were bought: how many stocks would be open at once, and how much money the message's sizing (1% risk, half in a weak
-    market) would put in them as a share of the capital."""
-    m = book.closed
+    market) would put in them as a share of the capital. `mask` = only the signals a scan with a cap would have issued (issued_mask)."""
+    m = book.closed if mask is None else (book.closed & mask)
     if not m.any():
         return {}
     days = np.arange(book.fill[m].min().astype(np.int64), book.exit[m].max().astype(np.int64) + 2)

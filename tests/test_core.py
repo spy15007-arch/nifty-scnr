@@ -791,6 +791,148 @@ class PortfolioStudy(unittest.TestCase):
         self.assertEqual(c["peak"], 2)
         self.assertAlmostEqual(c["money_avg"], 0.30, places=6)
 
+    # ---- the daily cap on new picks (backtest/pick_cap_study.py) ---------------------------------------------------------------------------------
+    def test_a_cap_keeps_the_first_signals_of_each_day_in_the_scanners_order(self):
+        from backtest import portfolio_study as ps
+        book = self.jan5()                    # rows A, B, C (5 Jan) and D (8 Jan); the scanner's order on the 5th: A (strong uptrend), C (quality 95), B (90)
+        self.assertEqual(list(ps.day_ranks(book)), [1, 3, 2, 1])
+        self.assertEqual(list(ps.issued_mask(book, None)), [True, True, True, True])
+        self.assertEqual(list(ps.issued_mask(book, 1)), [True, False, False, True])           # the first of each day: A and D
+        self.assertEqual(list(ps.issued_mask(book, 2)), [True, False, True, True])            # A and C on the 5th
+        self.assertEqual(list(ps.issued_mask(book, 0)), [False] * 4)
+        one = ps.issued_mask(book, 1, "random", seed=3)
+        self.assertEqual((int(one[:3].sum()), bool(one[3])), (1, True))                       # one of the three of the 5th, whichever the draw gives; D is alone on its day
+
+    def test_a_capped_account_never_sees_the_dropped_signals(self):
+        from backtest import portfolio_study as ps
+        book = self.jan5()
+        # three rooms, no cap: A, C and B are taken, D finds them all taken; 100 + 2 (A) - 1 (B) = 101
+        none = ps.simulate(book, "shipped", max_stocks=3, risk=0.01)
+        self.assertEqual((none["placed"], none["capped"], none["full"]), (3, 0, 1))
+        self.assertAlmostEqual(none["realised"], 101.0)
+        # a cap of 1: only A is listed on the 5th (B and C never reach the account), so D finds a free room on the 8th: +2.0 (A) and +1.0 (D)
+        one = ps.simulate(book, "shipped", max_stocks=3, risk=0.01, cap=1)
+        self.assertEqual((one["placed"], one["closed"], one["unfilled"], one["capped"], one["full"]), (2, 2, 0, 2, 0))
+        self.assertAlmostEqual(one["realised"], 103.0)
+        # a cap of 2: A and C (C's order waits until the 12th), B is dropped; D still finds a room (A, C and D make three)
+        two = ps.simulate(book, "shipped", max_stocks=3, risk=0.01, cap=2)
+        self.assertEqual((two["placed"], two["closed"], two["unfilled"], two["capped"]), (3, 2, 1, 1))
+        self.assertAlmostEqual(two["realised"], 103.0)
+        # a cap above the size of every day changes nothing; a random cap still lists exactly the cap's worth of each day
+        self.assertEqual(ps.simulate(book, "shipped", max_stocks=3, risk=0.01, cap=9)["capped"], 0)
+        rnd = ps.simulate(book, "random", max_stocks=9, risk=0.01, seed=1, cap=1)
+        self.assertEqual((rnd["placed"], rnd["capped"]), (2, 2))
+
+    def test_the_stocks_open_at_once_can_be_counted_for_a_capped_list_too(self):
+        from backtest import portfolio_study as ps
+        book = self.book([
+            {"symbol": "X", "signal": "2026-01-05", "fill": "2026-01-06", "exit": "2026-01-08", "R": 1.0, "q": 90.0},
+            {"symbol": "Y", "signal": "2026-01-05", "fill": "2026-01-07", "exit": "2026-01-09", "R": 1.0, "q": 80.0},
+        ])
+        self.assertAlmostEqual(ps.concurrency(book)["avg"], 1.5)                              # 1, 2, 2, 1 as in the test above
+        capped = ps.concurrency(book, ps.issued_mask(book, 1))                                # only X (the better of the two) is listed: open on the 6th, 7th and 8th
+        self.assertAlmostEqual(capped["avg"], 1.0)
+        self.assertEqual(capped["peak"], 1)
+        self.assertAlmostEqual(capped["money_avg"], 0.20, places=6)                           # 1% / 5% = 20% of the capital
+        self.assertEqual(ps.concurrency(book, np.zeros(book.n, dtype=bool)), {})              # nothing listed, nothing open
+
+    def test_the_picks_a_cap_drops_are_compared_with_the_ones_it_keeps(self):
+        from backtest import pick_cap_study as pc
+        from backtest import portfolio_study as ps
+
+        def four_days(first, second):
+            rows = []
+            for d, (a, b) in enumerate(zip(first, second)):
+                day, nxt, late = f"2026-01-{5 + d:02d}", f"2026-01-{6 + d:02d}", f"2026-01-{12 + d:02d}"       # signal Mon-Thu, fill the next day, sold the week after
+                rows.append({"symbol": f"K{d}", "signal": day, "fill": nxt, "exit": late, "R": a, "q": 90.0})  # the day's first pick (the higher quality)
+                rows.append({"symbol": f"L{d}", "signal": day, "fill": nxt, "exit": late, "R": b, "q": 80.0})  # its second
+            return self.book(rows)
+
+        book = four_days([1.0, 2.0, 1.0, 2.0], [0.0, 1.0, 0.0, 1.0])
+        ranks = ps.day_ranks(book)
+        self.assertEqual(list(ranks), [1, 2] * 4)
+        kd = pc.kept_vs_dropped(book, ranks, 1)
+        # kept: 1, 2, 1, 2 (average 1.5, variance 1/3); dropped: 0, 1, 0, 1 (average 0.5, variance 1/3): standard error sqrt(1/6) = 0.408, so 1.0 / 0.408 = 2.449
+        self.assertEqual((kd["n_kept"], kd["n_dropped"]), (4, 4))
+        self.assertAlmostEqual(kd["mean_kept"], 1.5)
+        self.assertAlmostEqual(kd["mean_dropped"], 0.5)
+        self.assertAlmostEqual(kd["z"], 1.0 / np.sqrt(1.0 / 6.0), places=6)
+        self.assertTrue(kd["ok"])
+        self.assertIsNone(pc.kept_vs_dropped(book, ranks, 2))                                  # a cap of 2 drops nothing: nothing to compare
+        # the other way round (the dropped picks did better): the same distance, the opposite sign, and the rule is not met
+        worse = pc.kept_vs_dropped(four_days([0.0, 1.0, 0.0, 1.0], [1.0, 2.0, 1.0, 2.0]), ranks, 1)
+        self.assertAlmostEqual(worse["z"], -kd["z"], places=6)
+        self.assertFalse(worse["ok"])
+
+    def test_the_pick_cap_rule_judges_growth_against_luck_and_drawdown_against_an_allowance(self):
+        from backtest import pick_cap_study as pc
+        self.assertAlmostEqual(pc.luck_band(np.linspace(0.0, 1.0, 101)), 0.4)                  # (90th - 10th percentile) / 2 = (0.9 - 0.1) / 2
+        self.assertAlmostEqual(pc.luck_band([0.1, 0.1, 0.1]), pc.LUCK_FLOOR)                   # never narrower than half a point
+        self.assertAlmostEqual(pc.luck_band([float("nan"), 0.1]), pc.LUCK_FLOOR)               # fewer than two real numbers
+        base = {"cagr": 0.10, "max_dd": -0.20}
+        up = pc.judge(base, {"cagr": 0.14, "max_dd": -0.215}, 0.03)
+        self.assertEqual((up["growth"], up["better"], up["safe"]), ("better", True, True))     # +4 points beats the 3 points of luck; 1.5 points deeper is within the 2 allowed
+        self.assertAlmostEqual(up["d_growth"], 0.04)
+        self.assertAlmostEqual(up["d_dd"], -0.015)
+        same = pc.judge(base, {"cagr": 0.12, "max_dd": -0.20}, 0.03)
+        self.assertEqual((same["growth"], same["better"]), ("same", False))                    # +2 points is inside the luck band
+        worse = pc.judge(base, {"cagr": 0.06, "max_dd": -0.25}, 0.03)
+        self.assertEqual((worse["growth"], worse["better"], worse["safe"]), ("worse", False, False))
+        good, off = {"better": True, "safe": True}, {"better": False, "safe": True}
+        self.assertTrue(pc.passes([good, good], {"ok": True}))
+        self.assertFalse(pc.passes([good, {"better": True, "safe": False}], {"ok": True}))     # one account draws down too deeply
+        self.assertFalse(pc.passes([good, off], {"ok": True}))                                 # one account is not clearly better
+        self.assertFalse(pc.passes([good, good], {"ok": False}))                               # the dropped picks were not clearly worse
+        self.assertFalse(pc.passes([good, good], None))
+        self.assertFalse(pc.passes([], {"ok": True}))
+        self.assertEqual(pc.decide({1: True, 3: True, 5: False, 8: False}), 3)                 # the largest cap that passes: the mildest change
+        self.assertIsNone(pc.decide({1: False, 2: False}))
+
+    def test_the_signals_are_tabled_by_their_place_in_the_day_and_by_the_size_of_the_day(self):
+        from backtest import pick_cap_study as pc
+        from backtest import portfolio_study as ps
+        book = self.jan5()                    # places [1, 3, 2, 1]; A +2R and D +1R are first of their day, C never filled (2nd), B -1R is 3rd
+        places = {g["label"]: g for g in pc.rank_table(book, ps.day_ranks(book))}
+        self.assertEqual(list(places), ["1st", "2nd", "3rd"])                                   # a place nobody had is not listed
+        first = places["1st"]
+        self.assertEqual((first["signals"], first["filled"], first["share"]), (2, 2, 1.0))
+        self.assertAlmostEqual(first["mean_R"], 1.5)
+        self.assertAlmostEqual(first["net"], 0.075)                                            # (0.10 + 0.05) / 2 in the fixture (net = 5% of R)
+        self.assertEqual((places["2nd"]["signals"], places["2nd"]["filled"], places["2nd"]["share"]), (1, 0, 0.0))
+        self.assertTrue(np.isnan(places["2nd"]["mean_R"]))
+        self.assertAlmostEqual(places["3rd"]["mean_R"], -1.0)
+        self.assertTrue(np.isnan(places["3rd"]["se"]))                                         # one trade has no spread
+        sizes = {g["label"]: g for g in pc.day_size_table(book)}
+        self.assertEqual(list(sizes), ["1 signal", "3 signals"])                               # the 8th had one signal, the 5th had three
+        self.assertEqual((sizes["1 signal"]["days"], sizes["1 signal"]["signals"], sizes["1 signal"]["filled"]), (1, 1, 1))
+        self.assertAlmostEqual(sizes["1 signal"]["mean_R"], 1.0)
+        self.assertEqual((sizes["3 signals"]["days"], sizes["3 signals"]["signals"], sizes["3 signals"]["filled"]), (1, 3, 2))
+        self.assertAlmostEqual(sizes["3 signals"]["mean_R"], 0.5)                              # A +2 and B -1
+        np.testing.assert_array_equal(pc.per_day(book), [3, 1])
+
+    def test_the_pick_cap_study_runs_end_to_end_and_ends_with_its_verdict(self):
+        from backtest import pick_cap_study as pc
+        rng = np.random.default_rng(5)
+        days = pd.bdate_range("2024-01-01", "2024-12-31")
+        rows = []
+        for k, d in enumerate(days[:-45]):
+            for j in range(int(rng.integers(1, 6))):
+                filled = bool(rng.random() < 0.6)
+                r = float(rng.normal(0.3, 1.5))
+                rows.append({"symbol": f"S{k}_{j}", "signal_date": d, "status": "CLOSED" if filled else "UNFILLED",
+                             "fill_date": days[k + 1] if filled else pd.NaT, "exit_date": days[k + 1 + int(rng.integers(3, 40))] if filled else pd.NaT,
+                             "R": r if filled else float("nan"), "net": 0.04 * r if filled else float("nan"), "risk_pct": 0.04, "regime": "healthy",
+                             "setup": "primed", "quality_pct": float(rng.uniform(50, 100)), "sma200_chg": float(rng.uniform(-0.1, 0.1)),
+                             "path_R": "0.1;0.2" if filled else ""})
+        lines = pc.analyse(pd.DataFrame(rows), seeds=2)
+        text = "\n".join(lines)
+        for section in ("== 1.", "== 2.", "== 3.", "== 4.", "== 5.", "== 6."):
+            self.assertIn(section, text)
+        self.assertIn("as shipped", text)
+        self.assertEqual(sum(1 for line in lines if line.startswith("RESULT:")), 1)
+        self.assertEqual(sum(1 for line in lines if line.startswith("\ncap ") and line.endswith(" a day")), len(pc.CAPS))     # one verdict block per cap tried
+        self.assertEqual(pc.analyse(pd.DataFrame(rows).iloc[0:0]), ["No finished signals in the file."])
+
 
 class CapitalPlan(unittest.TestCase):
     """capital_plan.py (the dashboard's calculator of how much of the list one account can hold) on a hand-worked list. Capital 1,000,000 and risk 1% =
@@ -1843,8 +1985,8 @@ class EarlierPicks(unittest.TestCase):
         earlier = self._earlier(res)
         self.assertEqual([e.symbol for e in earlier], ["S001", "PLANT"])
         msg = self._msg(res, earlier)
-        self.assertTrue(msg.startswith("📈 <b>Swing scan</b>"))
-        self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · PLACE THESE BUY ORDERS</b> (valid"))
+        self.assertTrue(msg.startswith("📈 <b>SWING SCAN</b>"))
+        self.assertLess(msg.index("EARLIER PICKS, STILL STRONG"), msg.index("NEW · PLACE THESE BUY ORDERS</b> (valid"))
         self.assertIn("<b>S001</b> 👀 💪 · Quality 97/100 · picked 13 Oct\nBuy at <b>1,969.25</b> · order valid 5 more sessions", msg)
         self.assertIn("<b>PLANT</b> 🔥 · Quality 99/100 · picked 13 Oct\nBuy at <b>103.25</b> · order valid 5 more sessions", msg)
         self.assertEqual(msg.count("NEW · "), 1)
@@ -1862,7 +2004,7 @@ class EarlierPicks(unittest.TestCase):
         res = self._today(self.by)
         msg = self._msg(res, self._earlier(res))
         self.assertNotIn("NEW ·", msg)
-        self.assertLess(msg.index("No new pick."), msg.index("EARLIER PICKS, still strong"))
+        self.assertLess(msg.index("NO NEW PICK."), msg.index("EARLIER PICKS, STILL STRONG"))
         self.assertEqual(msg.count("Buy at <b>"), config.EARLIER_PICKS_MAX)
         self.assertEqual(msg.count("💪 · Quality"), 1)
 
@@ -1879,7 +2021,7 @@ class EarlierPicks(unittest.TestCase):
         self.assertTrue(any(p.entry_mode == "close" for p in live.picks))
         e = pl.EarlierPick("ZZZ", "primed", 88.0, True, "2026-10-12", 123.4, 2)
         msg = notify.format_scan_message(live, "btst", now=at(2026, 10, 13, 14, 45), earlier=[e])
-        self.assertLess(msg.index("EARLIER PICKS, still strong"), msg.index("NEW · BUY NOW</b> (near the close"))
+        self.assertLess(msg.index("EARLIER PICKS, STILL STRONG"), msg.index("NEW · BUY NOW</b> (near the close"))
         self.assertIn("<b>ZZZ</b> 👀 💪 · Quality 88/100 · picked 12 Oct\nBuy at <b>123.40</b> · order valid 2 more sessions", msg)
 
     def test_the_block_is_capped_and_says_how_many_more_qualify(self):
@@ -2192,7 +2334,7 @@ class BuildingUpWatch(unittest.TestCase):
     # ---- the message ----------------------------------------------------------------------------------------------------------
     def test_the_swing_message_shows_the_block_after_the_picks_and_before_your_list(self):
         names = [self._bu("AAA"), self._bu("BBB&CO", 77.0, False, 0.052, 8949.5, None)]
-        msg = notify.format_scan_message(self.res, "swing", now=self.NOW, building=names, tracked_block="📒 <b>Your list</b>\nWaiting to buy (1)")
+        msg = notify.format_scan_message(self.res, "swing", now=self.NOW, building=names, tracked_block="📒 <b>YOUR LIST</b>\n<b>WAITING TO BUY (1)</b> - buy when the price rises to:")
         block = next(b for b in msg.split("\n\n") if b.startswith("🔭"))
         self.assertEqual(block.split("\n"), [
             "🔭 <b>BUILDING UP</b> (watch only - no order yet)",
@@ -2203,7 +2345,7 @@ class BuildingUpWatch(unittest.TestCase):
             "5.2% below its 50-day high (8,949.50)",
         ])
         self.assertLess(msg.index("PLACE THESE BUY ORDERS"), msg.index("🔭"))
-        self.assertLess(msg.index("🔭"), msg.index("📒 <b>Your list</b>"))
+        self.assertLess(msg.index("🔭"), msg.index("📒 <b>YOUR LIST</b>"))
         self.assertLess(msg.index("🔭"), msg.index("Trail = keep the stop"))
         chk = Messages._Check()
         chk.feed(msg)
@@ -2212,7 +2354,7 @@ class BuildingUpWatch(unittest.TestCase):
     def test_on_a_day_with_no_new_pick_the_block_still_shows_and_nothing_claims_profit_marks(self):
         none = dataclasses.replace(self.res, picks=[], repeats=[])
         msg = notify.format_scan_message(none, "swing", now=self.NOW, building=self.building)
-        self.assertLess(msg.index("No new pick"), msg.index("🔭"))
+        self.assertLess(msg.index("NO NEW PICK"), msg.index("🔭"))
         self.assertNotIn("Profit marks", msg)                                           # no card carries them, and a watch name has none
         self.assertEqual(len([b for b in msg.split("\n\n") if b.startswith("🔭")]), 1)   # one piece for the splitter
         self.assertTrue(all(len(c) <= 4096 for c in notify.split_message(msg)))
@@ -2291,7 +2433,7 @@ class Messages(unittest.TestCase):
     def test_message_is_valid_telegram_html_and_splits_under_the_limit(self):
         bars = make_market()
         res = pl.select_picks("swing", bars, now=at(2026, 10, 13, 17, 0), max_picks=15)
-        msg = notify.format_scan_message(res, "swing", now=at(2026, 10, 13, 17, 0), market_line="🧭 <b>Market:</b> ⚪ <b>Unclear</b>")
+        msg = notify.format_scan_message(res, "swing", now=at(2026, 10, 13, 17, 0), market_line="🧭 <b>MARKET:</b> ⚪ <b>Unclear</b>")
         chk = self._Check()
         chk.feed(msg)
         self.assertEqual((chk.err, chk.stack), ([], []))
@@ -2435,7 +2577,7 @@ class Messages(unittest.TestCase):
         base = self._swing()
         none = dataclasses.replace(base, picks=[], repeats=[])
         msg = notify.format_scan_message(none, "swing", now=at(2026, 10, 13, 17, 0))
-        self.assertIn("No new pick.", msg)
+        self.assertIn("<b>NO NEW PICK.</b> ", msg)
         self.assertLessEqual(len(msg), 900, msg)
         again = dataclasses.replace(base, picks=[], repeats=[("A", "primed")] * 3,
                                     funnel={**base.funnel, "passed_quality": 3, "repeats": 3})
@@ -2445,17 +2587,92 @@ class Messages(unittest.TestCase):
 
     def test_title_says_what_the_prices_are_based_on(self):
         swing = notify.format_scan_message(self._swing(), "swing", now=at(2026, 10, 13, 17, 0)).split("\n")[0]
-        self.assertEqual(swing, "📈 <b>Swing scan</b> · Tue 13 Oct · today's close")
+        self.assertEqual(swing, "📈 <b>SWING SCAN</b> · Tue 13 Oct · today's close")
         later = notify.format_scan_message(self._swing(), "swing", now=at(2026, 10, 17, 11, 0)).split("\n")[0]
-        self.assertEqual(later, "📈 <b>Swing scan</b> · Sat 17 Oct · close of Tue 13 Oct")
+        self.assertEqual(later, "📈 <b>SWING SCAN</b> · Sat 17 Oct · close of Tue 13 Oct")
         live = notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 1)).split("\n")[0]
-        self.assertEqual(live, "🌙 <b>BTST scan</b> · Tue 13 Oct, 2:01 PM · live prices")
+        self.assertEqual(live, "🌙 <b>BTST SCAN</b> · Tue 13 Oct, 2:01 PM · live prices")
+
+    # ---- every heading is bold AND in capitals (2026-11-06, at the user's request: they got lost among the bold stock names) -----------------------
+    def _bold_in_ordinary_letters(self, text: str) -> list[str]:
+        """Every bold span with a lower-case letter in it (entities such as &amp; unescaped first), except the values that are meant to read as words:
+        the market's verdict and the weak-market warning. Prices, symbols and numbers have no lower-case letters, so they pass."""
+        import html as html_lib
+        import re
+        from scanner import market_direction as md_mod
+        values = set(md_mod.STANCES) | {"weak market: half size"}
+        spans = (html_lib.unescape(s) for s in re.findall(r"<b>(.*?)</b>", text, flags=re.S))
+        return [s for s in spans if re.search(r"[a-z]", s) and s not in values]
+
+    def test_every_heading_is_bold_and_in_capitals(self):
+        from scanner import market_direction as md_mod
+        today, now = date(2026, 10, 13), at(2026, 10, 13, 17, 0)
+        md = types.SimpleNamespace(emoji="🟢", label="Bullish", today=today, nifty=types.SimpleNamespace(day_change=0.017, as_of=today),
+                                   factors=[types.SimpleNamespace(key="global", shown="hostile")], breadth=None)
+        market = md_mod.format_direction_line(md)
+        self.assertTrue(market.startswith("🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.7% today"), market)
+        res = dataclasses.replace(self._swing(), regime="weak", breadth={"breadth50": 0.18, "n": 400})
+        earlier = [pl.EarlierPick("ZZZ", "primed", 88.0, True, "2026-10-12", 123.4, 2, (130.0, 137.0, 144.0))]
+        building = [pl.BuildingUp("AAA", 95.4, True, 0.034, 1740.0, 1680.84, 0.032, 0.53), pl.BuildingUp("BBB&CO", 77.0, False, 0.052, 8949.5, 8484.0, 0.012, None)]
+        tracked = notify.format_tracked_block(
+            [{"kind": "filled", "symbol": "BBB", "price": 50.0}, {"kind": "closed", "symbol": "CCC", "reason": "stop", "price": 90.0, "R": -1.0, "net": -0.06}],
+            [{"symbol": "AAA", "status": "OPEN", "trail": 105.0}, {"symbol": "EEE", "status": "PENDING", "trigger": 200.0}], snapshot=True)
+        evening = notify.format_scan_message(res, "swing", now=now, market_line=market, earlier=earlier, building=building, tracked_block=tracked,
+                                             scoreboard_line="Record since 21 Oct: 1 sold", list_load=2.0)
+        no_pick = notify.format_scan_message(dataclasses.replace(self._swing(), picks=[], repeats=[]), "swing", now=now, earlier=earlier, building=building)
+        afternoon = notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 45), earlier=earlier)
+        wanted = {
+            "evening": (evening, ("SWING SCAN", "MARKET:", "BREADTH", "EARLIER PICKS, STILL STRONG", "NEW · PLACE THESE BUY ORDERS", "BUILDING UP", "YOUR LIST",
+                                  "BOUGHT, NOT SOLD YET (1)", "WAITING TO BUY (1)")),
+            "no pick": (no_pick, ("SWING SCAN", "NO NEW PICK.", "EARLIER PICKS, STILL STRONG", "BUILDING UP")),
+            "afternoon": (afternoon, ("BTST SCAN", "EARLIER PICKS, STILL STRONG", "NEW · BUY NOW")),
+        }
+        for name, (msg, headings) in wanted.items():
+            for heading in headings:
+                self.assertIn(f"<b>{heading}</b>", msg, (name, heading))
+            self.assertEqual(self._bold_in_ordinary_letters(msg), [], name)          # nothing bold is left in ordinary letters
+            chk = self._Check()
+            chk.feed(msg)
+            self.assertEqual((chk.err, chk.stack), ([], []), name)
+            self.assertTrue(all(len(c) <= 4096 for c in notify.split_message(msg)), name)
+        # the old style is gone, and the words that explain a heading stay in ordinary letters after it
+        for old in ("<b>Your list", "<b>Bought, not sold", "<b>Waiting to buy", "<b>Market:", "<b>Swing scan", "<b>BTST scan", "<b>EARLIER PICKS, still", "Breadth 18%"):
+            self.assertNotIn(old, evening, old)
+        self.assertIn("<b>BOUGHT, NOT SOLD YET (1)</b> - sell if the price falls to:\nAAA 105.00", evening)
+        self.assertIn("<b>WAITING TO BUY (1)</b> - buy when the price rises to:\nEEE 200.00", evening)
+        # a blank line sets each heading of the list apart from the lines above it (the splitter may then break the list between its parts, never inside one)
+        self.assertIn("(buy order triggered)\n• <b>CCC</b>", tracked)
+        self.assertIn("after costs)\n\n<b>BOUGHT, NOT SOLD YET (1)</b>", tracked)
+        self.assertIn("AAA 105.00\n\n<b>WAITING TO BUY (1)</b>", tracked)
+        self.assertEqual(notify.format_tracked_block([], [{"symbol": "EEE", "status": "PENDING", "trigger": 200.0}], snapshot=True),
+                         "📒 <b>YOUR LIST</b>\n<b>WAITING TO BUY (1)</b> - buy when the price rises to:\nEEE 200.00")       # nothing above it: no blank line
+        # a test that fails on a heading written the old way must itself see one
+        self.assertEqual(self._bold_in_ordinary_letters("<b>Your list</b> and <b>AAA</b> and <b>1,969.25</b> and <b>BBB&amp;CO</b> and <b>weak market: half size</b>"),
+                         ["Your list"])
+
+    def test_the_market_and_options_messages_have_bold_capital_headings_too(self):
+        from scanner import market_direction as md_mod
+        today = date(2026, 10, 13)
+        md = types.SimpleNamespace(emoji="🟡", label="Sideways / mixed", today=today, nifty=None, bank=None, factors=[], score=0, n_factors=0,
+                                   stance=md_mod.STANCES["Sideways / mixed"], global_snapshot={},
+                                   breadth={"pct_above_50": 0.46, "n": 500, "advancers": 200, "decliners": 300})
+        msg = md_mod.format_direction_message(md)
+        for heading in ("MARKET DIRECTION", "NIFTY 50", "GLOBAL CUES", "BREADTH"):
+            self.assertIn(f"<b>{heading}</b>", msg)
+        self.assertEqual(self._bold_in_ordinary_letters(msg), [])
+        plan = types.SimpleNamespace(index="BANKNIFTY", direction="BUY CE", suggested_strike=52000, strike_type="ATM", spot_entry=51950, spot_stop=51700,
+                                     spot_targets=[52100, 52250], execution=types.SimpleNamespace(entry_window_ist="9:30-10:30"))
+        opts = notify.format_options_message([plan])
+        self.assertIn("📈 <b>INDEX OPTIONS SCAN</b> — 1 setup(s)", opts)
+        self.assertIn("\n<b>BANKNIFTY</b>\n", opts)
+        self.assertEqual(self._bold_in_ordinary_letters(opts), [])
+        self.assertEqual(notify.format_options_message([]), "📈 <b>INDEX OPTIONS SCAN COMPLETE</b> — no setups today.")
 
     def test_the_weak_market_rule_is_stated_once_in_relative_terms(self):
         res = dataclasses.replace(self._swing(), regime="weak", breadth={"breadth50": 0.18, "n": 400})
         msg = notify.format_scan_message(res, "swing", now=at(2026, 10, 13, 17, 0))
         self.assertEqual(msg.count("half size"), 1)
-        self.assertIn("Breadth 18%", msg)
+        self.assertIn("📊 <b>BREADTH</b> 18% (stocks above their 50-day average) - <b>weak market: half size</b>", msg)
         self.assertIn("half in a weak market", msg)                                  # the footer says it as a rule
 
     def test_the_footer_says_when_the_whole_list_needs_more_than_the_capital(self):
@@ -2486,13 +2703,13 @@ class Messages(unittest.TestCase):
         rows = [{"symbol": "AAA", "status": "OPEN", "trail": 105.0}, {"symbol": "BBB", "status": "OPEN", "trail": 45.5},
                 {"symbol": "EEE", "status": "PENDING", "trigger": 200.0}]
         evening = notify.format_tracked_block(events, rows, snapshot=True)
-        self.assertIn("<b>Bought, not sold yet (2) - sell if the price falls to:</b>", evening)
+        self.assertIn("<b>BOUGHT, NOT SOLD YET (2)</b> - sell if the price falls to:", evening)
         self.assertIn("AAA 105.00↑", evening)
         self.assertIn("BBB 45.50", evening)
         self.assertNotIn("BBB 45.50↑", evening)
         self.assertIn("↑ = moved up today", evening)
         self.assertNotIn("raise your stop-loss", evening)                            # the arrow replaces the separate line
-        self.assertIn("<b>Waiting to buy (1) - buy when the price rises to:</b>\nEEE 200.00", evening)     # each waiting stock with its buy price
+        self.assertIn("<b>WAITING TO BUY (1)</b> - buy when the price rises to:\nEEE 200.00", evening)     # each waiting stock with its buy price
         self.assertIn("BBB</b> - bought at 50.00 (buy order triggered)", evening)
         self.assertIn("CCC</b> - sold at 90.00: stop-loss hit (-1.0R, -6.0% after costs)", evening)
         self.assertIn("DDD</b> - buy order expired; no trade", evening)
@@ -2500,7 +2717,7 @@ class Messages(unittest.TestCase):
             self.assertNotIn(old_words, evening)                                     # the jargon the user found confusing is gone
         afternoon = notify.format_tracked_block(events, rows, snapshot=False)
         self.assertNotIn("sell if the price falls to", afternoon)
-        self.assertNotIn("Waiting to buy", afternoon)
+        self.assertNotIn("WAITING TO BUY", afternoon)
         self.assertNotIn("moved up today", afternoon)
         self.assertIn("AAA</b> - raise your stop-loss 100.00 → <b>105.00</b>", afternoon)      # nothing is lost when there is no list to carry the arrow
         self.assertEqual(notify.format_tracked_block([], rows, snapshot=False), "")
@@ -2514,9 +2731,9 @@ class Messages(unittest.TestCase):
         rows = [{"symbol": f"S{i:02d}", "status": "OPEN", "trail": 10.0 + i} for i in range(30)]
         rows += [{"symbol": f"W{i:02d}", "status": "PENDING", "trigger": 5.0 + i} for i in range(28)]
         block = notify.format_tracked_block([], rows, snapshot=True)
-        self.assertIn("Bought, not sold yet (30)", block)
+        self.assertIn("BOUGHT, NOT SOLD YET (30)", block)
         self.assertIn("...and 6 more in the dashboard", block)
-        self.assertIn("Waiting to buy (28)", block)
+        self.assertIn("WAITING TO BUY (28)", block)
         self.assertIn("...and 4 more in the dashboard", block)
         self.assertIn("W00 5.00 · W01 6.00\nW02 7.00 · W03 8.00", block)                # two to a line, like the stop-loss list
         self.assertIn("W23 28.00", block)
@@ -2958,8 +3175,8 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.sent.clear()
         self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=nxt)
         evening = "\n".join(self.sent)
-        self.assertIn("Your list", evening)
-        self.assertRegex(evening, r"Waiting to buy \(\d+\) - buy when the price rises to:</b>\n(?:[^\n]*\n)*?[^\n]*PLANT [\d,]+\.\d{2}")
+        self.assertIn("<b>YOUR LIST</b>", evening)
+        self.assertRegex(evening, r"<b>WAITING TO BUY \(\d+\)</b> - buy when the price rises to:\n(?:[^\n]*\n)*?[^\n]*PLANT [\d,]+\.\d{2}")
         for r in waiting_before.itertuples():                                         # every waiting stock carries the price its order triggers at
             self.assertIn(f"{r.symbol} {pl.fmt_price(r.trigger)}", evening)
         self.sent.clear()
@@ -2967,7 +3184,7 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         afternoon = "\n".join(self.sent)
         self.assertTrue(afternoon)
         self.assertNotIn("sell if the price falls to", afternoon)                    # stops only change after a completed session
-        self.assertNotIn("Waiting to buy", afternoon)                                # (the earlier-picks block says "order still waiting")
+        self.assertNotIn("WAITING TO BUY", afternoon)                                # (the earlier-picks block says "order still waiting")
 
     def test_afternoon_btst_fetches_only_the_watchlist_and_a_late_cron_is_skipped(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
@@ -3139,8 +3356,8 @@ class EarlierPicksEndToEnd(E2EHarness, unittest.TestCase):
         code, _ = self._run(["scan_swing"], at(2026, 10, 14, 17, 0), bars=self._next_session())
         self.assertEqual(code, 0)
         text = "\n\n".join(self.sent)
-        self.assertIn("EARLIER PICKS, still strong", text)
-        block = text[text.index("EARLIER PICKS, still strong"):].split("\n\n")[0]
+        self.assertIn("<b>EARLIER PICKS, STILL STRONG</b>", text)
+        block = text[text.index("EARLIER PICKS, STILL STRONG"):].split("\n\n")[0]
         listed = [ln.split("</b>")[0].replace("<b>", "") for ln in block.split("\n")[1:] if ln.startswith("<b>")]
         self.assertTrue(listed and set(listed) <= waiting, (listed, waiting))
         self.assertIn(f"order valid {config.ENTRY_VALID_SESSIONS - 1} more sessions", block)       # one session has gone since they were picked
@@ -3150,7 +3367,7 @@ class EarlierPicksEndToEnd(E2EHarness, unittest.TestCase):
             self.assertLess(text.index("EARLIER PICKS"), text.index("NEW · "))
         else:
             self.assertNotIn("NEW ·", text)
-            self.assertLess(text.index("No new pick."), text.index("EARLIER PICKS"))
+            self.assertLess(text.index("NO NEW PICK."), text.index("EARLIER PICKS"))
         after = pd.read_csv("tracking/trades.csv")
         self.assertEqual(len(after), len(before) + len(new))                           # only genuinely new picks are logged: nothing is picked twice
         self.assertEqual(set(before["trade_id"]), set(after["trade_id"]) - set(f"{r.symbol}_{r.signal_date}_{r.scan_mode}" for r in new.itertuples()))
@@ -3236,7 +3453,7 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertTrue(any("live quotes" in m for m in self.sent), self.sent[:1])
         self.assertFalse(any("Partial scan" in m for m in self.sent))
         self.assertFalse(any("Live quotes not used" in m for m in self.sent))
-        self.assertFalse(any("sell if the price falls to" in m or "Waiting to buy" in m for m in self.sent))   # the afternoon message has no stop list
+        self.assertFalse(any("sell if the price falls to" in m or "WAITING TO BUY" in m for m in self.sent))   # the afternoon message has no stop list
         doc = _load_json("reports/output/fetch_report_btst.json")
         self.assertEqual((doc["kind"], doc["route"], doc["loaded"] == doc["requested"]), ("watchlist", "quotes", True))
 

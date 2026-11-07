@@ -384,7 +384,7 @@ def format_direction_line(md: MarketDirection) -> str:
         parts.append(f"global {html.escape(word)}")
     if md.breadth:
         parts.append(f"breadth {md.breadth['pct_above_50']:.0%} of {md.breadth['n']} stocks above 50d EMA")
-    return "🧭 <b>Market:</b> " + " · ".join(parts)
+    return "🧭 <b>MARKET:</b> " + " · ".join(parts)           # the heading is bold and in capitals like every heading of the messages (2026-11-06)
 
 
 def _trend_side(r: IndexReading) -> int | None:
@@ -396,7 +396,7 @@ def _trend_side(r: IndexReading) -> int | None:
 def format_direction_message(md: MarketDirection) -> str:
     """The full readout - what the manual run sends."""
     e = html.escape
-    lines = ["🧭 <b>Market Direction</b>"]
+    lines = ["🧭 <b>MARKET DIRECTION</b>"]                 # headings: bold and in capitals (2026-11-06); the verdict word below is a value, not a heading
 
     n, b = md.nifty, md.bank
     provenance = []
@@ -413,9 +413,9 @@ def format_direction_message(md: MarketDirection) -> str:
     lines.append(headline + f"\n<i>{e(md.stance)}</i>")
 
     if n is None:
-        lines.append("<b>Nifty 50</b>\nCould not read Nifty data from any source this run.")
+        lines.append("<b>NIFTY 50</b>\nCould not read Nifty data from any source this run.")
     else:
-        head = "<b>Nifty 50</b>" + (f"  {n.last_close:,.0f}" if n.show_level else "")
+        head = "<b>NIFTY 50</b>" + (f"  {n.last_close:,.0f}" if n.show_level else "")
         by_key = {f.key: f for f in md.factors}
         row1 = [_factor_text(by_key[k]) for k in ("today", "ema20", "ema50") if k in by_key]
         row2 = [_factor_text(by_key[k]) for k in ("sma200", "rsi") if k in by_key]
@@ -437,7 +437,7 @@ def format_direction_message(md: MarketDirection) -> str:
             bits.append(f"50d EMA {_pct(b.vs_ema50)}")
         if b.rsi14 is not None:
             bits.append(f"RSI {b.rsi14:.0f}")
-        block = ["<b>Bank Nifty</b>" + (f"  {b.last_close:,.0f}" if b.show_level else "") + " <i>(context, not scored)</i>",
+        block = ["<b>BANK NIFTY</b>" + (f"  {b.last_close:,.0f}" if b.show_level else "") + " <i>(context, not scored)</i>",
                  " | ".join(bits)]
         side_b = _trend_side(b)
         side_n = _trend_side(n) if n is not None else None
@@ -448,7 +448,7 @@ def format_direction_message(md: MarketDirection) -> str:
     g = next((f for f in md.factors if f.key == "global"), None)
     if g is not None:
         snap = md.global_snapshot
-        gl = [f"<b>Global cues</b> {_MARK[g.score]} {e(g.shown)}"]
+        gl = [f"<b>GLOBAL CUES</b> {_MARK[g.score]} {e(g.shown)}"]
         moves = []
         if "us_dow" in snap or "us_nasdaq" in snap:
             us = [snap[k] for k in ("us_dow", "us_nasdaq") if k in snap]
@@ -464,11 +464,11 @@ def format_direction_message(md: MarketDirection) -> str:
             gl.append(" | ".join(moves))
         lines.append("\n".join(gl))
     else:
-        lines.append("<b>Global cues</b>\nUnavailable this run (Yahoo Finance did not respond) - not counted in the score.")
+        lines.append("<b>GLOBAL CUES</b>\nUnavailable this run (Yahoo Finance did not respond) - not counted in the score.")
 
     if md.breadth:
         br = md.breadth
-        lines.append(f"<b>Breadth</b>\n{br['pct_above_50']:.0%} of {br['n']} scanned stocks above their 50d EMA | "
+        lines.append(f"<b>BREADTH</b>\n{br['pct_above_50']:.0%} of {br['n']} scanned stocks above their 50d EMA | "
                      f"{br['advancers']} up / {br['decliners']} down")
 
     lines.append("<i>Rule-based read of trend and overnight cues - not a forecast. No option strikes.</i>")

@@ -114,7 +114,7 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
     out = [f"# {_title(scan_mode)} - {t.strftime('%a %d %b %Y, %I:%M %p').replace(' 0', ' ')} IST", "",
            f"*{_basis(result, now)}*", ""]
     if market_line:
-        out += [f"**Market:** {strip_html(market_line).replace('Market: ', '', 1)}", ""]
+        out += [f"**Market:** {re.sub(r'market: ', '', strip_html(market_line), count=1, flags=re.IGNORECASE)}", ""]      # the message's heading is MARKET:
     b50 = result.breadth.get("breadth50") if result.breadth else None
     if isinstance(b50, float) and math.isfinite(b50):
         word = {"weak": "weak - use half size", "healthy": "healthy", "mixed": "mixed"}.get(result.regime, result.regime)
