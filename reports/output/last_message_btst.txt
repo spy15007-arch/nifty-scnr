@@ -1,46 +1,21 @@
-🌙 <b>BTST scan</b> · Fri 06 Nov, 2:46 PM · live prices
-🧭 <b>Market:</b> 🟢 <b>Bullish</b> · Nifty +1.3% today · global hostile
-📊 Breadth 46% (stocks above their 50-day average) - mixed market
+🌙 <b>BTST SCAN</b> · Sat 07 Nov · close of Fri 06 Nov
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.7% last session · global hostile
+📊 <b>BREADTH</b> 46% (stocks above their 50-day average) - mixed market
 
-ℹ️ Quick check of last night's 150-stock watchlist (5 Nov close) with live quotes; breadth is as of that close
+<b>NO NEW PICK.</b> 495 stocks checked, 91 in a breakout setup, 59 passed the quality filter - all already on your list.
 
-⭐ <b>EARLIER PICKS, still strong</b> (picked before, order still waiting - no new order)
-<b>NAVINFLUOR</b> 👀 · Quality 95/100 · picked 4 Nov
-Buy at <b>8,967.40</b> · order valid 4 more sessions
-Profit marks 9,787.25 · 10,607.05 · 11,426.85
-<b>CIPLA</b> 👀 · Quality 89/100 · picked 4 Nov
-Buy at <b>1,446.50</b> · order valid 4 more sessions
+⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
+<b>UNIONBANK</b> 👀 · Quality 94/100 · picked 5 Nov
+Buy at <b>192.75</b> · order valid 4 more sessions
+Profit marks 205.30 · 217.80 · 230.30
+<b>CIPLA</b> 👀 · Quality 90/100 · picked 4 Nov
+Buy at <b>1,446.50</b> · order valid 3 more sessions
 Profit marks 1,519.65 · 1,592.80 · 1,665.95
 <b>LT</b> 👀 · Quality 88/100 · picked 5 Nov
-Buy at <b>4,133.60</b> · order valid 5 more sessions
+Buy at <b>4,133.60</b> · order valid 4 more sessions
 Profit marks 4,353.75 · 4,573.90 · 4,794.05
-+4 more earlier picks also still qualify (on your list)
-
-<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
-Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
-
-<b>1. SBILIFE</b> 👀 About to break out (2.9% below the 50-day high) · Quality 77/100
-Buy at <b>1,802.50</b> · skip if it opens above 1,856.55
-Stop <b>1,699.55</b> (-5.7%) · trail 11.4%
-Profit marks 1,905.45 · 2,008.40 · 2,111.35
-low volatility · very liquid · delivery ~59%
-
-<b>2. SAILIFE</b> 👀 At the breakout level (volume not confirmed yet) · Quality 75/100 · Pharma
-Buy at <b>1,818.55</b> · skip if it opens above 1,873.10
-Stop <b>1,657.85</b> (-8.8%) · trail 17.7%
-Profit marks 1,979.25 · 2,139.95 · 2,300.65
-strong 12-mo return · near 52-wk high · delivery ~53%
-⚠️ 200-day trend rising, but already spiked 15% in 5 days - buy in continuation, not on a dip
-
-<b>3. BAJFINANCE</b> 👀 About to break out (2.9% below the 50-day high) · Quality 74/100
-Buy at <b>1,109.25</b> · skip if it opens above 1,142.50
-Stop <b>1,026.05</b> (-7.5%) · trail 15.0%
-Profit marks 1,192.45 · 1,275.60 · 1,358.80
-very liquid · near 52-wk high · delivery ~62%
-⚠️ Already spiked 14% in 5 days - buy in continuation, not on a dip
-
-+38 more qualify but are already on your list.
++17 more earlier picks also still qualify (on your list)
 
 🧾 <i>Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
-Open now: 27 of 39 up, average +2.3% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 500% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+Open now: 32 of 43 up, average +2.8% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 570% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
