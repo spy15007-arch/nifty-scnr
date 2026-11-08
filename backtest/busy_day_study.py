@@ -150,8 +150,9 @@ def estimate(fn, c: np.ndarray, alpha: float = ALPHA) -> dict | None:
     draws = draws[np.isfinite(draws)]
     if not np.isfinite(point) or len(draws) < 2:
         return None
-    lo, hi = np.percentile(draws, [100.0 * alpha, 100.0 * (1.0 - alpha)])
-    return {"point": point, "se": float(draws.std(ddof=1)), "lo": float(lo), "hi": float(hi), "draws": int(len(draws))}
+    lo, hi, lo5 = np.percentile(draws, [100.0 * alpha, 100.0 * (1.0 - alpha), 5.0])
+    return {"point": point, "se": float(draws.std(ddof=1)), "lo": float(lo), "hi": float(hi), "draws": int(len(draws)),
+            "lo5": float(lo5), "p_le0": float((draws <= 0.0).mean())}          # lo5 and p_le0: for context only, the rule uses `lo`
 
 
 def edge_ok(est: dict | None) -> bool:
@@ -179,14 +180,17 @@ def period_rows(book: ps.Book, quiet: np.ndarray, busy: np.ndarray, periods=PERI
 
 
 def split_rows(book: ps.Book, labels: np.ndarray, names, quiet: np.ndarray, busy: np.ndarray) -> list[dict]:
-    """Busy minus quiet inside each class of `labels` (a market regime, a third of breadth): descriptive, not part of the rule."""
+    """Busy minus quiet inside each class of `labels` (a market regime, a third of breadth): descriptive, not part of the rule. Also the average R of ALL the
+    filled trades of the class, whatever kind of day they came on."""
     rows = []
     for name in names:
         inside = labels == name
         q, b = book.closed & quiet & inside, book.closed & busy & inside
         nq, nb = int(q.sum()), int(b.sum())
         mq, mb = _mean(book.R[q]), _mean(book.R[b])
-        rows.append({"label": str(name), "n_quiet": nq, "n_busy": nb, "mean_quiet": mq, "mean_busy": mb, "diff": mb - mq if nq and nb else float("nan")})
+        every = book.closed & inside
+        rows.append({"label": str(name), "n_quiet": nq, "n_busy": nb, "mean_quiet": mq, "mean_busy": mb, "diff": mb - mq if nq and nb else float("nan"),
+                     "n_all": int(every.sum()), "mean_all": _mean(book.R[every])})
     return rows
 
 
@@ -309,7 +313,13 @@ def _row(name: str, row: dict) -> str:
     return head + f"{row['mean_quiet']:>+11.2f}{row['mean_busy']:>+10.2f}{row['diff']:>+13.2f}"
 
 
+def _row_all(name: str, row: dict) -> str:
+    """The same line with the average R of all filled trades of the class (any kind of day) added."""
+    return _row(name, row) + (f"{row['n_all']:>13}{row['mean_all']:>+10.2f}" if row["n_all"] else f"{0:>13}{'-':>10}")
+
+
 SPLIT_HEAD = f"{'':<22}{'quiet trades':>13}{'busy trades':>12}{'quiet R':>11}{'busy R':>10}{'busy - quiet':>13}"
+SPLIT_HEAD_ALL = SPLIT_HEAD + f"{'all trades':>13}{'all R':>10}"
 
 
 def analyse(df: pd.DataFrame, seeds: int = SEEDS, boot: int = BOOT) -> list[str]:
@@ -358,6 +368,9 @@ def analyse(df: pd.DataFrame, seeds: int = SEEDS, boot: int = BOOT) -> list[str]
     add("\n== 2. Rule 1: busy minus quiet, every filled trade ==")
     add(f"{_edge_text(t1)}   needs at least {MIN_EDGE:+.2f}R and the lower end above 0: {_yn(edge_ok(t1))}")
     add("This mixes two things: the day's count, and the market the day happened in (a strong month has busy days and pays more).")
+    if t1 is not None:
+        add(f"For context only (the rule uses the {ALPHA:.0%} percentile): at the usual 5% the lower end would be {t1['lo5']:+.2f}R, and {t1['p_le0']:.0%} of the resamples "
+            f"show a gap of 0 or less.")
 
     # 3 ------------------------------------------------------------------------------------------------------------------------
     used = cells.eligible()
@@ -366,6 +379,8 @@ def analyse(df: pd.DataFrame, seeds: int = SEEDS, boot: int = BOOT) -> list[str]
     add("\n== 3. Rule 2: busy minus quiet inside the same month ==")
     add(f"{int(used.sum())} of {n_months} months have at least {MIN_MONTH_CELL} filled trades of both kinds; they hold {share_q:.0%} of the quiet-day trades and {share_b:.0%} of the busy-day ones.")
     add(f"{_edge_text(t2)}   needs at least {MIN_EDGE:+.2f}R and the lower end above 0: {_yn(edge_ok(t2))}")
+    if t2 is not None:
+        add(f"For context only: at the usual 5% the lower end would be {t2['lo5']:+.2f}R, and {t2['p_le0']:.0%} of the resamples show a gap of 0 or less.")
     if t1 is not None and t2 is not None:
         add(f"The raw gap is {t1['point']:+.2f}R and the same-month gap {t2['point']:+.2f}R. The difference, {t1['point'] - t2['point']:+.2f}R, is what the month a day fell in "
             f"(the market's mood) explains; the rest belongs to the day itself.")
@@ -380,15 +395,16 @@ def analyse(df: pd.DataFrame, seeds: int = SEEDS, boot: int = BOOT) -> list[str]
 
     # 5 ------------------------------------------------------------------------------------------------------------------------
     add("\n== 5. What could explain it (not part of the rule): the same difference inside each market regime and each third of breadth ==")
-    add(SPLIT_HEAD)
+    add(SPLIT_HEAD_ALL)
     for r in split_rows(book, book.regime, REGIMES, quiet, busy):
-        add(_row(r["label"] + " market", r))
+        add(_row_all(r["label"] + " market", r))
     thirds = breadth_thirds(book)
     if thirds is not None:
         lab, names, edges = thirds
         for r in split_rows(book, lab, names, quiet, busy):
-            add(_row("breadth, " + r["label"], r))
-        add(f"(thirds of breadth cut at {edges[0]:.0%} and {edges[1]:.0%} of the market above its 50-day average)")
+            add(_row_all("breadth, " + r["label"], r))
+        add(f"(thirds of breadth cut at {edges[0]:.0%} and {edges[1]:.0%} of the market above its 50-day average; 'all trades' = every filled trade of the class, "
+            f"whatever kind of day it came on)")
 
     # 6 ------------------------------------------------------------------------------------------------------------------------
     add("\n== 6. Would another cut-off do the same? (not part of the rule) ==")
@@ -456,7 +472,10 @@ def analyse(df: pd.DataFrame, seeds: int = SEEDS, boot: int = BOOT) -> list[str]
             "Swing scan only. The BTST scan cannot be replayed on daily candles, and it supplies most of the live list: nothing here says whether a quiet or a busy BTST day differs.",
             "Day size here is every signal the replay made that day. The live evening message only lists the NEW picks (those BTST had not already put on the list), so it "
             "would have to count the whole day's signals, not the ones it prints.",
-            "The intervals draw whole calendar months: they allow for the trades of one rally moving together, not for anything longer than a month."):
+            "The intervals draw whole calendar months: they allow for the trades of one rally moving together, not for anything longer than a month.",
+            "After the first run the printout gained a few descriptive lines: the share of resamples at or below 0 and the 5% lower end in sections 2 and 3, and the 'all trades' "
+            "columns in section 5. They show how close the calls were and what the market's mood does by itself; the rule, its numbers and its verdict were not touched "
+            "(the first run was made with the code of the GitHub commit before this one)."):
         add("- " + line)
     return out
 

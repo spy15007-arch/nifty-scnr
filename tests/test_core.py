@@ -1094,11 +1094,15 @@ class PortfolioStudy(unittest.TestCase):
         self.assertAlmostEqual(sure["lo"], 0.3)
         self.assertAlmostEqual(sure["hi"], 0.3)
         self.assertTrue(bd.edge_ok(sure))
-        # five months at +2 and three at -1: +0.875 on average, but a resample of eight months has a 3.6% chance of averaging 0 or less - above the 1% allowed
+        self.assertEqual((sure["p_le0"], round(sure["lo5"], 9)), (0.0, 0.3))
+        # five months at +2 and three at -1: +0.875 on average, but a resample of eight months has a 3.6% chance of averaging 0 or less - above the 1% allowed.
+        # With k of the eight draws at +2 the average is (3k - 8) / 8: k <= 2 is 0 or less (3.6%), k <= 1 is 0.6%, k <= 3 is 13.7%
         d = np.array([2.0, 2.0, 2.0, 2.0, 2.0, -1.0, -1.0, -1.0])
         mixed = bd.estimate(lambda m: (m @ d) / m.sum(axis=1), bd.resamples(8, 5000))
         self.assertAlmostEqual(mixed["point"], 0.875)
-        self.assertLess(mixed["lo"], 0.0)
+        self.assertAlmostEqual(mixed["lo"], -0.25)                                             # the 1% percentile sits at k = 2
+        self.assertAlmostEqual(mixed["lo5"], 0.125)                                            # the 5% percentile sits at k = 3
+        self.assertAlmostEqual(mixed["p_le0"], 0.036, delta=0.012)
         self.assertFalse(bd.edge_ok(mixed))
         self.assertIsNone(bd.estimate(lambda m: np.full(len(m), np.nan), bd.resamples(4, 50)))      # nothing to calculate
         self.assertIsNone(bd.estimate(lambda m: np.where(np.arange(len(m)) == 0, np.nan, 1.0), bd.resamples(4, 50)))   # no number for the data as it is
@@ -1135,8 +1139,12 @@ class PortfolioStudy(unittest.TestCase):
         self.assertAlmostEqual(h["mean_quiet"], 1.0)
         self.assertAlmostEqual(h["mean_busy"], 2.0)
         self.assertAlmostEqual(h["diff"], 1.0)
+        self.assertEqual((h["n_all"], round(h["mean_all"], 6)), (6, round(8 / 6, 6)))          # every filled trade of the class: S1, S4, S5, S6, S7, S9 = +8R in 6 trades
         self.assertEqual((by_regime["weak"]["n_quiet"], by_regime["weak"]["n_busy"]), (1, 0))
         self.assertTrue(np.isnan(by_regime["weak"]["diff"]))
+        self.assertEqual((by_regime["weak"]["n_all"], by_regime["weak"]["mean_all"]), (1, -1.0))
+        self.assertIn("     +1.33", bd._row_all("healthy", h))                                 # the printed line carries the all-trades columns after the difference
+        self.assertTrue(bd._row_all("mixed", bd.split_rows(book, book.regime, ("mixed",), q9, b9)[0]).rstrip().endswith("-"))   # a class nobody traded in: no average
         # thirds of breadth: 30 filled trades with breadth 0.01 ... 0.30 split into 10, 10 and 10
         days = pd.bdate_range("2026-01-05", periods=30)
         book = self.book([f(f"T{i:02d}", d.strftime("%Y-%m-%d"), 1.0, breadth=i / 100) for i, d in enumerate(days, start=1)])
