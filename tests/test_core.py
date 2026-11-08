@@ -678,6 +678,9 @@ class PortfolioStudy(unittest.TestCase):
                    "quality_pct": r.get("q", 70.0), "sma200_chg": r.get("trend", 0.0), "path_R": r.get("path", "")}
             if "breadth" in r:
                 row["breadth50"] = r["breadth"]                                                 # a column only when a row has one; the others get no number
+            for key in ("ret252", "ext_pct", "ema21_x", "dist_hi"):                             # what the stock had done by the signal day, the same way
+                if key in r:
+                    row[key] = r[key]
             out.append(row)
         df = pd.DataFrame(out)
         if not with_path:
@@ -1257,6 +1260,463 @@ class PortfolioStudy(unittest.TestCase):
         self.assertIn("rule 3", [line for line in lines if line.startswith("RESULT:")][0])
         self.assertIn("   <- the rule", text)                                                  # the cut-off table marks the one the rule uses
         self.assertEqual(bd.analyse(df.iloc[0:0]), ["No finished signals in the file."])
+
+    # ---- the market-strength study (backtest/market_strength_study.py) ----------------------------------------------------------------------------
+    def strength_rows(self):
+        """Ten signals in three calendar years. Filled: A +2 (breadth 80%), B +1 (77%, exactly on the line), C 0 (76%), D -1 (30%), E +1 (90%), F +1 (50%), G -1 (95%),
+        H 0 (40%), I +2 (no breadth recorded). J (85%) never fills. At the 77% line strong = A B E G J, other = C D F H, and I is in neither group."""
+        f = self.filled
+        return [
+            f("A", "2024-03-04", 2.0, breadth=0.80), f("B", "2024-03-05", 1.0, breadth=0.77), f("C", "2024-03-06", 0.0, breadth=0.76), f("D", "2024-03-07", -1.0, breadth=0.30),
+            f("E", "2025-03-03", 1.0, breadth=0.90), f("F", "2025-03-04", 1.0, breadth=0.50), f("G", "2025-03-05", -1.0, breadth=0.95), f("H", "2025-03-06", 0.0, breadth=0.40),
+            f("I", "2026-03-02", 2.0), {"symbol": "J", "signal": "2026-03-03", "breadth": 0.85},
+        ]
+
+    @staticmethod
+    def long_frame(strong_premium=0.0, ext_premium=0.0, seed=11):
+        """A made-up trades file, June 2016 to mid-2026 (1 to 4 signals a day). Each month has a mood common to all its trades, and a level of breadth of its own that has
+        nothing to do with the mood. Filled trades made when breadth is 77% or more average `strong_premium` R more, and filled trades of stocks up 50% or more in 12 months
+        average `ext_premium` R more (a minus is less)."""
+        rng = np.random.default_rng(seed)
+        days = pd.bdate_range("2016-06-01", "2026-06-30")
+        months = sorted({(d.year, d.month) for d in days})
+        mood = {m: float(rng.normal(0.0, 0.3)) for m in months}
+        level = {m: float(rng.normal(0.65, 0.18)) for m in months}
+        rows = []
+        for k, d in enumerate(days[:-45]):
+            breadth = float(np.clip(level[(d.year, d.month)] + rng.normal(0.0, 0.08), 0.05, 0.98))
+            for j in range(int(rng.integers(1, 5))):
+                filled = bool(rng.random() < 0.6)
+                ret = float(rng.lognormal(-1.2, 0.9) - 0.15)
+                r = float(rng.normal(mood[(d.year, d.month)] + (strong_premium if breadth >= 0.77 else 0.0) + (ext_premium if ret >= 0.5 else 0.0), 1.5))
+                rows.append({"symbol": f"S{k}_{j}", "signal_date": d, "status": "CLOSED" if filled else "UNFILLED",
+                             "fill_date": days[k + 1] if filled else pd.NaT, "exit_date": days[k + 1 + int(rng.integers(3, 40))] if filled else pd.NaT,
+                             "R": r if filled else float("nan"), "net": 0.04 * r if filled else float("nan"), "risk_pct": 0.04,
+                             "regime": str(rng.choice(["healthy", "mixed", "weak"])), "setup": str(rng.choice(["primed", "fresh"], p=[0.9, 0.1])),
+                             "quality_pct": float(rng.uniform(50, 100)), "sma200_chg": float(rng.uniform(-0.1, 0.1)), "breadth50": breadth, "ret252": ret,
+                             "dist_hi": float(-rng.uniform(0, 0.2)), "ext_pct": float(rng.normal(0.0, 0.03)), "ema21_x": float(rng.normal(0.03, 0.03))})
+        return pd.DataFrame(rows)
+
+    def test_the_book_keeps_what_the_stock_had_done_by_the_signal_day(self):
+        book = self.book([self.filled("A", "2026-01-05", 1.0, ret252=0.8, ext_pct=0.01, ema21_x=0.05, dist_hi=-0.02), self.filled("B", "2026-01-06", 1.0)])
+        self.assertAlmostEqual(float(book.ret252[0]), 0.8)
+        self.assertAlmostEqual(float(book.dist_hi[0]), -0.02)
+        self.assertAlmostEqual(float(book.ext_pct[0]), 0.01)
+        self.assertAlmostEqual(float(book.ema21_x[0]), 0.05)
+        self.assertTrue(np.isnan(book.ret252[1]))                                              # no number given for this one
+        for name in ("ret252", "ext_pct", "ema21_x", "dist_hi"):                               # a file without the columns at all
+            self.assertTrue(np.isnan(getattr(self.book([self.filled("A", "2026-01-05", 1.0)]), name)).all())
+
+    def test_a_very_strong_market_is_breadth_at_or_above_the_line_and_a_signal_without_breadth_is_in_neither_group(self):
+        from backtest import market_strength_study as ms
+        book = self.book(self.strength_rows())
+        self.assertEqual((book.n, int(book.closed.sum())), (10, 9))
+        strong, other = ms.groups(book)
+        np.testing.assert_array_equal(strong, [1, 1, 0, 0, 1, 0, 1, 0, 0, 1])                  # B is exactly on 77%: strong; J never filled but its market was strong
+        np.testing.assert_array_equal(other, [0, 0, 1, 1, 0, 1, 0, 1, 0, 0])                   # I has no breadth: in neither
+        s95, o95 = ms.groups(book, 0.95)
+        np.testing.assert_array_equal(s95, [0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+        self.assertEqual(int(o95.sum()), 8)                                                    # the nine with a breadth, less G
+        self.assertAlmostEqual(ms.gap(book, strong, other), 0.75)                              # strong: A B E G = +3 in 4; other: C D F H = 0 in 4
+        self.assertTrue(np.isnan(ms.gap(book, strong, np.zeros(10, dtype=bool))))             # nobody to compare with
+
+    def test_the_gap_is_taken_year_by_year_and_dropping_any_one_year(self):
+        from backtest import market_strength_study as ms
+        book = self.book(self.strength_rows())
+        strong, other = ms.groups(book)
+        rows = {r["label"]: r for r in ms.year_rows(book, strong, other, min_cell=2)}
+        self.assertEqual(sorted(rows), ["2024", "2025", "2026"])
+        y24, y25, y26 = rows["2024"], rows["2025"], rows["2026"]
+        self.assertEqual((y24["n_strong"], y24["n_other"]), (2, 2))
+        self.assertAlmostEqual(y24["gap"], 2.0)                                                # strong +1.5 (A, B), other -0.5 (C, D)
+        self.assertAlmostEqual(y25["gap"], -0.5)                                               # strong 0.0 (E, G), other +0.5 (F, H)
+        self.assertTrue(np.isnan(y26["gap"]))                                                  # J never filled, I has no breadth
+        self.assertEqual((y24["judgeable"], y25["judgeable"], y26["judgeable"]), (True, True, False))
+        self.assertEqual((y24["positive"], y25["positive"], y26["positive"]), (True, False, False))
+        self.assertFalse(ms.year_rows(book, strong, other, min_cell=3)[0]["judgeable"])        # two trades of a kind are too few for 3
+        loyo = ms.leave_one_year_out(book, strong, other, list(rows.values()))
+        self.assertEqual([x["year"] for x in loyo], [2024, 2025])                              # only the judgeable years are dropped in turn
+        self.assertAlmostEqual(loyo[0]["gap"], -0.5)                                           # without 2024 only 2025 is left
+        self.assertAlmostEqual(loyo[1]["gap"], 2.0)                                            # without 2025 only 2024 is left
+
+    def test_the_year_rule_needs_enough_years_most_of_them_positive_and_no_single_year_carrying_it(self):
+        from backtest import market_strength_study as ms
+        rows = [{"judgeable": True, "positive": True}] * 3 + [{"judgeable": True, "positive": False}, {"judgeable": False, "positive": True}]
+        loyo = [{"year": 2020 + i, "gap": g} for i, g in enumerate((0.40, 0.30, 0.20, 0.35))]
+        fine = ms.years_check(rows, loyo, min_years=4)
+        self.assertEqual((fine["judgeable"], fine["positive"], fine["need"]), (4, 3, 3))       # two thirds of 4 years, rounded up
+        self.assertAlmostEqual(fine["worst"], 0.20)
+        self.assertEqual(fine["worst_year"], 2022)
+        self.assertTrue(fine["ok"])
+        self.assertFalse(ms.years_check(rows, loyo, min_years=5)["ok"])                        # too few judgeable years
+        few = [{"judgeable": True, "positive": True}] + [{"judgeable": True, "positive": False}] * 3
+        self.assertFalse(ms.years_check(few, loyo, min_years=4)["ok"])                         # strong beats other in 1 year of 4
+        self.assertFalse(ms.years_check(rows, [{"year": 2020, "gap": 0.40}, {"year": 2021, "gap": 0.14}], min_years=4)["ok"])    # without 2021 only +0.14R is left
+        self.assertTrue(ms.years_check(rows, [{"year": 2020, "gap": 0.40}, {"year": 2021, "gap": 0.15}], min_years=4)["ok"])     # +0.15R is enough
+        self.assertFalse(ms.years_check(rows, [{"year": 2020, "gap": 0.40}, {"year": 2021, "gap": float("nan")}], min_years=4)["ok"])   # a gap that cannot be calculated
+        empty = ms.years_check([], [])
+        self.assertEqual((empty["judgeable"], empty["ok"]), (0, False))
+        self.assertTrue(np.isnan(empty["worst"]))
+
+    def test_the_strength_gap_by_part_of_the_history_by_line_and_by_band_of_breadth(self):
+        from backtest import busy_day_study as bd
+        from backtest import market_strength_study as ms
+        book = self.book(self.strength_rows())
+        strong, other = ms.groups(book)
+        parts = ms.part_rows(book, strong, other, periods=((2024, 2024), (2025, 2025), (2019, 2019)), min_cell=2, min_gap=0.10)
+        self.assertEqual([p["label"] for p in parts], ["2024-24", "2025-25", "2019-19"])
+        self.assertAlmostEqual(parts[0]["gap"], 2.0)
+        self.assertTrue(parts[0]["ok"])
+        self.assertAlmostEqual(parts[1]["gap"], -0.5)
+        self.assertFalse(parts[1]["ok"])
+        self.assertEqual((parts[2]["n_strong"], parts[2]["n_other"]), (0, 0))                  # nobody traded then: nothing to judge
+        self.assertTrue(np.isnan(parts[2]["gap"]))
+        self.assertFalse(parts[2]["ok"])
+        self.assertFalse(ms.part_rows(book, strong, other, periods=((2024, 2024),), min_cell=3)[0]["ok"])               # two trades of a kind are too few
+        self.assertFalse(ms.part_rows(book, strong, other, periods=((2024, 2024),), min_cell=2, min_gap=2.5)[0]["ok"])  # +2.0R is short of a bar of +2.5R
+        lines = {round(r["cut"], 2): r for r in ms.line_rows(book, (0.70, 0.78, 0.95), min_gap=0.10)}
+        self.assertEqual((lines[0.70]["n_strong"], lines[0.70]["n_other"]), (5, 3))
+        self.assertAlmostEqual(lines[0.70]["gap"], 0.6)                                        # strong A B C E G = +3 in 5; other D F H = 0 in 3
+        self.assertTrue(lines[0.70]["ok"])
+        self.assertEqual((lines[0.78]["n_strong"], lines[0.78]["n_other"]), (3, 5))
+        self.assertAlmostEqual(lines[0.78]["gap"], 2 / 3 - 0.2)                                # strong A E G = +2 in 3; other B C D F H = +1 in 5
+        self.assertAlmostEqual(lines[0.95]["gap"], -1.0 - 4 / 7)                               # G alone (-1) against seven others, +4 in 7
+        self.assertFalse(lines[0.95]["ok"])
+        ids, n = bd.month_blocks(book.sig)
+        self.assertEqual(n, 3)
+        rows = ms.bucket_rows(book, ids, n, np.ones((1, n)), edges=(0.0, 0.5, 0.77, 1.01))
+        self.assertEqual([(r["lo"], r["hi"]) for r in rows], [(0.0, 0.5), (0.5, 0.77), (0.77, 1.0)])
+        low, mid, top = rows
+        self.assertEqual((low["days"], low["filled"]), (2, 2))
+        self.assertAlmostEqual(low["mean_R"], -0.5)                                            # D (30%) -1 and H (40%) 0
+        self.assertEqual((mid["days"], mid["filled"]), (2, 2))
+        self.assertAlmostEqual(mid["mean_R"], 0.5)                                             # F (50%) +1 and C (76%) 0; B is on the next line up
+        self.assertEqual((top["days"], top["filled"]), (5, 4))
+        self.assertAlmostEqual(top["mean_R"], 0.75)                                            # A B E G; J never filled
+        self.assertAlmostEqual(top["net"], 0.0375)
+
+    def test_the_strength_rule_needs_all_four_rules_and_says_which_one_was_missed(self):
+        from backtest import market_strength_study as ms
+        edge, yes, no = {"point": 0.30, "lo": 0.05}, {"ok": True}, {"ok": False}
+        self.assertTrue(ms.edge_ok({"point": 0.20, "lo": 0.0001}))
+        self.assertFalse(ms.edge_ok({"point": 0.19, "lo": 0.05}))                              # too small to matter
+        self.assertFalse(ms.edge_ok({"point": 0.40, "lo": 0.0}))                               # luck cannot be ruled out
+        self.assertFalse(ms.edge_ok(None))
+        v = ms.verdict(edge, yes, [yes, yes, yes], [yes, yes])
+        self.assertTrue(v["shown"])
+        self.assertTrue(ms.result_text(v).startswith("RESULT: every rule is met"))
+        cases = {1: (({"point": 0.10, "lo": -0.10}, yes, [yes], [yes]), "too small, or too uncertain"),
+                 2: ((edge, no, [yes], [yes]), "a few of them carry it"),
+                 3: ((edge, yes, [yes, no], [yes]), "not in every part of the history"),
+                 4: ((edge, yes, [yes], [yes, no]), "exactly where the line is drawn")}
+        for rule, (args, why) in cases.items():
+            miss = ms.verdict(*args)
+            self.assertFalse(miss["shown"])
+            text = ms.result_text(miss)
+            self.assertIn(f"(rule {rule} not met)", text)
+            self.assertIn(why, text)
+            self.assertIn("nothing changes", text)
+        none = ms.verdict(None, no, [], [])
+        self.assertFalse(none["shown"])
+        self.assertIn("(rules 1, 2, 3 and 4 not met)", ms.result_text(none))
+        self.assertIn("(rules 2 and 3 not met)", ms.result_text(ms.verdict(edge, no, [yes, no], [yes])))
+        for v_ in (v, none, ms.verdict(edge, no, [yes], [yes])):                               # one line each, starting the way the evidence file expects
+            self.assertTrue(ms.result_text(v_).startswith("RESULT: "))
+            self.assertNotIn("\n", ms.result_text(v_))
+
+    def test_the_strength_accounts_size_each_signal_by_the_market_it_was_made_in(self):
+        from backtest import market_strength_study as ms
+        book = self.jan5()                                                                     # A +2R, B -1R, C never fills, D +1R: see jan5
+        strong = np.array([True, False, False, False])                                         # only A was made in a very strong market
+        one, two = ms.account_variants(book, strong, seeds=2)
+        self.assertEqual([(a["risk"], a["stocks"]) for a in (one, two)], [(0.01, 8), (0.005, 12)])
+        # 1% of an account of 100 at risk, 5% stops: A +2.0, B -1.0 and D +1.0
+        self.assertAlmostEqual(one["base_run"]["realised"], 102.0)
+        got = {v["key"]: v for v in one["variants"]}
+        self.assertEqual(list(got), ["up", "down", "only"])
+        self.assertAlmostEqual(got["up"]["run"]["realised"], 103.0)                            # A at 1.5x the risk: +3.0
+        self.assertAlmostEqual(got["down"]["run"]["realised"], 102.0)                          # B and D at half: -0.5 and +0.5
+        self.assertAlmostEqual(got["only"]["run"]["realised"], 102.0)                          # A alone
+        self.assertEqual(got["only"]["run"]["skipped"], 3)                                     # B, C and D never reach the account
+        self.assertEqual(got["up"]["run"]["skipped"], 0)
+        # 0.5% at risk: half of each
+        self.assertAlmostEqual(two["base_run"]["realised"], 101.0)
+        got2 = {v["key"]: v["run"]["realised"] for v in two["variants"]}
+        self.assertAlmostEqual(got2["up"], 101.5)
+        self.assertAlmostEqual(got2["down"], 101.0)
+        self.assertAlmostEqual(got2["only"], 101.0)
+        for a in (one, two):
+            self.assertGreaterEqual(a["luck"], 0.005)
+            for v in a["variants"]:
+                self.assertEqual(len(v["controls"]), 2)                                        # the two random draws with as many flagged signals
+
+    def test_the_strength_machinery_finds_a_premium_that_is_there_and_not_one_that_is_not(self):
+        from backtest import busy_day_study as bd
+        from backtest import market_strength_study as ms
+        from backtest import portfolio_study as ps
+
+        def raw(df):
+            book = ps.Book(df)
+            strong, other = ms.groups(book)
+            ids, n = bd.month_blocks(book.sig)
+            return ms.raw_estimate(book, strong, other, ids, n, bd.resamples(n, 2000, ms.SEED))
+        planted = raw(self.long_frame(strong_premium=0.6))
+        self.assertTrue(ms.edge_ok(planted), planted)
+        self.assertGreater(planted["point"], 0.4)
+        nothing = raw(self.long_frame(strong_premium=0.0))
+        self.assertFalse(ms.edge_ok(nothing), nothing)
+        self.assertLess(abs(nothing["point"]), 0.2)
+
+    def test_the_market_strength_study_runs_end_to_end_and_ends_with_its_verdict(self):
+        from backtest import market_strength_study as ms
+        df = self.long_frame(strong_premium=0.6)
+        lines = ms.analyse(df, seeds=2, boot=300)
+        text = "\n".join(lines)
+        for section in ("== 1.", "== 2.", "== 3.", "== 4.", "== 5.", "== 6.", "== 7.", "== 8.", "== 9."):
+            self.assertIn(section, text)
+        for label in ("very strong (77%+)", "the rest (under 77%)", "   <- the rule", "   <- rule 4", "1.5x the risk in a very strong market"):
+            self.assertIn(label, text)
+        result = [line for line in lines if line.startswith("RESULT:")]
+        self.assertEqual(len(result), 1)
+        self.assertTrue(result[0].startswith("RESULT: every rule is met"), "\n".join(lines[-14:]))      # a premium of 0.6R in every part of the history: all four rules
+        zero = [line for line in ms.analyse(self.long_frame(strong_premium=0.0), seeds=2, boot=300) if line.startswith("RESULT:")]
+        self.assertEqual(len(zero), 1)
+        self.assertIn("not shown", zero[0])
+        self.assertEqual(ms.analyse(df.iloc[0:0]), ["No finished signals in the file."])
+        self.assertTrue(ms.analyse(df.drop(columns=["breadth50"]))[0].startswith("The file has no breadth"))
+
+    # ---- the late-pick study (backtest/late_pick_study.py) -----------------------------------------------------------------------------------------
+    def late_rows(self):
+        """Six signals in January 2026, each with its 12-month gain: A +1R (-10%), B +2R (10%), C 0R (30%), D +3R (60%), E -2R (60%), F never fills (55%). At the 50%
+        line EXT = D E F and the others are A B C; EXT earned +0.5R a trade against +1.0R."""
+        f = self.filled
+        return [f("A", "2026-01-05", 1.0, ret252=-0.10), f("B", "2026-01-06", 2.0, ret252=0.10), f("C", "2026-01-07", 0.0, ret252=0.30),
+                f("D", "2026-01-08", 3.0, ret252=0.60), f("E", "2026-01-09", -2.0, ret252=0.60), {"symbol": "F", "signal": "2026-01-12", "ret252": 0.55}]
+
+    def test_a_pick_is_late_when_its_12_month_gain_is_the_line_or_more_and_one_without_the_number_is_in_neither_group(self):
+        from backtest import late_pick_study as lp
+        book = self.book([self.filled("A", "2026-01-05", 1.0, ret252=0.50), self.filled("B", "2026-01-06", -1.0, ret252=0.49), self.filled("C", "2026-01-07", 0.5),
+                          self.filled("D", "2026-01-08", 3.0, ret252=1.2)])
+        ext, other = lp.groups(book)
+        np.testing.assert_array_equal(ext, [1, 0, 0, 1])                                       # exactly 50% is EXT
+        np.testing.assert_array_equal(other, [0, 1, 0, 0])                                     # C has no 12-month gain: in neither
+        e2, o2 = lp.groups(book, 1.0)
+        np.testing.assert_array_equal(e2, [0, 0, 0, 1])
+        np.testing.assert_array_equal(o2, [1, 1, 0, 0])
+        self.assertAlmostEqual(lp.gap(book, ext, other), 3.0)                                  # EXT (+1, +3) averages +2.0, the one other filled trade -1.0
+        self.assertTrue(np.isnan(lp.gap(book, ext, np.zeros(4, dtype=bool))))
+
+    def test_each_side_of_the_late_pick_rule_has_its_own_bars(self):
+        from backtest import late_pick_study as lp
+        self.assertTrue(lp.worse_ok({"point": -0.10, "hi": -0.001}))
+        self.assertFalse(lp.worse_ok({"point": -0.09, "hi": -0.5}))                            # too small to matter
+        self.assertFalse(lp.worse_ok({"point": -0.30, "hi": 0.0}))                             # luck cannot be ruled out
+        self.assertFalse(lp.worse_ok({"point": 0.30, "hi": 0.5}))                              # the other way round
+        self.assertFalse(lp.worse_ok(None))
+        self.assertTrue(lp.better_ok({"point": 0.10, "lo": 0.001}))
+        self.assertFalse(lp.better_ok({"point": 0.09, "lo": 0.05}))
+        self.assertFalse(lp.better_ok({"point": 0.50, "lo": 0.0}))
+        self.assertFalse(lp.better_ok({"point": -0.50, "lo": -0.9}))
+        self.assertFalse(lp.better_ok(None))
+
+    def test_the_late_pick_gap_by_part_year_setup_band_line_and_third(self):
+        from backtest import busy_day_study as bd
+        from backtest import late_pick_study as lp
+        f = self.filled
+        book = self.book([f("P1", "2025-12-15", 0.0, ret252=0.8), f("P2", "2025-12-16", 1.0, ret252=0.1), f("P3", "2026-01-12", 2.0, ret252=0.9), f("P4", "2026-01-13", 0.0, ret252=0.2)])
+        ext, other = lp.groups(book)
+        rows = lp.part_rows(book, ext, other, periods=((2025, 2025), (2026, 2026), (2019, 2019)), min_cell=1)
+        self.assertEqual([r["label"] for r in rows], ["2025-25", "2026-26", "2019-19"])
+        self.assertAlmostEqual(rows[0]["gap"], -1.0)                                           # EXT 0R against 1R
+        self.assertEqual((rows[0]["worse"], rows[0]["better"], rows[0]["enough"]), (True, False, True))
+        self.assertAlmostEqual(rows[1]["gap"], 2.0)                                            # EXT 2R against 0R
+        self.assertEqual((rows[1]["worse"], rows[1]["better"]), (False, True))
+        self.assertEqual((rows[2]["n_ext"], rows[2]["n_other"], rows[2]["enough"], rows[2]["worse"], rows[2]["better"]), (0, 0, False, False, False))
+        self.assertTrue(np.isnan(rows[2]["gap"]))
+        self.assertFalse(lp.part_rows(book, ext, other, periods=((2025, 2025),), min_cell=2)[0]["enough"])      # one trade of a kind is too few to judge
+        # six signals of a single month: EXT = D E F (+0.5R a trade on D and E), the others = A B C (+1.0R)
+        book = self.book(self.late_rows())
+        ext, other = lp.groups(book)
+        np.testing.assert_array_equal(ext, [0, 0, 0, 1, 1, 1])
+        self.assertAlmostEqual(lp.gap(book, ext, other), -0.5)
+        ids, n = bd.month_blocks(book.sig)
+        self.assertEqual(n, 1)
+        bands = {r["label"]: r for r in lp.band_rows(book, ids, n, np.ones((1, n)))}
+        self.assertEqual(list(bands), list(lp.BAND_NAMES))
+        self.assertEqual((bands["under 0%"]["signals"], bands["under 0%"]["filled"]), (1, 1))
+        self.assertAlmostEqual(bands["under 0%"]["mean_R"], 1.0)
+        self.assertAlmostEqual(bands["0% to 25%"]["mean_R"], 2.0)
+        self.assertAlmostEqual(bands["25% to 50%"]["mean_R"], 0.0)
+        self.assertEqual((bands["50% to 75%"]["signals"], bands["50% to 75%"]["filled"]), (3, 2))      # D, E and the order F that never filled
+        self.assertAlmostEqual(bands["50% to 75%"]["mean_R"], 0.5)
+        self.assertAlmostEqual(bands["50% to 75%"]["net"], 0.025)
+        self.assertEqual(bands["75% to 100%"]["signals"], 0)
+        self.assertTrue(np.isnan(bands["75% to 100%"]["mean_R"]))                              # nobody there: not a number, not a crash
+        self.assertEqual(lp.band_rows(book, ids, n, np.ones((1, n)))[3]["fresh"], 0.0)         # all six are about-to-break stocks
+        year = lp.year_rows(book, ext, other, min_cell=1)
+        self.assertEqual([(r["label"], r["signals"], r["n_ext"], r["n_other"], r["judged"]) for r in year], [("2026", 6, 2, 3, True)])
+        self.assertAlmostEqual(year[0]["share_ext"], 0.5)
+        self.assertAlmostEqual(year[0]["gap"], -0.5)
+        self.assertFalse(lp.year_rows(book, ext, other, min_cell=3)[0]["judged"])
+        by_setup = {r["label"]: r for r in lp.split_rows(book, np.where(book.fresh, "fresh", "primed"), ("fresh", "primed"), ext, other)}
+        self.assertTrue(np.isnan(by_setup["fresh"]["gap"]))                                    # no fresh breakout in the file
+        self.assertAlmostEqual(by_setup["primed"]["gap"], -0.5)
+        lines = {round(r["cut"], 2): r for r in lp.line_rows(book, ids, n, bd.resamples(n, 10), cuts=(0.2, 0.55, 0.7))}
+        self.assertEqual((lines[0.2]["n_ext"], lines[0.2]["n_other"]), (3, 2))                 # C D E at or above 20%; A and B below
+        self.assertAlmostEqual(lines[0.2]["est"]["point"], 1 / 3 - 1.5)
+        self.assertAlmostEqual(lines[0.55]["est"]["point"], -0.5)                              # F's 55% is on this line: the same groups as at 50%
+        self.assertEqual((lines[0.7]["n_ext"], lines[0.7]["n_other"]), (0, 5))
+        self.assertIsNone(lines[0.7]["est"])                                                   # nobody on one side: no gap
+        # thirds: thirty numbers split ten and ten and ten, and the cut points are those of the filled trades
+        values = np.arange(1.0, 31.0)
+        lab, names, edges = lp.thirds(values, np.ones(30, dtype=bool))
+        self.assertEqual([int((lab == x).sum()) for x in names], [10, 10, 10])
+        self.assertAlmostEqual(edges[0], 1.0 + 29 / 3)
+        self.assertAlmostEqual(edges[1], 1.0 + 58 / 3)
+        self.assertIsNone(lp.thirds(values[:20], np.ones(20, dtype=bool)))                     # too few to cut into thirds
+        self.assertEqual(lp.thirds(np.append(values, np.nan), np.append(np.ones(30, dtype=bool), True))[0][-1], "")      # no number: no third
+
+    def test_the_late_pick_rule_has_three_outcomes_and_says_why_when_it_is_neither(self):
+        from backtest import late_pick_study as lp
+        w, b = {"point": -0.25, "lo": -0.45, "hi": -0.05}, {"point": 0.25, "lo": 0.05, "hi": 0.45}
+        weak_w = {"point": -0.04, "lo": -0.2, "hi": 0.1}
+        weak_b = {"point": 0.05, "lo": -0.1, "hi": 0.2}
+        yes_w = {"worse": True, "better": False}
+        yes_b = {"worse": False, "better": True}
+        no = {"worse": False, "better": False}
+        worse = lp.verdict(w, w, [yes_w] * 3)
+        self.assertEqual(worse["outcome"], "worse")
+        self.assertEqual(list(worse["worse"].values()), [True, True, True])
+        self.assertEqual(list(worse["better"].values()), [False, False, False])
+        text = lp.result_text(worse, w)
+        self.assertTrue(text.startswith("RESULT: the picks that had already risen 50% or more in 12 months earned clearly LESS"))
+        self.assertIn("not changed by this test", text)
+        better = lp.verdict(b, b, [yes_b] * 3)
+        self.assertEqual(better["outcome"], "better")
+        text = lp.result_text(better, b)
+        self.assertIn("did NOT earn less", text)
+        self.assertIn("earned clearly MORE", text)
+        self.assertIn("flattered by survivors", text)                                          # the reason the answer is weaker than it looks
+        self.assertIn("Nothing changes", text)
+        # the data leans to "worse" but the same-month gap and one part of the history do not agree: it says which and why
+        lean = lp.verdict(w, weak_w, [yes_w, no, yes_w])
+        self.assertEqual(lean["outcome"], "unclear")
+        text = lp.result_text(lean, w)
+        self.assertIn("neither side is shown", text)
+        self.assertIn("(the worse-side rules 2 and 3 not met)", text)
+        self.assertIn("0.25R less per filled trade", text)
+        self.assertIn("inside the same calendar month", text)                                  # the first missed rule is the one explained
+        one = lp.result_text(lp.verdict(w, w, [yes_w, yes_w, no]), w)
+        self.assertIn("(the worse-side rule 3 not met)", one)
+        self.assertIn("does not hold in every part of the history", one)
+        small = lp.result_text(lp.verdict(weak_b, weak_b, [yes_b] * 3), weak_b)                # leaning the other way
+        self.assertIn("(the better-side rules 1 and 2 not met)", small)
+        self.assertIn("0.05R more per filled trade", small)
+        self.assertIn("too small, or too uncertain", small)
+        none = lp.verdict(None, None, [])
+        self.assertEqual(none["outcome"], "unclear")
+        self.assertIn("no gap can be calculated", lp.result_text(none, None))
+        for v_, t in ((worse, w), (better, b), (lean, w), (none, None)):                        # one line each, starting the way the evidence file expects
+            self.assertTrue(lp.result_text(v_, t).startswith("RESULT: "))
+            self.assertNotIn("\n", lp.result_text(v_, t))
+
+    def candles(self, n=300, start="2025-01-01", step=1.0, flat=False):
+        """Daily candles for n business days from `start`: the close of day i is 100 + i x step (or 100 every day), the low 2 below it."""
+        close = np.full(n, 100.0) if flat else 100.0 + step * np.arange(n)
+        idx = pd.bdate_range(start, periods=n)
+        return pd.DataFrame({"open": close, "high": close + 1.0, "low": close - 2.0, "close": close, "volume": np.full(n, 1000.0)}, index=idx)
+
+    def test_a_stock_is_measured_on_its_own_candles_over_several_windows(self):
+        from backtest import late_pick_study as lp
+        d = self.candles()
+        last = d.index[-1]
+        m = lp.chart_measures(d, last)                                                         # bar 299: close 399
+        self.assertEqual(m["date"], last)
+        self.assertAlmostEqual(m["ret63"], 399 / 336 - 1)                                      # bar 236 closed at 336
+        self.assertAlmostEqual(m["ret126"], 399 / 273 - 1)
+        self.assertAlmostEqual(m["ret252"], 399 / 147 - 1)
+        self.assertAlmostEqual(m["from_low"], 399 / 272 - 1)                                   # the lowest low of bars 174..299 is bar 174's: 274 - 2
+        early = lp.chart_measures(d, d.index[100])                                             # bar 100: close 200
+        self.assertAlmostEqual(early["ret63"], 200 / 137 - 1)
+        self.assertTrue(np.isnan(early["ret126"]) and np.isnan(early["ret252"]) and np.isnan(early["from_low"]))     # not enough history yet
+        self.assertEqual(lp.chart_measures(d, last + pd.offsets.BDay(10))["date"], last)      # a day after the candles end: the last session
+        friday = next(t for t in d.index[100:] if t.weekday() == 4)
+        self.assertEqual(lp.chart_measures(d, friday + pd.Timedelta(days=1))["date"], friday)  # a Saturday: the Friday's candle
+        self.assertIsNone(lp.chart_measures(d, d.index[0] - pd.Timedelta(days=5)))             # before the first candle
+        self.assertIsNone(lp.chart_measures(pd.DataFrame(), last))                              # nothing to measure on
+        flat = lp.chart_measures(self.candles(flat=True), last)
+        self.assertAlmostEqual(flat["ret252"], 0.0)
+        self.assertAlmostEqual(flat["from_low"], 100 / 98 - 1)
+
+    def test_the_live_picks_are_counted_by_how_far_along_they_were(self):
+        import re
+        from backtest import late_pick_study as lp
+        up, flat = self.candles(), self.candles(flat=True)
+        history = pd.concat([x.assign(symbol=s).rename_axis("date").reset_index().assign(date=lambda t: t["date"].dt.strftime("%Y-%m-%d"))
+                             for s, x in (("UPPER", up), ("FLATTER", flat))], ignore_index=True)
+        day = up.index[-1].strftime("%Y-%m-%d")
+        ledger = pd.DataFrame([{"symbol": "UPPER", "scan_mode": "swing", "signal_date": day, "setup": "primed"},
+                               {"symbol": "FLATTER", "scan_mode": "btst", "signal_date": day, "setup": "fresh"},
+                               {"symbol": "GHOST", "scan_mode": "btst", "signal_date": day, "setup": "primed"}])          # not in the candle cache
+        rows = lp.live_rows(ledger, history)
+        self.assertEqual([(r["symbol"], r["mode"], r["setup"]) for r in rows], [("UPPER", "swing", "primed"), ("FLATTER", "btst", "fresh")])
+        self.assertAlmostEqual(rows[0]["ret252"], 399 / 147 - 1)
+        self.assertAlmostEqual(rows[1]["ret252"], 0.0)
+        lines = lp.live_lines(rows, len(ledger))
+        text = "\n".join(lines)
+        self.assertIn("2 of the 3 picks in the live ledger", text)
+        by_label = {line.split("  ")[0].strip(): line for line in lines if line.startswith(("up 50%", "median"))}
+        self.assertEqual(re.findall(r"\d+ of \d+", by_label["up 50%+ in 12 months"]), ["1 of 2", "1 of 1", "0 of 1"])    # all picks, swing, BTST: only the rising one
+        self.assertEqual(re.findall(r"\d+ of \d+", by_label["up 50%+ in 3 months"]), ["0 of 2", "0 of 1", "0 of 1"])     # +18.8% in 3 months: not far along on that measure
+        self.assertEqual(re.findall(r"[+-]\d+%", by_label["median 12-month gain"]), ["+86%", "+171%", "+0%"])             # the middle of +171% and +0%; each kind alone
+        self.assertIn("The 2 most extended live picks", text)
+        place = {name: next(i for i, line in enumerate(lines) if line.startswith(name)) for name in ("UPPER", "FLATTER")}
+        self.assertLess(place["UPPER"], place["FLATTER"])                                      # the more extended one comes first
+        self.assertEqual(lp.live_lines([], 5), ["No live pick could be measured (no ledger, or none of its stocks has candles in the history cache)."])
+        self.assertEqual(lp.live_rows(ledger.iloc[0:0], history), [])
+
+    def test_the_machinery_finds_a_late_pick_penalty_that_is_there_and_not_one_that_is_not(self):
+        from backtest import busy_day_study as bd
+        from backtest import late_pick_study as lp
+        from backtest import portfolio_study as ps
+
+        def estimates(df):
+            book = ps.Book(df)
+            ext, other = lp.groups(book)
+            ids, n = bd.month_blocks(book.sig)
+            cells = bd.Cells(book, ext, other, ids, n)
+            c = bd.resamples(n, 2000, lp.SEED)
+            return bd.estimate(cells.pooled, c, lp.ALPHA), bd.estimate(cells.within, c, lp.ALPHA)
+        raw, same_month = estimates(self.long_frame(ext_premium=-0.4))
+        self.assertTrue(lp.worse_ok(raw), raw)
+        self.assertTrue(lp.worse_ok(same_month), same_month)
+        self.assertFalse(lp.better_ok(raw))
+        raw, same_month = estimates(self.long_frame(ext_premium=0.4))
+        self.assertTrue(lp.better_ok(raw), raw)
+        self.assertTrue(lp.better_ok(same_month), same_month)
+        raw0, same_month0 = estimates(self.long_frame(ext_premium=0.0))
+        self.assertFalse(lp.worse_ok(raw0) or lp.better_ok(raw0), raw0)
+        self.assertLess(abs(raw0["point"]), 0.2)
+
+    def test_the_late_pick_study_runs_end_to_end_and_ends_with_its_verdict(self):
+        from backtest import late_pick_study as lp
+        df = self.long_frame(ext_premium=-0.4)
+        lines = lp.analyse(df, seeds=2, boot=300, live=["live picks go here"])
+        text = "\n".join(lines)
+        for section in ("== 1.", "== 2.", "== 3.", "== 4.", "== 5.", "== 6.", "== 7.", "== 8.", "== 9.", "== 10.", "== 11."):
+            self.assertIn(section, text)
+        for label in ("50% to 75%", "fresh breakout", "healthy market", "score, lowest third", "   <- the rule", "EXT picks at half the risk", "live picks go here"):
+            self.assertIn(label, text)
+        result = [line for line in lines if line.startswith("RESULT:")]
+        self.assertEqual(len(result), 1)
+        self.assertIn("earned clearly LESS", result[0], "\n".join(lines[-14:]))               # 0.4R less in every part of the history
+        better = [line for line in lp.analyse(self.long_frame(ext_premium=0.4), seeds=2, boot=300) if line.startswith("RESULT:")]
+        self.assertIn("earned clearly MORE", better[0])
+        zero = [line for line in lp.analyse(self.long_frame(ext_premium=0.0), seeds=2, boot=300) if line.startswith("RESULT:")]
+        self.assertIn("neither side is shown", zero[0])
+        self.assertIn("(no ledger or candle cache was given)", "\n".join(lp.analyse(df, seeds=2, boot=300)))
+        self.assertEqual(lp.analyse(df.iloc[0:0]), ["No finished signals in the file."])
+        self.assertTrue(lp.analyse(df.drop(columns=["ret252"]))[0].startswith("The file has no 12-month return"))
 
 
 class CapitalPlan(unittest.TestCase):
