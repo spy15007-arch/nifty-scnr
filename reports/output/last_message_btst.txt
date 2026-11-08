@@ -1,21 +1,78 @@
-🌙 <b>BTST SCAN</b> · Sat 07 Nov · close of Fri 06 Nov
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.7% last session · global hostile
-📊 <b>BREADTH</b> 46% (stocks above their 50-day average) - mixed market
-
-<b>NO NEW PICK.</b> 495 stocks checked, 91 in a breakout setup, 59 passed the quality filter - all already on your list.
+🌙 <b>BTST SCAN</b> · Sun 08 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.4% today · global hostile
+📊 <b>BREADTH</b> 51% (stocks above their 50-day average) - mixed market
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>UNIONBANK</b> 👀 · Quality 94/100 · picked 5 Nov
-Buy at <b>192.75</b> · order valid 4 more sessions
+<b>UNIONBANK</b> 👀 · Quality 95/100 · picked 5 Nov
+Buy at <b>192.75</b> · order valid 3 more sessions
 Profit marks 205.30 · 217.80 · 230.30
-<b>CIPLA</b> 👀 · Quality 90/100 · picked 4 Nov
-Buy at <b>1,446.50</b> · order valid 3 more sessions
+<b>CIPLA</b> 👀 · Quality 91/100 · picked 4 Nov
+Buy at <b>1,446.50</b> · order valid 2 more sessions
 Profit marks 1,519.65 · 1,592.80 · 1,665.95
-<b>LT</b> 👀 · Quality 88/100 · picked 5 Nov
-Buy at <b>4,133.60</b> · order valid 4 more sessions
+<b>LT</b> 👀 · Quality 90/100 · picked 5 Nov
+Buy at <b>4,133.60</b> · order valid 3 more sessions
 Profit marks 4,353.75 · 4,573.90 · 4,794.05
-+17 more earlier picks also still qualify (on your list)
+
+<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
+
+<b>1. RADICO</b> 👀 About to break out (2.9% below the 50-day high) · Quality 84/100 · FMCG
+Buy at <b>4,689.40</b> · skip if it opens above 4,830.05
+Stop <b>4,302.30</b> (-8.3%) · trail 16.5%
+Profit marks 5,076.50 · 5,463.60 · 5,850.65
+near 52-wk high · strong 12-mo return · delivery ~52%
+⚠️ 200-day trend rising, but already spiked 11% in 5 days - buy in continuation, not on a dip
+
+<b>2. PAYTM</b> 👀 About to break out (3.0% below the 50-day high) · Quality 80/100
+Buy at <b>1,859.25</b> · skip if it opens above 1,915.00
+Stop <b>1,706.25</b> (-8.2%) · trail 16.5%
+Profit marks 2,012.25 · 2,165.25 · 2,318.20
+very liquid · near 52-wk high · delivery ~40%
+
+<b>3. JSWCEMENT</b> 👀 About to break out (1.8% below the 50-day high) · Quality 54/100
+Buy at <b>127.60</b> · skip if it opens above 131.40
+Stop <b>118.40</b> (-7.2%) · trail 14.4%
+Profit marks 136.80 · 146.00 · 155.15
+low volatility · near 52-wk high · delivery ~50%
+
+<b>4. NH</b> 👀 About to break out (1.4% below the 50-day high) · Quality 54/100
+Buy at <b>1,956.85</b> · skip if it opens above 2,015.55
+Stop <b>1,808.70</b> (-7.6%) · trail 15.1%
+Profit marks 2,105.00 · 2,253.10 · 2,401.20
+near 52-wk high · low volatility · delivery ~52%
+
+<b>5. STARHEALTH</b> 👀 About to break out (2.7% below the 50-day high) · Quality 51/100
+Buy at <b>589.20</b> · skip if it opens above 606.85
+Stop <b>535.45</b> (-9.1%) · trail 18.2%
+Profit marks 642.95 · 696.65 · 750.35
+near 52-wk high · delivery ~58%
+⚠️ 200-day trend rising, but already spiked 12% in 5 days - buy in continuation, not on a dip
+
+<b>6. SHREECEM</b> 👀 About to break out (0.8% below the 50-day high) · Quality 50/100
+Buy at <b>25,305.55</b> · skip if it opens above 26,064.70
+Stop <b>23,765.60</b> (-6.1%) · trail 12.2%
+Profit marks 26,845.50 · 28,385.45 · 29,925.40
+low volatility · near 52-wk high · delivery ~50%
+
+<b>7. KPRMILL</b> 👀 About to break out (2.4% below the 50-day high) · Quality 50/100
+Buy at <b>1,208.95</b> · skip if it opens above 1,245.20
+Stop <b>1,101.95</b> (-8.8%) · trail 17.7%
+Profit marks 1,315.95 · 1,422.90 · 1,529.90
+200-day trend rising · near 52-wk high · delivery ~45%
+
++53 more qualify but are already on your list.
+
+📒 <b>YOUR LIST</b>
+• <b>INDHOTEL</b> - raise your stop-loss 774.07 → <b>779.91</b>
+• <b>DIVISLAB</b> - raise your stop-loss 9,102.21 → <b>9,366.91</b>
+• <b>POWERGRID</b> - buy order expired; no trade
+• <b>RELIANCE</b> - buy order expired; no trade
+• <b>ICICIBANK</b> - raise your stop-loss 1,415.29 → <b>1,417.00</b>
+• <b>TATACONSUM</b> - bought at 1,086.90 (buy order triggered)
+• <b>TVSMOTOR</b> - bought at 4,505.10 (buy order triggered)
+• <b>MAHABANK</b> - bought at 87.70 (buy order triggered)
+• <b>PPLPHARMA</b> - bought at 243.70 (buy order triggered)
 
 🧾 <i>Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
-Open now: 32 of 43 up, average +2.8% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 570% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+Open now: 34 of 47 up, average +3.1% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 650% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
