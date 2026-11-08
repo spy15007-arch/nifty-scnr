@@ -89,6 +89,8 @@ class Book:
         self.net = np.where(self.closed, d["net"].to_numpy(float), 0.0)                   # the trade's own result after costs, as a share of its price
         self.rf = d["risk_pct"].to_numpy(float)
         self.weak = (d["regime"] == "weak").to_numpy()
+        self.regime = d["regime"].astype(str).to_numpy()                                  # healthy / mixed / weak, as the scan labelled the market that day
+        self.breadth = d["breadth50"].to_numpy(float) if "breadth50" in d.columns else np.full(self.n, np.nan)   # share of stocks above their 50-day average
         self.strong = (d["sma200_chg"].to_numpy(float) >= ss.STRONG_TREND)
         self.fresh = (d["setup"] == "fresh").to_numpy()
         self.q = d["quality_pct"].to_numpy(float)
@@ -145,19 +147,25 @@ def day_ranks(book: Book) -> np.ndarray:
 
 
 def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float = 0.01, seed: int = 0, weak_half: bool = True,
-             cap: int | None = None) -> dict:
+             cap: int | None = None, mult: np.ndarray | None = None, skip: np.ndarray | None = None) -> dict:
     """
     Run the account over the whole file. Returns the weekly marked-to-market equity and the counts.
     `cap` = the scan lists at most that many new picks a day (the first `cap` of the day's signals in the order `how`); the rest never reach the
     account and are counted in out["capped"]. None = every signal of the file, as before.
+    `mult` = one factor per signal of the book on the money risked on it (0.5 = half the usual risk, so half the money in the stock; None = 1 for
+    all). `skip` = one flag per signal: a flagged signal is one the scan would not have listed, so it never reaches the account and is counted in
+    out["skipped"] (before `cap` is applied). Both are used by backtest/busy_day_study.py; left out, every result is what it was.
     """
+    for name, arr in (("mult", mult), ("skip", skip)):
+        if arr is not None and len(arr) != book.n:
+            raise ValueError(f"{name} needs one entry per signal of the book ({book.n}), got {len(arr)}")
     rng = np.random.default_rng(seed)
     equity = 100.0                                   # realised: the start plus the profit of every trade sold so far
     committed = 0.0                                  # money in bought-or-waiting stocks
     active: dict[int, tuple[float, float]] = {}      # trade -> (money risked, money in the stock)
     exits: list[tuple[int, int]] = []                # (day sold, trade) for bought stocks
     expiries: list[tuple[int, int]] = []             # (day the buy order lapses, trade)
-    out = {"placed": 0, "closed": 0, "unfilled": 0, "full": 0, "cash": 0, "capped": 0, "signals": book.n, "sum_R": 0.0}
+    out = {"placed": 0, "closed": 0, "unfilled": 0, "full": 0, "cash": 0, "capped": 0, "skipped": 0, "signals": book.n, "sum_R": 0.0}
     if not book.n:
         return {**out, "equity": pd.Series(dtype=float), "held": 0.0, "invested": 0.0}
     fridays = pd.date_range(pd.Timestamp(book.start), pd.Timestamp(book.end), freq="W-FRI").to_numpy("datetime64[D]")
@@ -185,6 +193,10 @@ def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float
         release(int(dn.astype(np.int64)))
         if d in signal_at:
             day = book.order(book.by_day[signal_at[d]], how, rng)
+            if skip is not None:
+                kept = day[~np.asarray(skip, dtype=bool)[day]]
+                out["skipped"] += len(day) - len(kept)
+                day = kept
             if cap is not None and len(day) > cap:
                 out["capped"] += len(day) - max(int(cap), 0)
                 day = day[:max(int(cap), 0)]
@@ -192,7 +204,7 @@ def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float
                 if len(active) >= max_stocks:
                     out["full"] += 1
                     continue
-                ra = risk * (0.5 if (weak_half and book.weak[i]) else 1.0) * equity
+                ra = risk * (0.5 if (weak_half and book.weak[i]) else 1.0) * (1.0 if mult is None else float(mult[i])) * equity
                 value = ra / book.rf[i]
                 if committed + value > equity + 1e-9:
                     out["cash"] += 1

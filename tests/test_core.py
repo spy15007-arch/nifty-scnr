@@ -668,21 +668,35 @@ class PortfolioStudy(unittest.TestCase):
     account of 100 at risk the money in a stock is 1 / 0.05 = 20, and a trade of +2R adds 2.0 to the account."""
 
     @staticmethod
-    def book(rows, with_path=True):
-        from backtest import portfolio_study as ps
+    def frame(rows, with_path=True):
+        """The trades file of hand-written rows. A row without an exit is an order that never filled, unless it names another `status` (OPEN, say)."""
         out = []
         for r in rows:
             row = {"symbol": r["symbol"], "signal_date": r["signal"], "fill_date": r.get("fill", ""), "exit_date": r.get("exit", ""),
-                   "status": "CLOSED" if r.get("exit") else "UNFILLED", "R": r.get("R", float("nan")), "net": r.get("R", 0.0) * 0.05,
+                   "status": r.get("status", "CLOSED" if r.get("exit") else "UNFILLED"), "R": r.get("R", float("nan")), "net": r.get("R", 0.0) * 0.05,
                    "risk_pct": r.get("rf", 0.05), "regime": r.get("regime", "healthy"), "setup": r.get("setup", "primed"),
                    "quality_pct": r.get("q", 70.0), "sma200_chg": r.get("trend", 0.0), "path_R": r.get("path", "")}
+            if "breadth" in r:
+                row["breadth50"] = r["breadth"]                                                 # a column only when a row has one; the others get no number
             out.append(row)
         df = pd.DataFrame(out)
         if not with_path:
             df = df.drop(columns=["path_R"])
         for c in ("signal_date", "fill_date", "exit_date"):
             df[c] = pd.to_datetime(df[c], errors="coerce")                                      # a blank (never filled / not sold) becomes NaT
-        return ps.Book(df)
+        return df
+
+    @staticmethod
+    def book(rows, with_path=True):
+        from backtest import portfolio_study as ps
+        return ps.Book(PortfolioStudy.frame(rows, with_path))
+
+    @staticmethod
+    def filled(symbol, day, R, **extra):
+        """A trade signalled on `day`, bought the next business day and sold five business days after that, for R."""
+        d = pd.Timestamp(day)
+        return {"symbol": symbol, "signal": day, "fill": (d + pd.offsets.BDay(1)).strftime("%Y-%m-%d"), "exit": (d + pd.offsets.BDay(6)).strftime("%Y-%m-%d"),
+                "R": R, **extra}
 
     def jan5(self):
         """Monday 5 Jan 2026: A (strong uptrend, quality 60) is bought on the 6th and sold on the 20th for +2R; B (quality 90) is bought on the 7th and
@@ -932,6 +946,309 @@ class PortfolioStudy(unittest.TestCase):
         self.assertEqual(sum(1 for line in lines if line.startswith("RESULT:")), 1)
         self.assertEqual(sum(1 for line in lines if line.startswith("\ncap ") and line.endswith(" a day")), len(pc.CAPS))     # one verdict block per cap tried
         self.assertEqual(pc.analyse(pd.DataFrame(rows).iloc[0:0]), ["No finished signals in the file."])
+
+    # ---- the busy-day study (backtest/busy_day_study.py) ------------------------------------------------------------------------------------------
+    def sized_rows(self):
+        """Ten signals on four days of 1, 2, 3 and 4 signals (January 2026). The tenth, on the 8th, is still open: it counts for the size of its day but is not
+        a finished signal, so the book holds nine. S1 +1R, S2 -1R (a weak market), S3 never fills, S4 +2R, S5 0R, S6 +1R, S7 +3R, S8 never fills, S9 +1R."""
+        f = self.filled
+        return [
+            f("S1", "2026-01-05", 1.0, breadth=0.8),
+            f("S2", "2026-01-06", -1.0, regime="weak", breadth=0.3), {"symbol": "S3", "signal": "2026-01-06", "breadth": 0.4},
+            f("S4", "2026-01-07", 2.0), f("S5", "2026-01-07", 0.0), f("S6", "2026-01-07", 1.0),
+            f("S7", "2026-01-08", 3.0), {"symbol": "S8", "signal": "2026-01-08"}, f("S9", "2026-01-08", 1.0),
+            {"symbol": "S10", "signal": "2026-01-08", "fill": "2026-01-09", "status": "OPEN"},
+        ]
+
+    def two_months(self):
+        """January: a quiet day with one filled trade (+1R) and a busy day with two (+2R, 0R). February: a busy day with three (+1R each) and a quiet day with two
+        (-1R, 0R). Book order: A1 | A2 A3 | B1 B2 B3 | B4 B5, so the busy ones are [0 1 1 1 1 1 0 0]."""
+        f = self.filled
+        return self.book([
+            f("A1", "2026-01-05", 1.0),
+            f("A2", "2026-01-06", 2.0), f("A3", "2026-01-06", 0.0),
+            f("B1", "2026-02-02", 1.0), f("B2", "2026-02-02", 1.0), f("B3", "2026-02-02", 1.0),
+            f("B4", "2026-02-03", -1.0), f("B5", "2026-02-03", 0.0),
+        ])
+
+    @staticmethod
+    def day_frame(premium, seed=7):
+        """A made-up trades file, 2023 to mid-2025: 1 to 6 signals a day, each month with a mood of its own (common to all its trades), and the filled trades of
+        busy days (4 or more signals) averaging `premium` R more than the rest."""
+        rng = np.random.default_rng(seed)
+        days = pd.bdate_range("2023-01-02", "2025-06-30")
+        mood = {m: float(rng.normal(0.0, 0.3)) for m in sorted({(d.year, d.month) for d in days})}
+        rows = []
+        for k, d in enumerate(days[:-45]):
+            n = int(rng.integers(1, 7))
+            for j in range(n):
+                filled = bool(rng.random() < 0.6)
+                r = float(rng.normal(mood[(d.year, d.month)] + (premium if n >= 4 else 0.0), 1.5))
+                rows.append({"symbol": f"S{k}_{j}", "signal_date": d, "status": "CLOSED" if filled else "UNFILLED",
+                             "fill_date": days[k + 1] if filled else pd.NaT, "exit_date": days[k + 1 + int(rng.integers(3, 40))] if filled else pd.NaT,
+                             "R": r if filled else float("nan"), "net": 0.04 * r if filled else float("nan"), "risk_pct": 0.04,
+                             "regime": str(rng.choice(["healthy", "mixed", "weak"])), "setup": "primed", "quality_pct": float(rng.uniform(50, 100)),
+                             "sma200_chg": float(rng.uniform(-0.1, 0.1)), "breadth50": float(rng.uniform(0.1, 0.9))})
+        return pd.DataFrame(rows)
+
+    def test_the_book_keeps_each_signals_regime_and_breadth(self):
+        book = self.book([self.filled("A", "2026-01-05", 1.0, regime="weak", breadth=0.31), {"symbol": "B", "signal": "2026-01-06", "regime": "mixed"}])
+        self.assertEqual(list(book.regime), ["weak", "mixed"])
+        self.assertAlmostEqual(float(book.breadth[0]), 0.31)
+        self.assertTrue(np.isnan(book.breadth[1]))                                             # no number given for this one
+        self.assertTrue(np.isnan(self.book([self.filled("A", "2026-01-05", 1.0)]).breadth).all())     # a file without the column at all
+
+    def test_a_signal_can_be_taken_at_half_the_risk_or_left_out_of_the_account(self):
+        from backtest import portfolio_study as ps
+        book = self.jan5()                    # A +2R, B -1R, C never fills (the 5th, the scanner's order A, C, B), D +1R on the 8th
+        plain = ps.simulate(book, "shipped", max_stocks=3, risk=0.01)
+        self.assertEqual(plain["skipped"], 0)
+        self.assertAlmostEqual(plain["realised"], 101.0)                                       # three rooms take A, C and B: +2.0 -1.0
+        # A at half the risk: +1.0 instead of +2.0; B at half: -0.5 instead of -1.0
+        self.assertAlmostEqual(ps.simulate(book, "shipped", max_stocks=3, risk=0.01, mult=np.array([0.5, 1.0, 1.0, 1.0]))["realised"], 100.0)
+        self.assertAlmostEqual(ps.simulate(book, "shipped", max_stocks=3, risk=0.01, mult=np.array([1.0, 0.5, 1.0, 1.0]))["realised"], 101.5)
+        # four rooms also take D (+1.0 on the account of 100 it saw on the 8th), or +0.5 at half the risk
+        self.assertAlmostEqual(ps.simulate(book, "shipped", max_stocks=4, risk=0.01)["realised"], 102.0)
+        self.assertAlmostEqual(ps.simulate(book, "shipped", max_stocks=4, risk=0.01, mult=np.array([1.0, 1.0, 1.0, 0.5]))["realised"], 101.5)
+        # a signal left out never reaches the account: without C the two rooms go to A and B (+2.0 -1.0) and D finds both still taken
+        no_c = ps.simulate(book, "shipped", max_stocks=2, risk=0.01, skip=np.array([False, False, True, False]))
+        self.assertEqual((no_c["placed"], no_c["closed"], no_c["unfilled"], no_c["full"], no_c["skipped"], no_c["capped"]), (2, 2, 0, 1, 1, 0))
+        self.assertAlmostEqual(no_c["realised"], 101.0)
+        # the signals left out go first and the cap counts what is left: without A a cap of 1 lists C (quality 95) and drops B; D then finds a room
+        both = ps.simulate(book, "shipped", max_stocks=3, risk=0.01, cap=1, skip=np.array([True, False, False, False]))
+        self.assertEqual((both["placed"], both["closed"], both["unfilled"], both["skipped"], both["capped"]), (2, 1, 1, 1, 1))
+        self.assertAlmostEqual(both["realised"], 101.0)                                        # D's +1.0 only
+        # the half stacks with the weak market's half: 1% x 0.5 x 0.5 = 0.25 at risk, +2R = +0.5
+        weak = self.book([self.filled("W", "2026-03-02", 2.0, regime="weak")])
+        self.assertAlmostEqual(ps.simulate(weak, "shipped", max_stocks=1, risk=0.01, mult=np.array([0.5]))["realised"], 100.5)
+        for bad in ({"mult": np.ones(3)}, {"skip": np.zeros(5, dtype=bool)}):                 # one entry per signal of the book, or nothing
+            with self.assertRaises(ValueError):
+                ps.simulate(book, "shipped", max_stocks=3, risk=0.01, **bad)
+
+    def test_the_size_of_a_day_counts_every_signal_the_file_has_for_it_and_the_three_kinds_of_day_are_tabled(self):
+        from backtest import busy_day_study as bd
+        from backtest import portfolio_study as ps
+        df = self.frame(self.sized_rows())
+        book = ps.Book(df)
+        self.assertEqual(book.n, 9)                                                            # the open one is not a finished signal
+        size = bd.day_sizes(df, book)
+        np.testing.assert_array_equal(size, [1, 2, 2, 3, 3, 3, 4, 4, 4])                       # ... but it counts for the size of the 8th
+        quiet, busy = bd.groups(size)
+        np.testing.assert_array_equal(quiet, [True] * 3 + [False] * 6)                         # 1 or 2 signals
+        np.testing.assert_array_equal(busy, [False] * 6 + [True] * 3)                          # 4 or more; the day of 3 is neither
+        q3, b3 = bd.groups(size, 3, 4)
+        self.assertEqual((int(q3.sum()), int(b3.sum())), (6, 3))
+        ids, n = bd.month_blocks(book.sig)
+        self.assertEqual((n, list(ids)), (1, [0] * 9))
+        rows = {g["label"].split(" ")[0]: g for g in bd.kinds(book, size, ids, n, bd.resamples(n, 10))}
+        self.assertEqual(list(rows), ["quiet", "typical", "busy"])
+        self.assertEqual([g["label"] for g in rows.values()], ["quiet (1-2)", "typical (3)", "busy (4+)"])
+        q, t, b = rows["quiet"], rows["typical"], rows["busy"]
+        self.assertEqual((q["days"], q["signals"], q["filled"]), (2, 3, 2))
+        self.assertAlmostEqual(q["share"], 2 / 3)
+        self.assertAlmostEqual(q["mean_R"], 0.0)                                               # +1 and -1
+        self.assertAlmostEqual(q["net"], 0.0)
+        np.testing.assert_allclose(q["mix"], [2 / 3, 0.0, 1 / 3])                              # S2 was made in a weak market
+        self.assertAlmostEqual(q["breadth"], 0.5)                                              # (0.8 + 0.3 + 0.4) / 3
+        self.assertAlmostEqual(q["stop"], 0.05)
+        self.assertEqual((t["days"], t["signals"], t["filled"], t["share"]), (1, 3, 3, 1.0))
+        self.assertAlmostEqual(t["mean_R"], 1.0)                                               # +2, 0, +1
+        self.assertTrue(np.isnan(t["breadth"]))                                                # no breadth on that day: not a number, not a crash
+        self.assertEqual((b["days"], b["signals"], b["filled"]), (1, 3, 2))
+        self.assertAlmostEqual(b["mean_R"], 2.0)                                               # +3 and +1 (S8 never filled, S10 is not finished)
+
+    def test_busy_minus_quiet_is_taken_over_all_trades_and_inside_each_month(self):
+        from backtest import busy_day_study as bd
+        book = self.two_months()
+        busy = np.array([0, 1, 1, 1, 1, 1, 0, 0], dtype=bool)
+        quiet = ~busy
+        ids, n = bd.month_blocks(book.sig)
+        self.assertEqual((n, list(ids)), (2, [0, 0, 0, 1, 1, 1, 1, 1]))
+        cells = bd.Cells(book, busy, quiet, ids, n)
+        ones = np.ones((1, 2))
+        # busy: January +2R and 0R, February three times +1R = 5R in 5 trades; quiet: January +1R, February -1R and 0R = 0R in 3 trades
+        self.assertAlmostEqual(cells.mean_a(ones)[0], 1.0)
+        self.assertAlmostEqual(cells.mean_b(ones)[0], 0.0)
+        self.assertAlmostEqual(cells.pooled(ones)[0], 1.0)
+        # inside each month: January 1.0 - 1.0 = 0 (weight 2 x 1 / 3), February 1.0 - (-0.5) = 1.5 (weight 3 x 2 / 5)
+        self.assertAlmostEqual(cells.within(ones, min_cell=1)[0], (1.2 * 1.5) / (2 / 3 + 1.2))
+        np.testing.assert_array_equal(cells.eligible(2), [False, True])                         # January has one quiet trade only
+        self.assertAlmostEqual(cells.within(ones, min_cell=2)[0], 1.5)                          # so only February is used
+        self.assertEqual(int(cells.eligible().sum()), 0)                                       # the rule asks for 3 of each kind in a month: none has
+        self.assertTrue(np.isnan(cells.within(ones)[0]))                                       # nothing to average
+        # a resample that draws February twice and January never; and one that draws January twice
+        self.assertAlmostEqual(cells.pooled(np.array([[0.0, 2.0]]))[0], 1.0 - (-0.5))
+        self.assertAlmostEqual(cells.within(np.array([[0.0, 2.0]]), min_cell=1)[0], 1.5)
+        self.assertAlmostEqual(cells.pooled(np.array([[2.0, 0.0]]))[0], 0.0)                   # January alone: busy 1.0, quiet 1.0
+
+    def test_the_range_comes_from_drawing_whole_months_and_the_edge_must_clear_both_bars(self):
+        from backtest import busy_day_study as bd
+        c = bd.resamples(4, 20, seed=1)
+        self.assertEqual(c.shape, (20, 4))
+        np.testing.assert_array_equal(c.sum(axis=1), np.full(20, 4.0))                         # each resample draws as many months as there are
+        np.testing.assert_array_equal(c, bd.resamples(4, 20, seed=1))                          # the same seed, the same draw
+        self.assertFalse(np.array_equal(c, bd.resamples(4, 20, seed=2)))
+        sure = bd.estimate(lambda m: np.full(len(m), 0.3), bd.resamples(4, 50))
+        self.assertAlmostEqual(sure["point"], 0.3)
+        self.assertAlmostEqual(sure["se"], 0.0)
+        self.assertAlmostEqual(sure["lo"], 0.3)
+        self.assertAlmostEqual(sure["hi"], 0.3)
+        self.assertTrue(bd.edge_ok(sure))
+        # five months at +2 and three at -1: +0.875 on average, but a resample of eight months has a 3.6% chance of averaging 0 or less - above the 1% allowed
+        d = np.array([2.0, 2.0, 2.0, 2.0, 2.0, -1.0, -1.0, -1.0])
+        mixed = bd.estimate(lambda m: (m @ d) / m.sum(axis=1), bd.resamples(8, 5000))
+        self.assertAlmostEqual(mixed["point"], 0.875)
+        self.assertLess(mixed["lo"], 0.0)
+        self.assertFalse(bd.edge_ok(mixed))
+        self.assertIsNone(bd.estimate(lambda m: np.full(len(m), np.nan), bd.resamples(4, 50)))      # nothing to calculate
+        self.assertIsNone(bd.estimate(lambda m: np.where(np.arange(len(m)) == 0, np.nan, 1.0), bd.resamples(4, 50)))   # no number for the data as it is
+        # both bars: at least +0.10R, and the lower end of the range above 0
+        self.assertTrue(bd.edge_ok({"point": 0.24, "lo": 0.05}))
+        self.assertTrue(bd.edge_ok({"point": 0.10, "lo": 0.0001}))
+        self.assertFalse(bd.edge_ok({"point": 0.09, "lo": 0.05}))                              # too small to matter
+        self.assertFalse(bd.edge_ok({"point": 0.30, "lo": -0.01}))                             # luck cannot be ruled out
+        self.assertFalse(bd.edge_ok({"point": 0.30, "lo": 0.0}))
+        self.assertFalse(bd.edge_ok(None))
+
+    def test_every_part_of_the_history_has_to_agree_and_the_regimes_and_thirds_are_split_out(self):
+        from backtest import busy_day_study as bd
+        from backtest import portfolio_study as ps
+        f = self.filled
+        book = self.book([f("P1", "2025-12-15", 0.0), f("P2", "2025-12-16", 1.0), f("P3", "2026-01-12", 1.0), f("P4", "2026-01-13", 0.0)])
+        quiet, busy = np.array([1, 0, 1, 0], dtype=bool), np.array([0, 1, 0, 1], dtype=bool)
+        rows = bd.period_rows(book, quiet, busy, periods=((2025, 2025), (2026, 2026), (2019, 2019)), min_cell=1)
+        self.assertEqual([r["label"] for r in rows], ["2025-25", "2026-26", "2019-19"])
+        self.assertAlmostEqual(rows[0]["diff"], 1.0)                                           # busy +1R, quiet 0R
+        self.assertTrue(rows[0]["ok"])
+        self.assertAlmostEqual(rows[1]["diff"], -1.0)                                          # the other way round the year after
+        self.assertFalse(rows[1]["ok"])
+        self.assertEqual((rows[2]["n_quiet"], rows[2]["n_busy"]), (0, 0))                      # nobody traded then: nothing to judge
+        self.assertTrue(np.isnan(rows[2]["diff"]))
+        self.assertFalse(rows[2]["ok"])
+        self.assertFalse(bd.period_rows(book, quiet, busy, periods=((2025, 2025),), min_cell=2)[0]["ok"])   # one trade of each kind is too few to judge
+        # by regime: S1 +1R (quiet) against S7 +3R and S9 +1R (busy) in a healthy market; S2 -1R (quiet) against nobody in a weak one
+        book = ps.Book(self.frame(self.sized_rows()))
+        q9, b9 = np.array([True] * 3 + [False] * 6), np.array([False] * 6 + [True] * 3)
+        by_regime = {r["label"]: r for r in bd.split_rows(book, book.regime, ("healthy", "weak"), q9, b9)}
+        h = by_regime["healthy"]
+        self.assertEqual((h["n_quiet"], h["n_busy"]), (1, 2))
+        self.assertAlmostEqual(h["mean_quiet"], 1.0)
+        self.assertAlmostEqual(h["mean_busy"], 2.0)
+        self.assertAlmostEqual(h["diff"], 1.0)
+        self.assertEqual((by_regime["weak"]["n_quiet"], by_regime["weak"]["n_busy"]), (1, 0))
+        self.assertTrue(np.isnan(by_regime["weak"]["diff"]))
+        # thirds of breadth: 30 filled trades with breadth 0.01 ... 0.30 split into 10, 10 and 10
+        days = pd.bdate_range("2026-01-05", periods=30)
+        book = self.book([f(f"T{i:02d}", d.strftime("%Y-%m-%d"), 1.0, breadth=i / 100) for i, d in enumerate(days, start=1)])
+        lab, names, edges = bd.breadth_thirds(book)
+        self.assertEqual([int((lab == n).sum()) for n in names], [10, 10, 10])
+        self.assertAlmostEqual(edges[0], 0.10 + 0.01 * 2 / 3)
+        self.assertAlmostEqual(edges[1], 0.20 + 0.01 * 1 / 3)
+        self.assertEqual(lab[0], "lowest third")
+        self.assertEqual(lab[-1], "highest third")
+        self.assertIsNone(bd.breadth_thirds(self.two_months()))                                # no breadth in the file, or too few trades to cut thirds
+
+    def test_the_account_check_runs_the_quiet_days_at_half_the_risk_and_without_them(self):
+        from backtest import busy_day_study as bd
+        book = self.jan5()                                                                     # D is alone on the 8th: the only quiet day
+        quiet = np.array([False, False, False, True])
+        rows = bd.account_test(book, quiet, seeds=2)
+        self.assertEqual([(a["risk"], a["stocks"]) for a in rows], [(0.01, 8), (0.005, 12)])
+        one, two = rows
+        # 1% of 100 at risk, 5% stops: A +2.0, B -1.0 and D +1.0; at half the risk D adds 0.5; left out it adds nothing
+        self.assertAlmostEqual(one["runs"]["base"]["realised"], 102.0)
+        self.assertAlmostEqual(one["runs"]["half"]["realised"], 101.5)
+        self.assertAlmostEqual(one["runs"]["out"]["realised"], 101.0)
+        self.assertEqual(one["runs"]["out"]["skipped"], 1)
+        # 0.5% at risk: half of each
+        self.assertAlmostEqual(two["runs"]["base"]["realised"], 101.0)
+        self.assertAlmostEqual(two["runs"]["half"]["realised"], 100.75)
+        self.assertAlmostEqual(two["runs"]["out"]["realised"], 100.5)
+        for a in rows:
+            self.assertGreaterEqual(a["luck"], 0.005)
+            self.assertEqual(len(a["rand"]), 2)                                                # the two random draws of one signal at half the risk
+            self.assertIsInstance(a["ok"], bool)
+            self.assertIsNotNone(a["harm"])
+            self.assertAlmostEqual(a["change"]["d_growth"], a["m"]["half"]["cagr"] - a["m"]["base"]["cagr"])
+
+    def test_halving_the_quiet_days_must_not_cost_clearly_more_than_halving_arbitrary_signals(self):
+        from backtest import busy_day_study as bd
+        # 101 random-halving accounts with growth 0.00 ... 1.00 and worst drawdown -0.50 ... 0.00: the 10th percentile is 0.10 and -0.45
+        rand = [{"cagr": g, "max_dd": -0.50 + 0.5 * g} for g in np.linspace(0.0, 1.0, 101)]
+        fine = bd.no_harm({"cagr": 0.11, "max_dd": -0.44}, rand)
+        self.assertAlmostEqual(fine["floor_growth"], 0.10)
+        self.assertAlmostEqual(fine["floor_dd"], -0.45)
+        self.assertTrue(fine["ok"])
+        self.assertFalse(bd.no_harm({"cagr": 0.09, "max_dd": -0.44}, rand)["ok_growth"])      # earned less than 9 in 10 arbitrary halvings
+        self.assertFalse(bd.no_harm({"cagr": 0.11, "max_dd": -0.46}, rand)["ok_dd"])          # drew down deeper than 9 in 10 of them
+        self.assertTrue(bd.no_harm({"cagr": 0.10, "max_dd": -0.45}, rand)["ok"])              # exactly on the floor is still no worse
+        self.assertIsNone(bd.no_harm({}, rand))                                                # no account to judge
+        self.assertIsNone(bd.no_harm({"cagr": 0.11, "max_dd": -0.44}, rand[:1]))               # nothing to compare it with
+
+    def test_the_busy_day_rule_needs_every_part_and_says_what_changes(self):
+        from backtest import busy_day_study as bd
+        edge = {"point": 0.24, "lo": 0.05}
+        weak_edge = {"point": 0.04, "lo": -0.05}
+        yes = [{"ok": True}] * 3
+        fine = [{"ok": True}, {"ok": True}]
+        v = bd.verdict(edge, edge, yes, fine)
+        self.assertEqual((v["supported"], v["adopt"]), (True, True))
+        self.assertTrue(bd.result_text(v).startswith("RESULT: every rule is met"))
+        harm = bd.verdict(edge, edge, yes, [{"ok": True}, {"ok": False}])                      # the pattern holds but an account came to harm
+        self.assertEqual((harm["supported"], harm["adopt"]), (True, False))
+        self.assertIn("rule 4 is not", bd.result_text(harm))
+        self.assertIn("nothing changes", bd.result_text(harm))
+        mood = bd.verdict(edge, weak_edge, yes, fine)                                          # the raw gap is there, the same-month gap is not: the market's mood
+        self.assertEqual((mood["rule1"], mood["rule2"], mood["supported"], mood["adopt"]), (True, False, False, False))
+        self.assertIn("(rule 2 not met)", bd.result_text(mood))
+        self.assertIn("market's mood", bd.result_text(mood))                                   # and it says why: the month explains the gap, not the day's count
+        part = bd.verdict(edge, edge, [{"ok": True}, {"ok": False}, {"ok": True}], fine)      # one part of the history disagrees
+        self.assertEqual((part["rule3"], part["adopt"]), (False, False))
+        self.assertIn("(rule 3 not met)", bd.result_text(part))
+        self.assertIn("not in every part of the history", bd.result_text(part))
+        none = bd.verdict(None, None, [], [])
+        self.assertEqual((none["supported"], none["adopt"]), (False, False))
+        self.assertIn("(rules 1, 2 and 3 not met)", bd.result_text(none))
+        self.assertIn("too small, or too uncertain", bd.result_text(none))
+        self.assertIn("(rules 1 and 2 not met)", bd.result_text(bd.verdict(weak_edge, weak_edge, yes, fine)))
+        for v_ in (v, harm, mood, part, none):                                                 # one line each, starting the way the evidence file expects
+            self.assertTrue(bd.result_text(v_).startswith("RESULT: "))
+            self.assertNotIn("\n", bd.result_text(v_))
+
+    def test_the_machinery_finds_a_busy_day_premium_that_is_there_and_not_one_that_is_not(self):
+        from backtest import busy_day_study as bd
+        from backtest import portfolio_study as ps
+
+        def edges(df):
+            book = ps.Book(df)
+            quiet, busy = bd.groups(bd.day_sizes(df, book))
+            ids, n = bd.month_blocks(book.sig)
+            cells = bd.Cells(book, busy, quiet, ids, n)
+            c = bd.resamples(n, 2000)
+            return bd.estimate(cells.pooled, c), bd.estimate(cells.within, c)
+        raw, same_month = edges(self.day_frame(0.5))                                           # busy days 0.5R better, month moods of 0.3R
+        self.assertTrue(bd.edge_ok(raw), raw)
+        self.assertTrue(bd.edge_ok(same_month), same_month)
+        self.assertGreater(same_month["point"], 0.3)
+        raw0, same_month0 = edges(self.day_frame(0.0))                                         # no premium at all
+        self.assertFalse(bd.edge_ok(raw0), raw0)
+        self.assertFalse(bd.edge_ok(same_month0), same_month0)
+        self.assertLess(abs(same_month0["point"]), 0.2)
+
+    def test_the_busy_day_study_runs_end_to_end_and_ends_with_its_verdict(self):
+        from backtest import busy_day_study as bd
+        df = self.day_frame(0.5)
+        lines = bd.analyse(df, seeds=2, boot=300)
+        text = "\n".join(lines)
+        for section in ("== 1.", "== 2.", "== 3.", "== 4.", "== 5.", "== 6.", "== 7.", "== 8.", "== 9."):
+            self.assertIn(section, text)
+        for kind in ("quiet (1-2)", "typical (3)", "busy (4+)"):
+            self.assertIn(kind, text)
+        self.assertEqual(sum(1 for line in lines if line.startswith("RESULT:")), 1)
+        # the file only covers 2023-25, so two of the three parts of the history have nobody to judge: rule 3 cannot be met, whatever rules 1 and 2 say
+        self.assertIn("rule 3", [line for line in lines if line.startswith("RESULT:")][0])
+        self.assertIn("   <- the rule", text)                                                  # the cut-off table marks the one the rule uses
+        self.assertEqual(bd.analyse(df.iloc[0:0]), ["No finished signals in the file."])
 
 
 class CapitalPlan(unittest.TestCase):
