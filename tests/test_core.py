@@ -3460,6 +3460,39 @@ class Messages(unittest.TestCase):
         self.assertIn("📊 <b>BREADTH</b> 18% (stocks above their 50-day average) - <b>weak market: half size</b>", msg)
         self.assertIn("half in a weak market", msg)                                  # the footer says it as a rule
 
+    def test_a_very_strong_market_gets_one_plain_sentence_on_the_swing_message_and_summary_only(self):
+        # added 2026-11-08 after the market-strength study (item 12 of the evidence README; its rule was fixed in advance and met): information only, swing only
+        from reports import summary
+        now = at(2026, 10, 13, 17, 0)
+        strong = dataclasses.replace(self._swing(), regime="healthy", breadth={"breadth50": 0.82, "n": 400})
+        sentence = "Very strong market: in the 10-year test, picks made on days like this earned about +0.7R a trade against +0.2R on other days (a test result, not a promise)."
+        msg = notify.format_scan_message(strong, "swing", now=now)
+        self.assertEqual(msg.count("Very strong market"), 1)
+        self.assertIn(f"📊 <b>BREADTH</b> 82% (stocks above their 50-day average) - healthy market\n<i>{sentence}</i>", msg)    # right under the breadth line, in the same block
+        chk = self._Check()
+        chk.feed(msg)
+        self.assertEqual((chk.err, chk.stack), ([], []))
+        just_under = dataclasses.replace(strong, breadth={"breadth50": 0.76, "n": 400})
+        under = notify.format_scan_message(just_under, "swing", now=now)
+        self.assertNotIn("Very strong market", under)                                # 76% is just under the line
+        self.assertEqual(len(msg) - len(under), len(sentence) + len("<i></i>") + 1)  # the sentence and its line break, nothing else
+        self.assertLess(len(msg) - len(under), 200)                                  # one short sentence
+        self.assertIn("Very strong market", notify.format_scan_message(dataclasses.replace(strong, breadth={"breadth50": 0.77, "n": 400}), "swing", now=now))   # on the line counts
+        for unknown in (None, {}, {"breadth50": float("nan"), "n": 0}):
+            self.assertNotIn("Very strong market", notify.format_scan_message(dataclasses.replace(strong, breadth=unknown), "swing", now=now))
+        btst = notify.format_scan_message(dataclasses.replace(self._live(), breadth={"breadth50": 0.90, "n": 400}), "btst", now=at(2026, 10, 13, 14, 45))
+        self.assertNotIn("Very strong market", btst)                                 # the BTST scan cannot be replayed: it never carries the sentence
+        with mock.patch.object(config, "STRONG_MARKET_BREADTH", 1.1):                # the switch
+            self.assertNotIn("Very strong market", notify.format_scan_message(strong, "swing", now=now))
+        text = summary.render_summary("swing", strong, now)
+        self.assertEqual(text.count("Very strong market"), 1)
+        self.assertIn(f"**Breadth:** 82% of liquid stocks are above their 50-day average (healthy)\n\n*{sentence}*", text)
+        self.assertNotIn("Very strong market", summary.render_summary("swing", just_under, now))
+        self.assertNotIn("Very strong market", summary.render_summary("btst", strong, now))
+        for scan_mode, b50, expected in (("swing", 0.77, True), ("swing", 0.7699, False), ("btst", 0.95, False), ("swing", None, False), ("swing", float("nan"), False)):
+            self.assertEqual(bool(fp.strong_market_note(b50, scan_mode)), expected, (scan_mode, b50))
+        self.assertEqual(fp.strong_market_note(0.9, "swing"), sentence)
+
     def test_the_footer_says_when_the_whole_list_needs_more_than_the_capital(self):
         # added 2026-11-05: 24 bought + 18 waiting stocks need about 300% of one account at the 1% rule the footer states, and nothing said so
         res, now = self._swing(), at(2026, 10, 13, 17, 0)

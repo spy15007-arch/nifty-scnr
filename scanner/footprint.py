@@ -449,3 +449,13 @@ def regime_label(breadth50: float | None) -> str:
     if breadth50 < config.WEAK_BREADTH:
         return "weak"
     return "mixed"
+
+
+def strong_market_note(breadth50: float | None, scan_mode: str) -> str:
+    """The one plain sentence the SWING message and summary carry on a day when STRONG_MARKET_BREADTH or more of the liquid stocks are above their 50-day average
+    (added 2026-11-08, market-strength study): what the 10-year replay found for picks made on such days. Information only - nothing is picked, ordered or sized by it.
+    Empty for the BTST scan (it cannot be replayed on daily candles), when breadth is unknown or below the line, and when the switch is off (line set above 1)."""
+    if scan_mode != "swing" or breadth50 is None or not math.isfinite(breadth50) or breadth50 < config.STRONG_MARKET_BREADTH:
+        return ""
+    return (f"Very strong market: in the 10-year test, picks made on days like this earned about {config.STRONG_MARKET_R:+.1f}R a trade against "
+            f"{config.OTHER_MARKET_R:+.1f}R on other days (a test result, not a promise).")

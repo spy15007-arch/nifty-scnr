@@ -96,6 +96,14 @@ ROUND_TRIP_COST = 0.0035             # 0.35%: STT, stamp duty, exchange/DP charg
 RISK_PER_TRADE_PCT = 1.0             # guidance in the message footer: risk at most this % of YOUR capital to the stop on one trade (half in a weak market)
 WEAK_BREADTH = 0.40                  # share of stocks above their 50-day average below which the market is "weak"
 HEALTHY_BREADTH = 0.60
+# A VERY STRONG MARKET note (added 2026-11-08 after the market-strength study, item 12 of reports/evidence/README.md, whose rule was fixed in advance and met): on a
+# day when STRONG_MARKET_BREADTH or more of the liquid stocks are above their 50-day average, the SWING message and the swing summary add ONE sentence saying what the
+# 10-year replay found for picks made on such days: STRONG_MARKET_R against OTHER_MARKET_R, the average R per filled trade after costs (the 4 Nov 2026 replay:
+# +0.70R on 1,519 trades against +0.22R on 2,937). Information only: no pick, order or size depends on it - the study's account lines did not show that sizing by it
+# would have paid - and the BTST message never carries it (that scan cannot be replayed on daily candles). Set STRONG_MARKET_BREADTH above 1 to switch it off.
+STRONG_MARKET_BREADTH = 0.77
+STRONG_MARKET_R = 0.70
+OTHER_MARKET_R = 0.22
 COOLDOWN_SESSIONS = 15               # a stock that was picked is not picked again for this many sessions
 
 # Warning on a pick card: "already spiked X% in 5 days - buy in continuation, not on a dip".

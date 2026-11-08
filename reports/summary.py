@@ -119,6 +119,9 @@ def render_summary(scan_mode: str, result, now: datetime, market_line: str = "",
     if isinstance(b50, float) and math.isfinite(b50):
         word = {"weak": "weak - use half size", "healthy": "healthy", "mixed": "mixed"}.get(result.regime, result.regime)
         out += [f"**Breadth:** {b50:.0%} of liquid stocks are above their 50-day average ({word})", ""]
+        strong = fp.strong_market_note(b50, scan_mode)                                              # the same one sentence as the swing message
+        if strong:
+            out += [f"*{strong}*", ""]
     if not result.used_delivery:
         out += ["*Delivery-% data was not available: stocks were ranked on 7 price/volume factors only.*", ""]
     for n in (notes or []) + list(result.notes):

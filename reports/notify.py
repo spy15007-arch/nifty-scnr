@@ -301,6 +301,9 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     breadth = _breadth_line(result)
     if breadth:
         head.append(breadth)
+    strong = fp.strong_market_note(result.breadth.get("breadth50") if result.breadth else None, scan_mode)      # one sentence, swing only, information only
+    if strong:
+        head.append(f"<i>{_e(strong)}</i>")
     blocks = ["\n".join(head)]
 
     notice = []
