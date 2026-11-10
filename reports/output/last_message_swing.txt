@@ -1,6 +1,8 @@
-📈 <b>SWING SCAN</b> · Mon 09 Nov · today's close
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.1% today · global supportive
+📈 <b>SWING SCAN</b> · Tue 10 Nov · close of Mon 09 Nov
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.1% last session · global supportive
 📊 <b>BREADTH</b> 52% (stocks above their 50-day average) - mixed market
+
+<b>NO NEW PICK.</b> 495 stocks checked, 88 in a breakout setup, 63 passed the quality filter - all already on your list.
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
 <b>SANSERA</b> 👀 💪 · Quality 91/100 · picked 9 Nov
@@ -12,33 +14,11 @@ Profit marks 1,519.65 · 1,592.80 · 1,665.95
 <b>RADICO</b> 👀 · Quality 88/100 · picked 8 Nov
 Buy at <b>4,689.40</b> · order valid 4 more sessions
 Profit marks 5,076.50 · 5,463.60 · 5,850.65
-
-<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
-Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
-
-<b>1. NTPC</b> 👀 About to break out (2.6% below the 50-day high) · Quality 82/100 · Energy
-Buy at <b>338.20</b> · skip if it opens above 348.30
-Stop <b>316.95</b> (-6.3%) · trail 12.6%
-Profit marks 359.45 · 380.70 · 401.95
-low volatility · very liquid · delivery ~59%
-
-<b>2. MEESHO</b> 👀 About to break out (2.9% below the 50-day high) · Quality 68/100
-Buy at <b>246.00</b> · skip if it opens above 253.35
-Stop <b>223.50</b> (-9.1%) · trail 18.3%
-Profit marks 268.50 · 291.00 · 313.45
-near 52-wk high · very liquid · delivery ~42%
-
-<b>3. ABCAPITAL</b> 👀 About to break out (2.8% below the 50-day high) · Quality 67/100
-Buy at <b>413.95</b> · skip if it opens above 426.35
-Stop <b>381.80</b> (-7.8%) · trail 15.5%
-Profit marks 446.10 · 478.25 · 510.40
-near 52-wk high · low volatility · delivery ~48%
-
-+58 more qualify but are already on your list.
++14 more earlier picks also still qualify (on your list)
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>WELSPUNLIV</b> 💪 · Quality 76/100 · 12-mo +92%
+<b>WELSPUNLIV</b> 💪 · Quality 75/100 · 12-mo +92%
 5.7% below its 50-day high (267.42)
 <b>TITAN</b> · Quality 85/100 · 12-mo +34%
 3.5% below its 50-day high (5,186.70)
@@ -46,18 +26,11 @@ Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets wi
 3.6% below its 50-day high (356.95)
 <b>NUVAMA</b> · Quality 67/100 · 12-mo +31%
 3.7% below its 50-day high (1,943.30)
-<b>ADANIPOWER</b> · Quality 70/100 · 12-mo +31%
-5.2% below its 50-day high (217.40)
+<b>PTCIL</b> · Quality 76/100 · 12-mo +44%
+5.1% below its 50-day high (26,085.00)
 +5 more building up (all of them are in the dashboard)
 
 📒 <b>YOUR LIST</b>
-• <b>BANKBARODA</b> - bought at 251.40 (buy order triggered)
-• <b>UNIONBANK</b> - bought at 192.75 (buy order triggered)
-• <b>LT</b> - bought at 4,145.00 (buy order triggered)
-• <b>INDIANB</b> - bought at 908.55 (buy order triggered)
-• <b>SAILIFE</b> - bought at 1,818.55 (buy order triggered)
-• <b>TATASTEEL</b> - bought at 192.50 (buy order triggered)
-
 <b>BOUGHT, NOT SOLD YET (53)</b> - sell if the price falls to:
 SAILIFE 1,657.85 · TATASTEEL 179.73
 AXISBANK 1,232.30 · UNIONBANK 180.24
@@ -68,26 +41,25 @@ LALPATHLAB 1,887.83 · GLENMARK 2,362.03
 HDFCBANK 719.17 · NHPC 76.82
 TATACONSUM 1,012.33 · BANKBARODA 236.32
 MCX 3,229.25 · MARICO 812.13
-ICICIBANK 1,431.32↑ · JSWSTEEL 1,259.90
+ICICIBANK 1,431.32 · JSWSTEEL 1,259.90
 ULTRACEMCO 11,287.23 · BOSCHLTD 47,686.81
 GROWW 188.43 · SHYAMMETL 1,121.14
-↑ = moved up today
 ...and 29 more in the dashboard
 
-<b>WAITING TO BUY (28)</b> - buy when the price rises to:
+<b>WAITING TO BUY (31)</b> - buy when the price rises to:
 SANSERA 4,753.00 · SBIN 1,062.15
 ALKEM 5,485.95 · ANTHEM 991.10
 VBL 445.25 · BPCL 324.70
 IOC 149.40 · MGL 1,141.40
-RADICO 4,689.40 · PAYTM 1,859.25
-JSWCEMENT 127.60 · NH 1,956.85
-STARHEALTH 589.20 · SHREECEM 25,305.55
-KPRMILL 1,208.95 · SBILIFE 1,802.50
-BAJFINANCE 1,109.25 · HINDUNILVR 2,056.05
-JINDALSTEL 1,198.80 · WIPRO 202.15
-HDFCAMC 2,703.40 · GMRAIRPORT 101.50
-MOTHERSON 171.05 · HONASA 494.00
-...and 4 more in the dashboard
+NTPC 338.20 · MEESHO 246.00
+ABCAPITAL 413.95 · RADICO 4,689.40
+PAYTM 1,859.25 · JSWCEMENT 127.60
+NH 1,956.85 · STARHEALTH 589.20
+SHREECEM 25,305.55 · KPRMILL 1,208.95
+SBILIFE 1,802.50 · BAJFINANCE 1,109.25
+HINDUNILVR 2,056.05 · JINDALSTEL 1,198.80
+WIPRO 202.15 · HDFCAMC 2,703.40
+...and 7 more in the dashboard
 
 🧾 <i>Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
 Open now: 40 of 53 up, average +3.3% after costs (not final)</i>
