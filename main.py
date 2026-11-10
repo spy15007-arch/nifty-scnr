@@ -754,7 +754,23 @@ def cmd_backtest(scan_mode: str = "swing", test_days: int | None = None) -> int:
     path = write_backtest_report(trades, stats, scan_mode, n_stocks=len(bars), tag=tag, data_note=note)
     logger.info(f"Backtest report written to {path}")
     logger.info(f"Summary: {stats}")
+    if source == "yahoo":
+        _early_turn_up_lane(bars, scan_mode, test_days, note)
     return 0
+
+
+def _early_turn_up_lane(bars: dict, scan_mode: str, test_days: int, note: str) -> None:
+    """RESEARCH (9 Nov 2026, backtest/turn_up_study.py): the early turn-up lane replayed on the same bars with the same trade plan, written to its own file
+    (backtest_<mode>_turnup_yahoo_<date>_trades.csv), so the shipped file and every study made on it stay exactly as they were. A failure here is logged and
+    never fails the run: the shipped replay above is already saved."""
+    try:
+        from backtest import turn_up_study
+        from backtest.engine import run_backtest, summarize_backtest, write_backtest_report
+        lane = run_backtest(bars, scan_mode=scan_mode, test_days=test_days, candidates_fn=turn_up_study.candidates)
+        path = write_backtest_report(lane, summarize_backtest(lane), scan_mode, n_stocks=len(bars), tag="turnup_yahoo", data_note=note)
+        logger.info(f"Early turn-up lane report written to {path}")
+    except Exception:  # noqa: BLE001 - research only
+        logger.warning("The early turn-up lane could not be replayed", exc_info=True)
 
 
 # --------------------------------------------------------------------------- #

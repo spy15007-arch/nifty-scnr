@@ -4392,6 +4392,19 @@ class ResearchRun(E2EHarness, unittest.TestCase):
         trades = pd.read_csv(f"reports/output/{trades_csv[0]}")
         self.assertGreater(len(trades), 10)
         self.assertLessEqual({"z_run_up", "run_up", "pb1_status", "pb2_status"}, set(trades.columns))
+        self.assertTrue([n for n in names if n.startswith("backtest_swing_turnup_yahoo_") and n.endswith("_trades.csv")], names)      # the early turn-up lane has its own files,
+        self.assertTrue([n for n in names if n.startswith("backtest_swing_turnup_yahoo_") and n.endswith(".md")], names)             # named so no study mistakes them for the shipped replay
+
+    def test_a_failing_early_lane_never_fails_the_yahoo_run(self):
+        frames = {f"{sym}.NS": d.rename(columns=str.title) for sym, d in self.bars.items()}
+        with mock.patch.dict(sys.modules, {"yfinance": fake_yfinance(frames, [])}), \
+                mock.patch("data.yahoo_bars.time.sleep", lambda s: None), \
+                mock.patch("backtest.turn_up_study.candidates", side_effect=RuntimeError("the lane broke")):
+            code = self._backtest({"TRADING_BACKTEST_SOURCE": "yahoo", "TRADING_BACKTEST_DAYS": "80"})
+        self.assertEqual(code, 0)
+        names = os.listdir("reports/output")
+        self.assertTrue(any(n.startswith("backtest_swing_yahoo_") and n.endswith("_trades.csv") for n in names), names)          # the shipped replay is saved
+        self.assertFalse(any("turnup" in n for n in names), names)
 
     def test_the_broker_route_is_unchanged(self):
         store = self._make_store(self.bars)
@@ -4410,6 +4423,224 @@ class ResearchRun(E2EHarness, unittest.TestCase):
             code = self._backtest({"TRADING_BACKTEST_SOURCE": "yahoo"})
         self.assertEqual(code, 1)
         self.assertFalse([n for n in os.listdir("reports/output") if n.endswith(".md")])
+
+
+
+class TurnUpStudy(unittest.TestCase):
+    """The early turn-up lane of backtest/turn_up_study.py: its rule, its place in the replay, its test and its first look. Hand-worked numbers throughout."""
+
+    @classmethod
+    def setUpClass(cls):
+        from backtest import engine
+        from backtest import turn_up_study as tu
+        cls.engine, cls.tu = engine, tu
+        cls.bars = make_market(n_stocks=100, n_bars=420, seed=3, plant=False)
+        cls.plain = engine.run_backtest(cls.bars, "swing", test_days=120)
+        cls.lane = engine.run_backtest(cls.bars, "swing", test_days=120, candidates_fn=tu.candidates)
+
+    # ---- the rule ---------------------------------------------------------------------------------------------------------------
+    def flags(self, **over):
+        """turn_flags on ONE stock-day. The base case fires (4% below the 50-day high, up 4% on the day, closing at 80% of its range, above both averages today,
+        below the 50-day one yesterday); each keyword changes one number."""
+        base = dict(close=96.0, piv_incl=100.0, gain1d=0.04, close_pos=0.8, ema21_x=0.02, sma50=90.0, prev_close=89.0, prev_ema21_x=-0.01, prev_sma50=90.0)
+        base.update(over)
+        keys = ("close", "piv_incl", "gain1d", "close_pos", "ema21_x", "sma50", "prev_close", "prev_ema21_x", "prev_sma50")
+        return bool(self.tu.turn_flags(*[np.array([base[k]]) for k in keys])[0])
+
+    def test_the_rule_wants_a_pullback_a_first_close_back_above_both_averages_and_a_strong_day(self):
+        self.assertTrue(self.flags())
+        # T1: the shipped bands end where this one starts, and a collapsed stock is not a pullback
+        self.assertFalse(self.flags(close=97.5))                                                  # 2.5% below the high: about to break out, the shipped rule's
+        self.assertTrue(self.flags(close=96.5))                                                   # 3.5% below: this lane's
+        self.assertTrue(self.flags(close=86.0, sma50=80.0, prev_close=79.0, prev_sma50=80.0))    # 14% below: still a pullback
+        self.assertFalse(self.flags(close=84.0, sma50=80.0, prev_close=79.0, prev_sma50=80.0))   # 16% below: too deep
+        # T2: above BOTH averages today, and not above both yesterday
+        self.assertFalse(self.flags(sma50=97.0))                                                  # below the 50-day average
+        self.assertFalse(self.flags(ema21_x=-0.001))                                              # below the 21-day average
+        self.assertFalse(self.flags(prev_close=95.0, prev_ema21_x=0.01, prev_sma50=90.0))       # above both yesterday already: not the first day
+        self.assertTrue(self.flags(prev_close=95.0, prev_ema21_x=0.01, prev_sma50=100.0))        # yesterday above the 21-day one only
+        self.assertTrue(self.flags(prev_close=95.0, prev_ema21_x=-0.01, prev_sma50=90.0))        # yesterday above the 50-day one only
+        self.assertFalse(self.flags(prev_close=float("nan")))                                     # no day before: unknown, no signal
+        self.assertFalse(self.flags(prev_ema21_x=float("nan")))
+        # T3: the day itself
+        self.assertFalse(self.flags(gain1d=0.029))
+        self.assertTrue(self.flags(gain1d=0.03))
+        self.assertFalse(self.flags(close_pos=0.59))
+        self.assertTrue(self.flags(close_pos=0.60))
+        self.assertFalse(self.flags(gain1d=float("nan")))
+
+    # ---- its place in the replay ------------------------------------------------------------------------------------------------
+    def test_the_hook_leaves_the_shipped_replay_untouched(self):
+        again = self.engine.run_backtest(self.bars, "swing", test_days=120)
+        self.assertEqual(ResearchStudy._core(self.plain), ResearchStudy._core(again))
+        self.assertEqual(self.engine.run_backtest(self.bars, "swing", test_days=120, candidates_fn=lambda *a: []), [])
+        self.assertTrue(self.plain and all(t["setup"] in ("fresh", "primed") for t in self.plain))
+
+    def test_the_lane_goes_through_the_same_plan_and_records_as_the_shipped_picks(self):
+        self.assertGreater(len(self.lane), 5)
+        self.assertEqual({t["setup"] for t in self.lane}, {"turn"})
+        self.assertEqual(set(self.lane[0]), set(self.plain[0]))                                   # the same columns, so every study can read it
+        for t in self.lane:
+            self.assertGreaterEqual(t["quality_pct"], config.QUALITY_GATE_PCT)                    # T4
+            self.assertGreaterEqual(t["gain1d"], self.tu.MIN_GAIN)                                # T3
+            self.assertLess(t["ext_pct"], -config.PRIMED_NEAR_PCT)                                # T1
+            self.assertGreaterEqual(t["ext_pct"], -self.tu.PULLBACK_MAX)
+            d = self.bars[t["symbol"]]
+            bar = d[d.index.strftime("%Y-%m-%d") == t["signal_date"]].iloc[0]
+            self.assertAlmostEqual(t["trigger"], pl.tick_up(float(bar["high"]) * 1.001), places=6)    # T5: the buy-stop sits just above the signal day's high
+        by_stock: dict = {}
+        for t in self.lane:
+            by_stock.setdefault(t["symbol"], []).append(t["signal_date"])
+        for dates in by_stock.values():                                                           # the same cool-down as the shipped picks
+            for a, b in zip(dates[:-1], dates[1:]):
+                self.assertGreaterEqual(int(np.busday_count(a, b)), config.COOLDOWN_SESSIONS)
+
+    # ---- the test -----------------------------------------------------------------------------------------------------------------
+    @staticmethod
+    def two_lanes(lane_mean, shipped_mean, seed=5):
+        """Ten years of months. In each: 6 filled lane trades and 12 filled shipped trades (plus 2 orders of each kind that never fill). Both kinds share the
+        month's mood (a common shock) and each trade's R is drawn around `mean + shock` with a spread of 1.2."""
+        rng = np.random.default_rng(seed)
+        rows, k = [], 0
+        for m in pd.period_range("2016-01", "2026-09", freq="M"):
+            shock = rng.normal(0.0, 0.25)
+            days = pd.bdate_range(m.start_time, m.end_time)
+            for setup, n, mean, ext in (("turn", 6, lane_mean, -0.06), ("primed", 12, shipped_mean, -0.01)):
+                for j in range(n + 2):
+                    day = days[(j * 2) % max(len(days) - 8, 1)]
+                    filled = j < n
+                    r = float(rng.normal(mean + shock, 1.2)) if filled else float("nan")
+                    k += 1
+                    rows.append({"symbol": f"{setup[0].upper()}{k}", "signal_date": day, "fill_date": day + pd.offsets.BDay(1) if filled else pd.NaT,
+                                 "exit_date": day + pd.offsets.BDay(6) if filled else pd.NaT, "status": "CLOSED" if filled else "UNFILLED", "R": r,
+                                 "net": r * 0.05 if filled else float("nan"), "risk_pct": 0.05, "regime": "healthy", "setup": setup, "quality_pct": 70.0,
+                                 "sma200_chg": 0.0, "trigger": 100.0, "ext_pct": ext, "rv15": 1.0 + 0.5 * (j % 2), "path_R": ""})
+        return pd.DataFrame(rows)
+
+    def answer(self, lane_mean, shipped_mean):
+        lines = self.tu.analyse(self.two_lanes(lane_mean, shipped_mean), boot=300)
+        return next(x for x in lines if x.startswith("RESULT:")), lines
+
+    def test_the_groups_are_told_apart_by_the_setup_name(self):
+        book = PortfolioStudy.book([PortfolioStudy.filled("A", "2026-01-05", 1.0, setup="turn"), PortfolioStudy.filled("B", "2026-01-06", 2.0, setup="primed"),
+                                    PortfolioStudy.filled("C", "2026-01-07", 3.0, setup="fresh"), {"symbol": "D", "signal": "2026-01-08", "setup": "turn"}])
+        lane, shipped = self.tu.groups(book)
+        np.testing.assert_array_equal(lane, [1, 0, 0, 1])
+        np.testing.assert_array_equal(shipped, [0, 1, 1, 0])
+
+    def test_the_lane_must_pay_on_its_own_with_its_range_above_zero(self):
+        self.assertTrue(self.tu.pays_ok({"point": 0.20, "lo": 0.001}))
+        self.assertFalse(self.tu.pays_ok({"point": 0.19, "lo": 0.10}))                            # too little
+        self.assertFalse(self.tu.pays_ok({"point": 0.80, "lo": 0.0}))                             # luck cannot be ruled out
+        self.assertFalse(self.tu.pays_ok(None))
+
+    def test_a_lane_that_pays_and_clearly_beats_the_shipped_picks_is_proposed_not_switched_on(self):
+        text, lines = self.answer(0.9, 0.3)
+        self.assertIn("worth adding", text)
+        self.assertIn("PROPOSED to the user", text)
+        self.assertIn("nothing is switched on without his yes", text)
+        self.assertTrue(any("== 5. Rule G3" in x for x in lines))
+
+    def test_a_lane_that_earns_clearly_less_changes_nothing(self):
+        text, _ = self.answer(-0.1, 0.5)
+        self.assertIn("WORSE rule is met", text)
+        self.assertIn("Nothing changes in the scanner", text)
+        self.assertNotIn("worth adding", text)
+
+    def test_a_lane_no_better_than_the_shipped_picks_is_not_shown_to_be_either(self):
+        text, _ = self.answer(0.5, 0.5)
+        self.assertIn("Neither side is shown", text)
+        self.assertIn("nothing changes in the scanner", text)
+        self.assertNotIn("worth adding", text)
+
+    def test_a_lane_that_beats_the_shipped_picks_but_does_not_pay_is_not_added(self):
+        text, _ = self.answer(0.1, -0.5)
+        self.assertIn("its own bar was missed", text)
+        self.assertNotIn("worth adding", text)
+
+    def test_an_empty_side_says_what_to_run(self):
+        df = self.two_lanes(0.5, 0.5)
+        lines = self.tu.analyse(df[df["setup"] != "turn"], boot=50)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("Backtest & Calibrate", lines[0])
+
+    def test_the_matched_episodes_follow_each_lane_signal_to_the_next_shipped_listing_of_the_same_stock(self):
+        rows = [("A", "2026-01-05", 100.0, "turn"), ("A", "2026-01-20", 110.0, "primed"),          # listed 15 days later, 10% higher
+                ("B", "2026-01-05", 50.0, "turn"),                                                  # never listed
+                ("C", "2026-01-05", 80.0, "turn"), ("C", "2026-03-30", 90.0, "fresh"),              # listed 84 days later: too long
+                ("D", "2025-12-20", 70.0, "primed"), ("D", "2026-01-05", 75.0, "turn")]             # listed BEFORE: not a later entry
+        df = pd.DataFrame(rows, columns=["symbol", "signal_date", "trigger", "setup"])
+        df["signal_date"] = pd.to_datetime(df["signal_date"])
+        ep = self.tu.episodes(df)
+        self.assertEqual((ep["n"], ep["listed"]), (4, 1))
+        self.assertAlmostEqual(ep["share"], 0.25)
+        self.assertAlmostEqual(ep["median_premium"], 0.10)
+        self.assertEqual(ep["median_days"], 15.0)
+        self.assertEqual(self.tu.episodes(df[df["setup"] != "turn"])["n"], 0)
+
+    # ---- the first look on saved candles ------------------------------------------------------------------------------------------
+    @staticmethod
+    def history(n=230):
+        """Three stocks of 230 sessions that all rise from 80 to 120 (to bar 119), fall back to 104 (bar 159), chop around 104 and on bar 180 jump 4.7% to 108.4,
+        closing at the top of the day. VEE then climbs on (its buy order fills and the trade stays open); BUST fills on bar 181 and then falls 2 a day through its
+        stop; FLAT never moves. SHORT is VEE cut to 60 sessions (too little history to judge)."""
+        idx = pd.bdate_range("2025-01-01", periods=n)
+        t = np.arange(n)
+
+        def stock(sym, tail):
+            close = np.empty(n)
+            close[:120] = 80 + 40 * t[:120] / 119
+            close[120:160] = 120 - 16 * (t[120:160] - 119) / 40
+            close[160:180] = 104 + 0.5 * np.where(t[160:180] % 2 == 0, 1.0, -1.0)
+            close[180] = 108.4
+            close[181:] = tail(t[181:])
+            open_ = np.r_[close[0], close[:-1]]
+            return pd.DataFrame({"symbol": sym, "date": idx.strftime("%Y-%m-%d"), "open": open_, "high": np.maximum(open_, close) * 1.001,
+                                 "low": np.minimum(open_, close) * 0.999, "close": close, "volume": 2e8 / close})
+
+        vee = stock("VEE", lambda x: 108.4 + 0.25 * (x - 180))
+        bust = stock("BUST", lambda x: np.where(x == 181, 109.2, 109.2 - 2.0 * (x - 181)))
+        flat = pd.DataFrame({"symbol": "FLAT", "date": idx.strftime("%Y-%m-%d"), "open": 100.0, "high": 100.1, "low": 99.9, "close": 100.0, "volume": 2e6})
+        return pd.concat([vee, bust, flat, vee.head(60).assign(symbol="SHORT")], ignore_index=True), idx
+
+    def test_the_first_look_finds_the_turn_up_day_and_follows_each_trade_with_the_shipped_plan(self):
+        hist, idx = self.history()
+        look = self.tu.cache_look(hist)
+        turn = look[look["lane"] == "turn"].set_index("symbol")
+        self.assertEqual(sorted(turn.index), ["BUST", "VEE"])                                     # not FLAT (no pullback), not SHORT (too little history)
+        self.assertEqual(set(turn["signal_date"]), {idx[180].date().isoformat()})
+        self.assertEqual(turn.loc["VEE", "status"], "OPEN")                                       # bought just above the day's high and still held
+        self.assertGreater(turn.loc["VEE", "R"], 0)
+        self.assertEqual(turn.loc["BUST", "status"], "CLOSED")                                    # bought, then stopped out
+        self.assertLess(turn.loc["BUST", "R"], 0)
+        self.assertAlmostEqual(turn.loc["VEE", "trigger"], pl.tick_up(float(hist[(hist.symbol == "VEE") & (hist.date == idx[180].date().isoformat())]["high"].iloc[0]) * 1.001))
+        shipped = look[look["lane"].isin(["primed", "fresh"])]
+        self.assertTrue(((shipped["symbol"] == "VEE") & (shipped["signal_date"] < idx[120].date().isoformat())).any())     # the shipped rule listed it while it climbed
+        self.assertFalse(look["symbol"].eq("SHORT").any())
+
+    def test_the_first_look_prints_both_lanes_and_the_named_stocks(self):
+        hist, idx = self.history()
+        text = "\n".join(self.tu.first_look_lines(self.tu.cache_look(hist), ("VEE", "BUST")))
+        for need in ("A FIRST LOOK", "early turn-up lane", "shipped (fresh+primed)", "VEE: the early rule fired 1 times", "BUST: the early rule fired 1 times", idx[180].date().isoformat()):
+            self.assertIn(need, text)
+        self.assertEqual(self.tu.first_look_lines(pd.DataFrame())[-1], "No signals.")
+
+    def test_the_command_line_prints_the_first_look_and_saves_it(self):
+        import contextlib
+        import io
+        hist, _ = self.history()
+        with tempfile.TemporaryDirectory() as tmp:
+            src, out = os.path.join(tmp, "hist.csv"), os.path.join(tmp, "out", "look.md")
+            hist.to_csv(src, index=False)
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                code = self.tu.main(["--cache", src, "--stocks", "VEE", "--write", out])
+            self.assertEqual(code, 0)
+            self.assertIn("VEE: the early rule fired 1 times", buf.getvalue())
+            with open(out, encoding="utf-8") as fh:
+                saved = fh.read()
+        self.assertIn("# Early turn-up lane: a first look", saved)
+        self.assertIn("hist.csv", saved)
 
 
 if __name__ == "__main__":

@@ -91,10 +91,11 @@ class Book:
         self.weak = (d["regime"] == "weak").to_numpy()
         self.regime = d["regime"].astype(str).to_numpy()                                  # healthy / mixed / weak, as the scan labelled the market that day
         self.breadth = d["breadth50"].to_numpy(float) if "breadth50" in d.columns else np.full(self.n, np.nan)   # share of stocks above their 50-day average
-        for name in ("ret252", "ext_pct", "ema21_x", "dist_hi"):                             # what the stock had done by the signal day (NaN when the file lacks it)
+        for name in ("ret252", "ext_pct", "ema21_x", "dist_hi", "rv15"):                             # what the stock had done by the signal day (NaN when the file lacks it)
             setattr(self, name, d[name].to_numpy(float) if name in d.columns else np.full(self.n, np.nan))
         self.strong = (d["sma200_chg"].to_numpy(float) >= ss.STRONG_TREND)
         self.fresh = (d["setup"] == "fresh").to_numpy()
+        self.setup = d["setup"].astype(str).to_numpy()                                   # fresh / primed (the shipped rule) or turn (the early turn-up lane of backtest/turn_up_study.py)
         self.q = d["quality_pct"].to_numpy(float)
         self.tie = np.arange(self.n)                                                      # symbol order inside a day (the frame is sorted by it)
         self.has_path = "path_R" in d.columns

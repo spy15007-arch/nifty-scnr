@@ -164,7 +164,7 @@ def _research_columns(feats: pd.DataFrame, sym: str, su: dict, stats_t: dict, br
 
 def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, cooldown: int | None = None,
                  max_picks: int | None = None, min_bars: int = 120, dlv: pd.DataFrame | None = None,
-                 top_n_liquid: int | None = None) -> list[dict]:
+                 top_n_liquid: int | None = None, candidates_fn=None) -> list[dict]:
     """
     Replay the rule on each of the last `test_days` sessions. Returns one dict per signal (including the ones
     that never filled or are still open - summarise_backtest separates them).
@@ -173,6 +173,10 @@ def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, coo
                   with it the 8-factor score is used, without it the 7-factor price-only score
     top_n_liquid  keep only the N most-traded stocks of each day (the live scan's universe is the NIFTY 500);
                   leave None when `bars` already is the universe
+    candidates_fn RESEARCH, default None = the shipped rule (fresh and about-to-break stocks). A function that returns another family of
+                  signals for one day - candidates_fn(ti, js, feats, scored, M, syms, gate) -> [(rank, -quality, symbol, setup dict), ...],
+                  see backtest/turn_up_study.py - which then goes through the very same cool-down, pick cap, trade plan and records.
+                  With None nothing here changes.
     """
     cooldown = config.COOLDOWN_SESSIONS if cooldown is None else cooldown
     max_picks = max_picks or config.MAX_PICKS.get(scan_mode, 10)
@@ -224,18 +228,21 @@ def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, coo
         scored, stats_t = fp.score_universe(feats, dl_t, min_delivery_coverage=config.DELIVERY_MIN_COVERAGE)
         breadth = fp.market_breadth(feats)
         regime = fp.regime_label(breadth.get("breadth50"))
-        near = (feats["close"] >= (1.0 - config.PRIMED_NEAR_PCT) * feats["piv_incl"]).to_numpy()
+        if candidates_fn is not None:
+            cands = list(candidates_fn(ti, js, feats, scored, M, syms, gate))
+        else:
+            near = (feats["close"] >= (1.0 - config.PRIMED_NEAR_PCT) * feats["piv_incl"]).to_numpy()
 
-        cands = []
-        for r in np.nonzero(near)[0]:
-            sym = feats.index[r]
-            q = scored["quality_pct"].iloc[r]
-            if not (isinstance(q, (float, np.floating)) and math.isfinite(q)) or q < gate:
-                continue
-            su = fp.detect_setup({k: float(feats[k].iloc[r]) for k in _NEED})
-            if su["setup"] is None:
-                continue
-            cands.append((0 if su["setup"] == "fresh" else 1, -float(q), sym, su))
+            cands = []
+            for r in np.nonzero(near)[0]:
+                sym = feats.index[r]
+                q = scored["quality_pct"].iloc[r]
+                if not (isinstance(q, (float, np.floating)) and math.isfinite(q)) or q < gate:
+                    continue
+                su = fp.detect_setup({k: float(feats[k].iloc[r]) for k in _NEED})
+                if su["setup"] is None:
+                    continue
+                cands.append((0 if su["setup"] == "fresh" else 1, -float(q), sym, su))
         cands.sort(key=lambda t: (t[0], t[1], t[2]))
 
         picked = 0
@@ -494,7 +501,7 @@ def write_backtest_report(trades: list[dict], stats: dict, scan_mode: str, n_sto
     md_path = f"{out_dir}/{name}.md"
     csv_path = f"{out_dir}/{name}_trades.csv"
     pd.DataFrame(trades).to_csv(csv_path, index=False)
-    lines = [f"# Backtest - {scan_mode} rule, replayed on {'Yahoo' if tag == 'yahoo' else 'broker'} daily bars ({stamp})", "",
+    lines = [f"# Backtest - {scan_mode} rule, replayed on {'Yahoo' if 'yahoo' in tag else 'broker'} daily bars ({stamp})", "",
              *([data_note, ""] if data_note else []),
              f"{n_stocks} stocks, {stats.get('signals', 0)} signals: {stats.get('closed', 0)} closed, {stats.get('open', 0)} still open, "
              f"{stats.get('pending', 0)} still waiting for the buy-stop, {stats.get('unfilled', 0)} never triggered, "
