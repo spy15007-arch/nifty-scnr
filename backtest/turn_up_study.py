@@ -364,6 +364,21 @@ def first_look_lines(look: pd.DataFrame, stocks: tuple[str, ...] = ()) -> list[s
                    f"{_num(float((done['net'] > 0).mean()) if len(done) else float('nan'), '.0%'):>8}{_num(float((done['R'] < 0).mean()) if len(done) else float('nan'), '.0%'):>12}"
                    f"{_num(float(done['net'].mean()) if len(done) else float('nan'), '+.2%'):>13}")
     out.append("(filled = bought and sold; still open = bought, not sold yet; avg R and the rest are over the filled trades only.)")
+    ep = episodes(look.rename(columns={"lane": "setup"}).assign(signal_date=pd.to_datetime(look["signal_date"])))
+    out.append(f"\nMatched episodes: of {ep['n']} early signals, the shipped rule listed the same stock within {EPISODE_DAYS} calendar days after {ep['listed']} ({_num(ep['share'], '.0%')}).")
+    if ep["listed"]:
+        out.append(f"For those, the shipped buy price was {ep['median_premium']:+.1%} above the early one (median; mean {ep['mean_premium']:+.1%}), {ep['median_days']:.0f} calendar days later (median). "
+                   f"Only stocks that did get back near their high are in this line, so it is the cost of the later entry on the winners.")
+    done = look[look["status"] == "CLOSED"].assign(day=lambda x: pd.to_datetime(x["signal_date"]))
+    if len(done) >= 4:
+        mid = done["day"].quantile(0.5)
+        out.append("\nThe same, in the two halves of the history (filled trades only):")
+        for name, part in (("first half", done[done["day"] <= mid]), ("second half", done[done["day"] > mid])):
+            cells = []
+            for label, mask in (("early", part["lane"] == LANE), ("shipped", part["lane"].isin(["primed", "fresh"]))):
+                x = part[mask]
+                cells.append(f"{label} {len(x)} trades, average {_num(float(x['R'].mean()) if len(x) else float('nan'), '+.2f')}R")
+            out.append(f"  {name:<12}{'; '.join(cells)}")
     for s in stocks:
         x = look[(look["symbol"] == s) & (look["lane"] == LANE)]
         out.append(f"\n{s}: the early rule fired {len(x)} times in the saved history:")

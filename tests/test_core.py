@@ -4621,7 +4621,8 @@ class TurnUpStudy(unittest.TestCase):
     def test_the_first_look_prints_both_lanes_and_the_named_stocks(self):
         hist, idx = self.history()
         text = "\n".join(self.tu.first_look_lines(self.tu.cache_look(hist), ("VEE", "BUST")))
-        for need in ("A FIRST LOOK", "early turn-up lane", "shipped (fresh+primed)", "VEE: the early rule fired 1 times", "BUST: the early rule fired 1 times", idx[180].date().isoformat()):
+        for need in ("A FIRST LOOK", "early turn-up lane", "shipped (fresh+primed)", "Matched episodes: of 2 early signals", "in the two halves", "first half", "second half",
+                     "VEE: the early rule fired 1 times", "BUST: the early rule fired 1 times", idx[180].date().isoformat()):
             self.assertIn(need, text)
         self.assertEqual(self.tu.first_look_lines(pd.DataFrame())[-1], "No signals.")
 
