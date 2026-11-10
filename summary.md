@@ -1,4 +1,55 @@
 <!-- scan-section -->
+# 🌙 BTST scan - Tue 10 Nov 2026, 2:58 PM IST
+
+*Based on the close of Mon 09 Nov 2026*
+
+**Market:** 🧭 🟢 Bullish · Nifty +0.1% last session · global supportive
+
+**Breadth:** 52% of liquid stocks are above their 50-day average (mixed)
+
+*Quick check of last night's 149-stock watchlist (9 Nov close) with live prices; breadth is as of that close*
+
+*Live quotes not used (quotes matched only 21 of 150 stocks); candles were fetched one by one instead*
+
+*No price bar for today yet (market holiday?) - based on the Mon 09 Nov close*
+
+*Funnel: 149 stocks checked → 9 fresh breakouts + 63 about to break → 63 in the top half by quality → 0 listed, 63 already on the list*
+
+| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
+| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
+| - | No new pick | - | - | - | - | - | - |
+
+*💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first*
+
+**Earlier picks, still strong** (picked before, order still waiting - no new order):
+
+- **SANSERA** 💪 - picked 2026-11-09, buy at 4,753.00 (order still waiting, valid 5 more sessions), quality 91/100, profit marks 5,248.85 · 5,744.70 · 6,240.55
+- **CIPLA** - picked 2026-11-04, buy at 1,446.50 (order still waiting, valid 1 more session), quality 92/100, profit marks 1,519.65 · 1,592.80 · 1,665.95
+- **RADICO** - picked 2026-11-08, buy at 4,689.40 (order still waiting, valid 4 more sessions), quality 88/100, profit marks 5,076.50 · 5,463.60 · 5,850.65
+- **NTPC** - picked 2026-11-09, buy at 338.20 (order still waiting, valid 5 more sessions), quality 82/100, profit marks 359.45 · 380.70 · 401.95
+- **SBIN** - picked 2026-11-09, buy at 1,062.15 (order still waiting, valid 5 more sessions), quality 81/100, profit marks 1,120.45 · 1,178.70 · 1,236.95
+- **HONASA** - picked 2026-11-05, buy at 494.00 (order still waiting, valid 2 more sessions), quality 80/100, profit marks 535.25 · 576.50 · 617.75
+- **LGEINDIA** - picked 2026-11-05, buy at 1,839.70 (order still waiting, valid 2 more sessions), quality 76/100, profit marks 1,968.90 · 2,098.05 · 2,227.20
+- **SBILIFE** - picked 2026-11-06, buy at 1,802.50 (order still waiting, valid 3 more sessions), quality 76/100, profit marks 1,905.45 · 2,008.40 · 2,111.35
+- **HINDUNILVR** - picked 2026-11-06, buy at 2,056.05 (order still waiting, valid 3 more sessions), quality 74/100, profit marks 2,184.30 · 2,312.50 · 2,440.70
+- **ALKEM** - picked 2026-11-09, buy at 5,485.95 (order still waiting, valid 5 more sessions), quality 70/100, profit marks 5,805.05 · 6,124.10 · 6,443.20
+- **MEESHO** - picked 2026-11-09, buy at 246.00 (order still waiting, valid 5 more sessions), quality 68/100, profit marks 268.50 · 291.00 · 313.45
+- **ABCAPITAL** - picked 2026-11-09, buy at 413.95 (order still waiting, valid 5 more sessions), quality 67/100, profit marks 446.10 · 478.25 · 510.40
+- **HDFCAMC** - picked 2026-11-06, buy at 2,703.40 (order still waiting, valid 3 more sessions), quality 65/100, profit marks 2,890.35 · 3,077.25 · 3,264.15
+- **VBL** - picked 2026-11-09, buy at 445.25 (order still waiting, valid 5 more sessions), quality 56/100, profit marks 480.65 · 516.00 · 551.35
+- **SHREECEM** - picked 2026-11-08, buy at 25,305.55 (order still waiting, valid 4 more sessions), quality 55/100, profit marks 26,845.50 · 28,385.45 · 29,925.40
+- **WIPRO** - picked 2026-11-06, buy at 202.15 (order still waiting, valid 3 more sessions), quality 51/100, profit marks 215.70 · 229.25 · 242.80
+- **BPCL** - picked 2026-11-09, buy at 324.70 (order still waiting, valid 5 more sessions), quality 50/100, profit marks 347.65 · 370.55 · 393.50
+
+Already on your list (not repeated): SONACOMS, UNIONBANK, AUROPHARMA, INDIANB, PETRONET, DLF, ICICIBANK, LT, MARICO, TVSMOTOR, PNB, DRREDDY, TRENT, HDFCBANK, GAIL, MAHABANK, ATHERENERG, RELIANCE, ETERNAL, KOTAKBANK
+
+---
+*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
+
+*Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
+Open now: 40 of 53 up, average +3.3% after costs (not final)*
+
+<!-- scan-section -->
 # 📈 Swing scan - Mon 9 Nov 2026, 4:49 PM IST
 
 *Based on the close of Mon 09 Nov 2026*
@@ -1079,39 +1130,3 @@ Already on your list (not repeated): DRREDDY, SONACOMS, BSE, LAURUSLABS, ANANDRA
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and exit only through the stop, which trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-outs; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
 
 *Record since 21 Oct: no trade closed yet*
-
-<!-- scan-section -->
-# 🌙 BTST scan - Thu 29 Oct 2026, 2:01 PM IST
-
-*Live prices at 2:01 PM IST (today's volume projected to a full day)*
-
-**Market:** 🧭 🟡 Sideways / mixed (score +1/6) · Nifty +0.9% today · global supportive
-
-**Breadth:** 19% of liquid stocks are above their 50-day average (weak - use half size)
-
-*Fast afternoon check: the 86 stocks on last evening's watchlist (2026-10-28), re-scored with live quotes against the whole market's yardstick; market breadth is as of that close*
-
-*Funnel: 86 stocks checked → 5 fresh breakouts + 14 about to break → 18 in the top half by quality → 4 listed, 14 already on the list*
-
-| # | Stock | Setup | Quality | Entry | Stop | Trail below high close | Shares | Delivery 20d |
-| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: | :-: |
-| 1 | **ADANIPORTS** | 🔥 Fresh breakout (first close above the 50-day high) | 91 | Buy near 1,865.10 | 1,741.25 (-6.6%) | 13.3% | 4 | 59% |
-| 2 | **GLAND** | 👀 About to break out (2.1% below the 50-day high) | 86 | Buy-stop 3,177.35 (skip if opens above 3,272.65) | 2,905.10 (-8.6%) | 17.1% | 1 | 54% |
-| 3 | **ETERNAL** | 👀 About to break out (1.6% below the 50-day high) | 71 | Buy-stop 345.10 (skip if opens above 355.45) | 317.75 (-7.9%) | 15.8% | 18 | 57% |
-| 4 | **PNB** | 👀 About to break out (2.2% below the 50-day high) | 63 | Buy-stop 125.50 (skip if opens above 129.25) | 117.20 (-6.6%) | 13.2% | 60 | 42% |
-
-Already on your list (not repeated): DRREDDY, SONACOMS, BSE, LAURUSLABS, ANANDRATHI, INDHOTEL, GESHIP, DIVISLAB, NYKAA, BHARTIARTL, KOTAKBANK, DLF, ACUTAAS, PVRINOX
-
-## Trades already on your list
-
-Trades already on your list
-Open - current stops (7):
-SONACOMS ₹776.26 · ACUTAAS ₹3,501.93 · LAURUSLABS ₹1,939.14
-ANANDRATHI ₹2,145.10 · INDHOTEL ₹727.86 · DRREDDY ₹1,189.87
-PVRINOX ₹1,301.35
-Waiting for their buy-stop (13): BHARTIARTL ₹2,009.85, GESHIP ₹1,586.20, BSE ₹3,546.50, DIVISLAB ₹9,759.50, NYKAA ₹350.25, APLAPOLLO ₹2,285.60, DLF ₹692.45, IPCALAB ₹2,042.10, KOTAKBANK ₹454.05, COFORGE ₹2,025.25, TECHM ₹1,848.70, INDUSTOWER ₹393.10 ...
-
----
-*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and exit only through the stop, which trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-outs; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
-
-*Scoreboard since 2026-10-21: 0 closed, 7 open, 13 waiting for their buy-stop*

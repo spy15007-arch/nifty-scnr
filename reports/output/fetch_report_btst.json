@@ -1,51 +1,45 @@
 {
- "at": "2026-11-09 15:05 IST",
- "budget_s": 1129,
+ "at": "2026-11-10 14:58 IST",
+ "budget_s": 1122,
  "kind": "watchlist",
- "loaded": 143,
+ "loaded": 149,
  "market_line_source": "^NSEI",
- "quote_note": "quotes matched only 72 of 150 stocks",
+ "quote_note": "quotes matched only 21 of 150 stocks",
  "requested": 150,
  "route": "candles",
  "scan": "btst",
- "scored": 143,
- "seconds": 1142,
+ "scored": 149,
+ "seconds": 719,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    22
+    3
    ]
   ],
-  "failed": 7,
-  "loaded": 143,
+  "failed": 1,
+  "loaded": 149,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [],
   "not_found_n": 0,
   "not_reached": 0,
   "pace": {
-   "calls": 276,
-   "rate_limited": 133,
-   "refused": 133,
-   "slowed_calls": 273,
-   "slowest_calls": 273,
+   "calls": 199,
+   "rate_limited": 50,
+   "refused": 50,
+   "slowed_calls": 181,
+   "slowest_calls": 181,
    "wait_now_s": 2.5
   },
-  "recovered": 14,
+  "recovered": 1,
   "refused": [
-   "ASTERDM",
-   "TATACAP",
-   "CEMPRO",
-   "APOLLOHOSP",
-   "SRF",
-   "MPHASIS",
-   "SAGILITY"
+   "HEROMOTOCO"
   ],
-  "refused_n": 7,
+  "refused_n": 1,
   "requested": 150,
-  "seconds": 1129,
-  "stopped": "time budget"
+  "seconds": 708,
+  "stopped": ""
  }
 }
