@@ -52,6 +52,11 @@ STOP_VARIANTS = (
     ("be1", config.TRAIL_ATR_MULT, ((1.0, 0.0),)),             # the shipped trail + break-even once a close is +1R
     ("lk2", config.TRAIL_ATR_MULT, ((1.0, 0.0), (2.0, 1.0))),  # ... and +1R locked once a close is +2R
 )
+# RESEARCH (hold-limit study, backtest/hold_limit_study.py): the very same signals, entries, first stop and trail, run with a LONGER time limit than the
+# shipped MAX_HOLD_SESSIONS (60), to measure whether selling the trades that are still open at the limit leaves profit behind (about one filled trade in three
+# ends that way, and those trades earn most of the profit). (column prefix, time limit in sessions); declared BEFORE looking at any result. A trade that ends
+# before session 60 ends the same way under every limit; only the trades still open at 60 can differ. They change nothing else.
+HOLD_VARIANTS = (("hold90", 90), ("hold120", 120), ("hold180", 180), ("hold250", 250))
 # RESEARCH (portfolio study): every filled trade records where it stood, in R after costs, every PATH_STEP sessions from its fill (column `path_R`),
 # so an account that holds only a few of the signals can be marked to market week by week instead of only when trades end. It changes nothing else.
 PATH_STEP = 5
@@ -138,6 +143,13 @@ def _path_marks(plan: ts.TradePlan, st: ts.TradeState, d: pd.DataFrame, pos: int
         marks.append(f"{(closes[pos + s] / st.fill_px - 1.0 - plan.cost) / plan.risk_pct:.2f}")
         s += PATH_STEP
     return ";".join(marks)
+
+
+def _held(st: ts.TradeState) -> float:
+    """RESEARCH (hold-limit study): the sessions a sold trade was held (from the session it was bought to the session it was sold); NaN for any other trade."""
+    if st.status != ts.CLOSED or st.fill_n < 0 or st.exit_n < 0:
+        return float("nan")
+    return float(st.exit_n - st.fill_n)
 
 
 def _research_columns(feats: pd.DataFrame, sym: str, su: dict, stats_t: dict, breadth: dict) -> dict:
@@ -292,6 +304,15 @@ def run_backtest(bars: dict, scan_mode: str = "swing", test_days: int = 250, coo
                 vst, voc, _, vvoid = _simulate(vp, d, pos, steps)
                 rec[f"{name}_status"], rec[f"{name}_exit"] = ("VOID" if vvoid else vst.status), vst.exit_reason
                 rec[f"{name}_net"], rec[f"{name}_R"] = (voc["net"], voc["R"]) if (voc is not None and not vvoid) else (np.nan, np.nan)
+            rec["held"] = np.nan if void else _held(st)
+            for name, limit in HOLD_VARIANTS:                               # the same entry and stops, run with a longer time limit (research only)
+                hp = ts.TradePlan("stop", plan.trigger, atr, max_hold=limit)
+                hst, hoc, hexit, hvoid = _simulate(hp, d, pos)
+                rec[f"{name}_status"], rec[f"{name}_exit"] = ("VOID" if hvoid else hst.status), hst.exit_reason
+                rec[f"{name}_net"], rec[f"{name}_R"] = (hoc["net"], hoc["R"]) if (hoc is not None and not hvoid) else (np.nan, np.nan)
+                rec[f"{name}_held"] = np.nan if hvoid else _held(hst)
+                rec[f"{name}_exit_date"] = dates[hexit].date().isoformat() if (hst.status == ts.CLOSED and hexit is not None and hexit < len(dates)) else ""
+                rec[f"{name}_path_R"] = "" if hvoid else _path_marks(hp, hst, d, pos)
             # block the symbol while the trade is unfinished (the live scan does the same)
             if void:
                 busy_until[sym] = ti

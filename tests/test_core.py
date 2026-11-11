@@ -10,6 +10,7 @@ import dataclasses
 import importlib.util
 import json
 import logging
+import math
 import os
 import shutil
 import sys
@@ -291,11 +292,14 @@ class ResearchStudy(unittest.TestCase):
         need = {"run_up", "z_run_up", "ret5", "gain1d", "sma200_chg", "ret252", "breadth50",
                 "pb1_status", "pb1_net", "pb1_R", "pb2_status", "pb2_net", "pb2_R"}
         need |= {f"{name}_{col}" for name, _, _ in self.engine.STOP_VARIANTS for col in ("status", "exit", "net", "R")}
-        need |= {"path_R"}
+        need |= {"path_R", "held"}
+        need |= {f"{name}_{col}" for name, _ in self.engine.HOLD_VARIANTS for col in ("status", "exit", "net", "R", "held", "exit_date", "path_R")}
         for t in self.trades:
             self.assertFalse(need - set(t), f"missing {need - set(t)} in {t}")
             if t["status"] in ("UNFILLED", "PENDING", "VOID"):
                 self.assertEqual(t["path_R"], "", t)                      # a trade that never held a position has no path
+            if t["status"] != "CLOSED":
+                self.assertFalse(np.isfinite(t["held"]), t)               # only a sold trade has a number of sessions held
 
     def test_the_path_marks_follow_the_trade_every_five_sessions(self):
         """Buy at 100 with a 5% risk. Marks are in R after the 0.35% cost - (close / 100 - 1 - 0.0035) / 0.05 - at the fill session and every 5th one
@@ -329,10 +333,116 @@ class ResearchStudy(unittest.TestCase):
         self.assertEqual(self.engine._path_marks(ts.TradePlan("stop", 150.0, 0.02), st4, d, 0), "")
 
     def test_the_extra_columns_do_not_change_the_real_trades(self):
-        with mock.patch.object(self.engine, "PULLBACKS", ()), mock.patch.object(self.engine, "STOP_VARIANTS", ()):
+        with mock.patch.object(self.engine, "PULLBACKS", ()), mock.patch.object(self.engine, "STOP_VARIANTS", ()), mock.patch.object(self.engine, "HOLD_VARIANTS", ()):
             plain = self.engine.run_backtest(self.bars, "swing", test_days=120)
-        self.assertFalse(any("pb1_status" in t or "tr3_status" in t for t in plain))
+        self.assertFalse(any("pb1_status" in t or "tr3_status" in t or "hold90_status" in t for t in plain))
         self.assertEqual(self._core(plain), self._core(self.trades))
+
+    # ---- the hold-limit variants: the same trades with a longer time limit (backtest/hold_limit_study.py) ------------------------------
+    @staticmethod
+    def _rising(n=100, dip_at=None, dip_low=90.0):
+        """One signal bar and then `n` sessions climbing half a point a session from 100 (the buy-stop at 100 fills at the open of session 1); `dip_at` = a
+        session whose low falls to `dip_low` (its close is unchanged)."""
+        closes = [100.0 + 0.5 * k for k in range(1, n + 1)]
+        idx = pd.date_range("2026-01-01", periods=n + 1, freq="B")
+        opens = [100.0] + closes[:-1]
+        rows = [(99.0, 99.5, 98.5, 99.0)] + [(o, c + 0.4, c - 0.3, c) for o, c in zip(opens, closes)]
+        d = pd.DataFrame(rows, index=idx, columns=["open", "high", "low", "close"])
+        if dip_at is not None:
+            d.iloc[dip_at, d.columns.get_loc("low")] = dip_low
+        return d
+
+    def test_a_longer_time_limit_keeps_a_rising_trade_longer_and_ends_every_other_trade_the_same_way(self):
+        """Buy at 100 with a 5% risk (first stop 95, trail 10% below the highest close), closes rising 0.5 a session. The shipped plan sells at the close of its
+        60th session after the purchase (session 61, close 130.5: (1.305 - 1 - 0.0035) / 0.05 = +6.03R); a 90-session limit sells at session 91 (145.5: +9.03R)."""
+        plan, longer = ts.TradePlan("stop", 100.0, 0.02), ts.TradePlan("stop", 100.0, 0.02, max_hold=90)
+        d = self._rising()
+        st, oc, exit_pos, _ = self.engine._simulate(plan, d, 0)
+        lt, loc, lexit, _ = self.engine._simulate(longer, d, 0)
+        self.assertEqual((st.status, st.exit_reason, st.exit_n, self.engine._held(st)), (ts.CLOSED, "time", 61, 60.0))
+        self.assertEqual((lt.status, lt.exit_reason, lt.exit_n, self.engine._held(lt)), (ts.CLOSED, "time", 91, 90.0))
+        self.assertAlmostEqual(oc["R"], 6.03, places=6)
+        self.assertAlmostEqual(loc["R"], 9.03, places=6)
+        self.assertEqual((exit_pos, lexit), (61, 91))
+        # the weekly marks of the shipped plan are the first marks of the longer one (sessions 1, 6, ... up to the session before the sale)
+        marks, lmarks = self.engine._path_marks(plan, st, d, 0), self.engine._path_marks(longer, lt, d, 0)
+        self.assertEqual(len(marks.split(";")), 12)
+        self.assertTrue(lmarks.startswith(marks + ";"))
+        self.assertEqual(len(lmarks.split(";")), 18)
+        # a trade that ends before the shorter limit ends the same way under both: a dip to 80 in session 30 touches the trail (highest close 114.5, trail 103.05)
+        d2 = self._rising(dip_at=30, dip_low=80.0)
+        a, aoc, _, _ = self.engine._simulate(plan, d2, 0)
+        b, boc, _, _ = self.engine._simulate(longer, d2, 0)
+        self.assertEqual((a.status, a.exit_reason, a.exit_n), (ts.CLOSED, "trail", 30))
+        self.assertEqual((b.status, b.exit_reason, b.exit_n), (a.status, a.exit_reason, a.exit_n))
+        self.assertAlmostEqual(aoc["R"], boc["R"], places=9)
+        self.assertAlmostEqual(aoc["R"], (103.05 / 100 - 1 - 0.0035) / 0.05, places=6)
+        # a longer limit can also lose: a dip to 90 in session 70 (highest close 134.5, trail 121.05) takes the longer plan out at 121.05 = +4.14R, below the
+        # +6.03R the shipped plan had already banked at session 61
+        d3 = self._rising(dip_at=70)
+        c, coc, _, _ = self.engine._simulate(plan, d3, 0)
+        e, eoc, _, _ = self.engine._simulate(longer, d3, 0)
+        self.assertEqual((c.exit_reason, c.exit_n), ("time", 61))
+        self.assertEqual((e.exit_reason, e.exit_n, self.engine._held(e)), ("trail", 70, 69.0))
+        self.assertAlmostEqual(coc["R"], 6.03, places=6)
+        self.assertAlmostEqual(eoc["R"], (121.05 / 100 - 1 - 0.0035) / 0.05, places=6)
+        self.assertLess(eoc["R"], coc["R"])
+        # a trade still open at the end of the data: under both limits it is open, with the same mark
+        d4 = self._rising(n=40)
+        f, _, _, _ = self.engine._simulate(plan, d4, 0)
+        g, _, _, _ = self.engine._simulate(longer, d4, 0)
+        self.assertEqual((f.status, g.status), (ts.OPEN, ts.OPEN))
+        self.assertTrue(math.isnan(self.engine._held(f)) and math.isnan(self.engine._held(g)))
+
+    def test_the_sessions_held_count_from_the_purchase_to_the_sale(self):
+        plan = ts.TradePlan("stop", 100.0, 0.02)
+        d = self._rising(n=12)
+        st, _, _, _ = self.engine._simulate(ts.TradePlan("stop", 100.0, 0.02, max_hold=5), d, 0)
+        self.assertEqual((st.status, st.fill_n, st.exit_n, self.engine._held(st)), (ts.CLOSED, 1, 6, 5.0))
+        same_day = self._rising(n=3)
+        same_day.iloc[1, same_day.columns.get_loc("low")] = 90.0                                  # bought and stopped out in session 1
+        s2, _, _, _ = self.engine._simulate(plan, same_day, 0)
+        self.assertEqual((s2.exit_reason, self.engine._held(s2)), ("same_day_stop", 0.0))
+        s3, _, _, _ = self.engine._simulate(ts.TradePlan("stop", 150.0, 0.02), d, 0)               # the order never fills
+        self.assertEqual(s3.status, ts.UNFILLED)
+        self.assertTrue(math.isnan(self.engine._held(s3)))
+
+    def test_the_hold_variants_change_only_the_trades_the_shipped_limit_sold(self):
+        """On the replay's own signals: the entry is the same in every variant, a trade the shipped plan ended before its limit (or has not ended) ends the
+        same way in every variant, and one it sold at the limit is held at least as long and at most to the longer limit."""
+        limit, timed, unchanged_R, kept = config.MAX_HOLD_SESSIONS, 0, 0, 0
+        pairs = (("status", "status"), ("exit", "exit_reason"), ("net", "net"), ("R", "R"), ("held", "held"), ("exit_date", "exit_date"), ("path_R", "path_R"))
+        self.assertEqual(limit, 60)
+        for t in self.trades:
+            for name, longer in self.engine.HOLD_VARIANTS:
+                self.assertEqual(t[f"{name}_status"] == "UNFILLED", t["status"] == "UNFILLED", (name, t))
+                if t["status"] == "CLOSED" and t["exit_reason"] == "time":
+                    timed += 1
+                    self.assertEqual(t["held"], float(limit), t)
+                    self.assertIn(t[f"{name}_status"], ("CLOSED", "OPEN", "VOID"), t)
+                    self.assertTrue(t[f"{name}_path_R"].startswith(t["path_R"]), (name, t))
+                    if t[f"{name}_status"] == "CLOSED":
+                        held = t[f"{name}_held"]
+                        self.assertTrue(limit <= held <= longer, (name, t))
+                        self.assertAlmostEqual(t[f"{name}_R"] * t["risk_pct"], t[f"{name}_net"], delta=0.0005)
+                        self.assertGreaterEqual(t[f"{name}_exit_date"], t["exit_date"])
+                        if t[f"{name}_exit"] == "time":
+                            self.assertEqual(held, float(longer), (name, t))
+                        else:
+                            self.assertIn(t[f"{name}_exit"], ("stop", "trail", "gap_stop"), (name, t))
+                        if abs(t[f"{name}_R"] - t["R"]) < 1e-12:
+                            unchanged_R += 1
+                else:
+                    kept += 1
+                    for var_key, base_key in pairs:
+                        a, b = t[f"{name}_{var_key}"], t[base_key]
+                        if isinstance(a, float) and isinstance(b, float) and (np.isnan(a) or np.isnan(b)):
+                            self.assertTrue(np.isnan(a) and np.isnan(b), (name, var_key, t))
+                        else:
+                            self.assertEqual(a, b, (name, var_key, t))
+        self.assertGreater(timed, 8)                                                              # 8 trades x 4 variants: there are trades to compare
+        self.assertGreater(kept, 100)
+        self.assertEqual(unchanged_R, 0)                                                          # holding longer moved every one of them to another result
 
     def test_the_stop_variants_are_scored_on_the_same_risk_as_the_real_trade(self):
         """Same entry, same first stop, same risk: R * risk_pct gives the net return back, and an order that never filled is unfilled in every variant."""
@@ -1027,6 +1137,37 @@ class PortfolioStudy(unittest.TestCase):
         for bad in ({"mult": np.ones(3)}, {"skip": np.zeros(5, dtype=bool)}):                 # one entry per signal of the book, or nothing
             with self.assertRaises(ValueError):
                 ps.simulate(book, "shipped", max_stocks=3, risk=0.01, **bad)
+
+    def test_one_position_per_stock_drops_a_signal_for_a_stock_the_account_holds_or_waits_for(self):
+        """backtest/hold_limit_study.py: a trade held longer keeps its stock busy for longer, so a later signal for that stock is one the scanner would not have
+        listed. 1% of 100 at risk with a 5% stop distance puts 20 in a stock, so five rooms and the money are never the limit here."""
+        from backtest import portfolio_study as ps
+        book = self.book([
+            {"symbol": "A", "signal": "2026-01-05", "fill": "2026-01-06", "exit": "2026-01-20", "R": 2.0},
+            {"symbol": "A", "signal": "2026-01-12", "fill": "2026-01-13", "exit": "2026-01-16", "R": -1.0},      # the first A is still held
+            {"symbol": "B", "signal": "2026-01-12", "fill": "2026-01-13", "exit": "2026-01-16", "R": 3.0},
+            {"symbol": "A", "signal": "2026-01-21", "fill": "2026-01-22", "exit": "2026-01-27", "R": 1.0},      # the day after the first A was sold
+        ])
+        free = ps.simulate(book, "shipped", max_stocks=5, risk=0.01)
+        self.assertEqual((free["placed"], free["same_stock"]), (4, 0))
+        self.assertAlmostEqual(free["realised"], 104.0 + 1.04)                                 # -1 and +3 on the 16th, +2 on the 20th, then +1R on 1.04 at risk
+        locked = ps.simulate(book, "shipped", max_stocks=5, risk=0.01, lock_same_stock=True)
+        self.assertEqual((locked["placed"], locked["same_stock"], locked["full"], locked["cash"]), (3, 1, 0, 0))
+        self.assertAlmostEqual(locked["realised"], 105.0 + 1.05)                               # the second A never bought: +3 and +2, then +1R on 1.05 at risk
+        # a buy order that is still waiting holds the stock too, until it lapses (five sessions after the signal: the 9th)
+        waiting = self.book([
+            {"symbol": "U", "signal": "2026-02-02"},                                           # never fills
+            {"symbol": "U", "signal": "2026-02-05", "fill": "2026-02-06", "exit": "2026-02-10", "R": 1.0},       # the first order is still live
+            {"symbol": "U", "signal": "2026-02-10", "fill": "2026-02-11", "exit": "2026-02-13", "R": 1.0},       # it lapsed on the 9th
+        ])
+        w = ps.simulate(waiting, "shipped", max_stocks=5, risk=0.01, lock_same_stock=True)
+        self.assertEqual((w["placed"], w["unfilled"], w["closed"], w["same_stock"]), (2, 1, 1, 1))
+        self.assertAlmostEqual(w["realised"], 101.0)
+        self.assertEqual(ps.simulate(waiting, "shipped", max_stocks=5, risk=0.01)["placed"], 3)                  # off: every signal reaches the account
+        # a file without stock names gives every signal a name of its own, so nothing is dropped
+        nameless = ps.Book(self.frame([{"symbol": "A", "signal": "2026-01-05", "fill": "2026-01-06", "exit": "2026-01-20", "R": 2.0},
+                                       {"symbol": "A", "signal": "2026-01-12", "fill": "2026-01-13", "exit": "2026-01-16", "R": -1.0}]).drop(columns=["symbol"]))
+        self.assertEqual(ps.simulate(nameless, "shipped", max_stocks=5, risk=0.01, lock_same_stock=True)["same_stock"], 0)
 
     def test_the_size_of_a_day_counts_every_signal_the_file_has_for_it_and_the_three_kinds_of_day_are_tabled(self):
         from backtest import busy_day_study as bd
@@ -4643,6 +4784,364 @@ class TurnUpStudy(unittest.TestCase):
         self.assertIn("# Early turn-up lane: a first look", saved)
         self.assertIn("hist.csv", saved)
 
+
+class HoldLimitStudy(unittest.TestCase):
+    """backtest/hold_limit_study.py: the rule fixed before the run (does a longer time limit than 60 sessions pay?), its four tests and its chain of steps.
+    Hand-worked numbers on small files, and crafted ten-year files with one thing true about them at a time."""
+
+    NAMES = ("", "hold90", "hold120", "hold180", "hold250")               # the shipped plan and engine.HOLD_VARIANTS, in order
+    LIMITS = (60, 90, 120, 180, 250)
+
+    @classmethod
+    def setUpClass(cls):
+        from backtest import hold_limit_study as hl
+        cls.hl = hl
+
+    # ---- crafted trades files ---------------------------------------------------------------------------------------------------
+    @classmethod
+    def frame(cls, rows):
+        """The back-test's trades file from hand-written rows. A row: symbol, signal (date), and for each of the five plans (shipped, 90, 120, 180, 250) its
+        R, sessions held (`held`) and `exit` reason; `status` (default all CLOSED) names the ones that did not finish ('OPEN', 'VOID', 'UNFILLED'). The buy is
+        the session after the signal, the sale `held` sessions after the buy; the risk is 10% of the price unless `rf` says otherwise; the weekly marks climb
+        in a straight line to the sale's R."""
+        out = []
+        for r in rows:
+            sig = pd.Timestamp(r["signal"])
+            fill = sig + pd.offsets.BDay(1)
+            rf = r.get("rf", 0.10)
+            rec = {"symbol": r["symbol"], "signal_date": sig, "fill_date": fill, "risk_pct": rf, "regime": "healthy", "setup": "primed", "quality_pct": 70.0,
+                   "sma200_chg": 0.0}
+            for p, name in enumerate(cls.NAMES):
+                pre = f"{name}_" if name else ""
+                status = r.get("status", ["CLOSED"] * 5)[p]
+                done = status == "CLOSED"
+                held, res = float(r["held"][p]), float(r["R"][p])
+                rec[pre + "status"] = status
+                rec[pre + ("exit" if name else "exit_reason")] = r["exit"][p] if done else ("expired" if status == "UNFILLED" else "")
+                rec[pre + "net"] = res * rf if done else np.nan
+                rec[pre + "R"] = res if done else np.nan
+                rec[pre + "held"] = held if done else np.nan
+                rec[pre + "exit_date"] = fill + pd.offsets.BDay(int(held)) if done else pd.NaT
+                n = int(held // 5)
+                rec[pre + "path_R"] = ";".join(f"{res * (i + 1) / n:.3f}" for i in range(n)) if done and n else ""
+            out.append(rec)
+        return pd.DataFrame(out)
+
+    @classmethod
+    def file(cls, gains=(1.5, 1.5, 3.5), per_month=3, time_every=6, start="2016-01", end="2027-06", late_shift=0.0, noise=0.5, seed=11):
+        """Eleven and a half years of months with `per_month` signals each, every one bought and sold. Every `time_every`-th (none when it is None) is a trade
+        the shipped plan sells at its 60-session limit (about +1.5R): each longer limit then adds `gains[k]` R on average (noise `noise`; `late_shift` more
+        for signals from 2023) and holds it to its own limit. All the others (about +0.4R) are sold by the trail after 15 sessions whatever the limit, so they
+        are the same under every limit. (The file runs on past 2026 so that every part of the history still has 100 trades after the cut-off.)"""
+        rng = np.random.default_rng(seed)
+        rows, k = [], 0
+        for m in pd.period_range(start, end, freq="M"):
+            days = pd.bdate_range(m.start_time, m.end_time)
+            for j in range(per_month):
+                sig = days[(2 + 6 * j) % (len(days) - 8)]
+                timed = time_every is not None and k % time_every == 0
+                res = [float(rng.normal(1.5 if timed else 0.4, 1.0))]
+                for g in (*gains, gains[-1]):                                                  # 90, 120, 180, then 250 with the last gain again
+                    res.append(res[-1] + (g + (late_shift if sig.year >= 2023 else 0.0) + float(rng.normal(0.0, noise))) if timed else res[-1])
+                rows.append({"symbol": f"S{k}", "signal": sig, "R": res, "held": cls.LIMITS if timed else (15,) * 5,
+                             "exit": ("time",) * 5 if timed else ("trail",) * 5})
+                k += 1
+        return cls.frame(rows)
+
+    def answer(self, df, **kw):
+        lines = self.hl.analyse(df, boot=300, seeds=4, **kw)
+        return next(x for x in lines if x.startswith("RESULT:")), lines
+
+    # ---- the file and the columns -------------------------------------------------------------------------------------------------
+    def test_the_columns_of_each_plan_are_named_as_the_back_test_writes_them(self):
+        c = self.hl.col
+        self.assertEqual([c("", w) for w in self.hl.WHAT], ["status", "exit_reason", "net", "R", "held", "exit_date", "path_R"])
+        self.assertEqual([c("hold90", w) for w in self.hl.WHAT], ["hold90_status", "hold90_exit", "hold90_net", "hold90_R", "hold90_held", "hold90_exit_date",
+                                                                   "hold90_path_R"])
+        self.assertEqual(self.hl.LIMITS, dict(zip(self.NAMES, self.LIMITS)))
+        self.assertEqual(self.hl.STEPS, (("", "hold90"), ("hold90", "hold120"), ("hold120", "hold180")))
+        crafted = self.frame([{"symbol": "A", "signal": "2020-01-06", "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5}])
+        self.assertEqual(self.hl.NEEDED - set(crafted.columns), set())                           # the crafted files carry exactly what the study asks for
+        self.assertEqual(self.hl.NEEDED - {c(n, w) for n in self.NAMES for w in self.hl.WHAT} - self.hl.BASE_NEEDED, set())
+
+    def test_a_trades_file_from_before_the_hold_limit_columns_says_what_to_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old, new = os.path.join(tmp, "old.csv"), os.path.join(tmp, "new.csv")
+            crafted = self.frame([{"symbol": "A", "signal": "2020-01-06", "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5}])
+            crafted[[c for c in crafted.columns if not c.startswith("hold")]].to_csv(old, index=False)
+            with self.assertRaises(SystemExit) as caught:
+                self.hl.load(old)
+            self.assertIn("Backtest & Calibrate", str(caught.exception))
+            self.assertIn("lacks the columns ['hold", str(caught.exception))
+            crafted.to_csv(new, index=False)
+            loaded = self.hl.load(new)
+            self.assertEqual(len(loaded), 1)
+            for c in ("signal_date", "fill_date", "exit_date", "hold90_exit_date", "hold250_exit_date"):
+                self.assertTrue(pd.api.types.is_datetime64_any_dtype(loaded[c]), c)
+
+    # ---- which trades a step compares ---------------------------------------------------------------------------------------------
+    def six(self):
+        """Six matched trades over three months of 2020 (shipped plan against the 90-session one; the longer limits repeat the 90's result) and four that
+        a step leaves out: one still open under the 90 limit, one the data cut short (VOID) there, an order that never filled, and one signalled too late."""
+        def row(sym, day, ra, rb, ha, hb, ea, eb, status=None):
+            return {"symbol": sym, "signal": day, "R": [ra] + [rb] * 4, "held": [ha] + [hb] * 4, "exit": [ea] + [eb] * 4,
+                    **({"status": ["CLOSED"] + [status] * 4} if status else {})}
+        return self.frame([
+            row("T1", "2020-01-06", 1.0, 1.0, 20, 20, "trail", "trail"),
+            row("T2", "2020-01-20", 2.0, 3.0, 60, 90, "time", "time"),
+            row("T3", "2020-02-03", -1.0, -1.0, 10, 10, "stop", "stop"),
+            row("T4", "2020-02-17", 1.5, 2.0, 60, 90, "time", "time"),
+            row("T5", "2020-03-02", 0.5, 0.5, 30, 30, "trail", "trail"),
+            row("T6", "2020-03-16", 3.0, 2.4, 60, 75, "time", "trail"),
+            row("OP", "2020-03-23", 2.0, 2.0, 60, 60, "time", "", status="OPEN"),
+            row("VO", "2020-03-24", 2.0, 2.0, 60, 60, "time", "", status="VOID"),
+            row("UN", "2020-03-25", 0.0, 0.0, 0, 0, "", "", status="UNFILLED") | {"status": ["UNFILLED"] * 5},
+            row("LT", "2021-12-01", 1.0, 1.0, 20, 20, "trail", "trail"),
+        ])
+
+    def test_a_step_compares_only_trades_finished_under_both_limits_and_made_early_enough(self):
+        df = self.six()
+        last = np.datetime64("2021-12-01")
+        self.assertEqual(self.hl.cutoff(df, 90), np.busday_offset(last, -100, roll="backward"))      # the file's last signal less (90 + 10) sessions
+        self.assertEqual(self.hl.cutoff(df, 180), np.busday_offset(last, -190, roll="backward"))
+        self.assertEqual(list(self.hl.matched(df, "", "hold90")), [True] * 6 + [False] * 4)
+        st = self.hl.Step(df, "", "hold90", boot=200)
+        self.assertEqual((st.n, st.blocks, st.void_n, int(st.changed.sum())), (6, 3, 1, 3))         # 3 months; the VOID one was sold by the limit and could not be followed
+        self.assertEqual(list(st.exit_a), ["trail", "time", "stop", "time", "trail", "time"])
+        # a file that ends on 1 June 2020 (the last signal): only a signal made at least 100 business days before it - on or before Monday 13 Jan - is old enough
+        # for a step to 90 sessions
+        short = df.copy()
+        short.loc[short["symbol"] == "LT", "signal_date"] = pd.Timestamp("2020-06-01")
+        self.assertEqual(str(self.hl.cutoff(short, 90)), "2020-01-13")
+        self.assertEqual(list(self.hl.matched(short, "", "hold90")), [True] + [False] * 9)                    # T1 (6 Jan) only; T2 is the 20th
+        # a step to 250 sessions asks for 260: nothing of 2020 is old enough before 1 June 2020
+        self.assertEqual(int(self.hl.matched(short, "", "hold250").sum()), 0)
+
+    def test_the_two_rules_that_decide_the_money_are_hand_worked_on_six_trades(self):
+        """R before -> after: 1.0 -> 1.0, 2.0 -> 3.0, -1.0 -> -1.0, 1.5 -> 2.0, 0.5 -> 0.5, 3.0 -> 2.4 (the last was stopped out at session 75 instead of sold at 60).
+        Rule 1: the average change per matched trade = (0 + 1 + 0 + 0.5 + 0 - 0.6) / 6 = +0.15R. Rule 2: the extra R per extra session = 0.9 / (30 + 30 + 15)
+        = +0.012, against the earlier limit's own 7.0R over 240 sessions = +0.029167 per session: the difference is -0.017167."""
+        st = self.hl.Step(self.six(), "", "hold90", boot=200)
+        data = np.ones((1, st.blocks))
+        self.assertAlmostEqual(float(st.edge(data)[0]), 0.15, places=9)
+        self.assertAlmostEqual(float(st.room(data)[0]), 0.012 - 7.0 / 240.0, places=9)
+        rates = st.rates()
+        self.assertAlmostEqual(rates["extra"], 0.012, places=9)
+        self.assertAlmostEqual(rates["own"], 7.0 / 240.0, places=9)
+        e1, e2 = st.estimate(st.edge), st.estimate(st.room)
+        self.assertAlmostEqual(e1["point"], 0.15, places=9)
+        self.assertAlmostEqual(e2["point"], 0.012 - 7.0 / 240.0, places=9)
+        self.assertTrue(e1["lo"] <= e1["point"] <= e1["hi"])
+        # the 98% range comes from whole months drawn at random: three months, so the draws cannot do better than the worst and best month
+        self.assertTrue(e1["lo"] >= min(0.0, -0.6 / 2) - 1e-9)
+        # nothing changed (no trade held to the earlier limit): no extra sessions, so the room rule has nothing to say
+        flat = self.frame([{"symbol": f"F{k}", "signal": f"2020-{1 + k // 3:02d}-{6 + 7 * (k % 3):02d}", "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5}
+                           for k in range(9)] + [{"symbol": "L", "signal": "2021-12-01", "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5}])
+        st0 = self.hl.Step(flat, "", "hold90", boot=200)
+        self.assertEqual((st0.n, int(st0.changed.sum())), (9, 0))
+        self.assertAlmostEqual(float(st0.edge(np.ones((1, st0.blocks)))[0]), 0.0, places=12)
+        self.assertTrue(np.isnan(st0.room(np.ones((1, st0.blocks)))[0]))
+        self.assertTrue(math.isnan(st0.rates()["extra"]))
+        self.assertIsNone(st0.estimate(st0.room))
+
+    def test_every_part_of_the_history_has_to_gain_and_have_enough_trades(self):
+        st = self.hl.Step(self.six(), "", "hold90", boot=200)
+        rows = st.periods(((2019, 2019), (2020, 2020), (2021, 2022)), min_cell=3)
+        self.assertEqual([(r["label"], r["n"], r["ok"]) for r in rows], [("2019-19", 0, False), ("2020-20", 6, True), ("2021-22", 0, False)])
+        self.assertAlmostEqual(rows[1]["diff"], 0.15)
+        self.assertFalse(st.periods(((2020, 2020),), min_cell=7)[0]["ok"])                              # a gain on too few trades is not enough
+        loss = self.frame([{"symbol": "X", "signal": "2020-01-06", "R": [2.0, 1.0, 1.0, 1.0, 1.0], "held": [60, 90, 90, 90, 90], "exit": ["time", "trail"] * 2 + ["trail"]}] * 4
+                          + [{"symbol": "L", "signal": "2021-12-01", "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5}])
+        self.assertFalse(self.hl.Step(loss, "", "hold90", boot=100).periods(((2020, 2020),), min_cell=3)[0]["ok"])      # the change is -1R
+
+    # ---- the verdicts ------------------------------------------------------------------------------------------------------------
+    def test_the_answer_is_the_longest_limit_reached_by_steps_that_are_all_better_in_a_row(self):
+        hl = self.hl
+        step = lambda kind, b: {"verdict": kind, "b": b}                                           # noqa: E731
+        every = [step("BETTER", "hold90"), step("BETTER", "hold120"), step("BETTER", "hold180")]
+        self.assertEqual(hl.verdict(every), {"kind": "BETTER", "reached": "hold180", "limit": 180})
+        self.assertEqual(hl.verdict(every[:2] + [step("UNCLEAR", "hold180")]), {"kind": "BETTER", "reached": "hold120", "limit": 120})
+        self.assertEqual(hl.verdict(every[:1] + [step("WORSE", "hold120"), step("BETTER", "hold180")]), {"kind": "BETTER", "reached": "hold90", "limit": 90})      # the chain stops at the first that is not
+        self.assertEqual(hl.verdict([step("UNCLEAR", "hold90")] + every[1:]), {"kind": "UNCLEAR", "reached": None, "limit": None})
+        self.assertEqual(hl.verdict([step("WORSE", "hold90")] + every[1:])["kind"], "WORSE")
+        self.assertEqual(hl.verdict([])["kind"], "UNCLEAR")
+        text = hl.result_text(hl.verdict(every[:2] + [step("UNCLEAR", "hold180")]), every[:2] + [step("UNCLEAR", "hold180")])
+        self.assertIn("RESULT: BETTER", text)
+        self.assertIn("120 sessions instead of 60", text)
+        self.assertIn("the time limit becomes 120 sessions for new picks", text)
+        self.assertIn("The next step (180 sessions) did not meet all four rules, so the chain stops here", text)
+        top = hl.result_text(hl.verdict(every), every)
+        self.assertIn("180 sessions instead of 60", top)
+        self.assertNotIn("chain stops", top)
+        self.assertIn("Nothing changes", hl.result_text(hl.verdict([step("UNCLEAR", "hold90")]), [step("UNCLEAR", "hold90")]))
+        self.assertIn("RESULT: WORSE", hl.result_text(hl.verdict([step("WORSE", "hold90")]), [step("WORSE", "hold90")]))
+
+    def test_a_longer_limit_that_pays_per_trade_per_session_and_in_every_part_of_the_history_wins_each_step(self):
+        df = self.file()                                                                              # +1.5R, +1.5R and +3.5R from each longer limit
+        text, lines = self.answer(df)
+        self.assertIn("RESULT: BETTER", text)
+        self.assertIn("180 sessions instead of 60", text)
+        body = "\n".join(lines)
+        for k in (2, 3, 4):
+            self.assertIn(f"== {k}. ", body)
+        self.assertEqual(body.count("STEP: BETTER"), 3)
+        self.assertIn("== 5. Shown only (not judged): 180 sessions -> 250 sessions ==", body)
+        self.assertIn("check: of the", body)
+        self.assertIn("(expected 0)", body)
+        for line in lines:
+            if line.startswith("check: of the"):
+                self.assertIn("0 have another R under the longer one", line)                         # a trade the earlier limit did not sell is the same under the longer one
+        self.assertIn("== Read this before relying on any of it ==", body)
+        self.assertIn("survivors", body)
+
+    def test_the_chain_stops_at_the_first_step_that_does_not_pay(self):
+        text, lines = self.answer(self.file(gains=(1.5, 1.5, 0.0)))
+        self.assertIn("RESULT: BETTER", text)
+        self.assertIn("120 sessions instead of 60", text)
+        self.assertIn("The next step (180 sessions) did not meet all four rules", text)
+        text2, _ = self.answer(self.file(gains=(0.0, 1.5, 3.5)))                                      # the first step pays nothing: the later ones are never reached
+        self.assertIn("RESULT: UNCLEAR", text2)
+        self.assertIn("Nothing changes", text2)
+
+    def test_a_longer_limit_that_earns_less_on_the_same_trades_is_worse_and_changes_nothing(self):
+        text, _ = self.answer(self.file(gains=(-1.5, -1.5, -1.5)))
+        self.assertIn("RESULT: WORSE", text)
+        self.assertIn("Nothing changes", text)
+
+    def test_a_gain_that_does_not_pay_for_the_room_it_takes_is_not_enough(self):
+        """+0.4R a longer-held trade over 30 more sessions is +0.013R per session, below the +0.026R per session the trades earn anyway: rule 2 fails
+        although rule 1 (+0.067R per matched trade, range above 0) is met."""
+        r = self.hl.step_result(self.file(gains=(0.4, 0.4, 0.4)), "", "hold90", boot=300, seeds=4)
+        self.assertEqual(r["rules"][:3], (True, False, True))
+        self.assertEqual(r["verdict"], "UNCLEAR")
+        self.assertGreater(r["e1"]["point"], self.hl.MIN_EDGE)
+        self.assertLess(r["e2"]["point"], 0.0)
+        text, lines = self.answer(self.file(gains=(0.4, 0.4, 0.4)))
+        self.assertIn("RESULT: UNCLEAR", text)
+        self.assertTrue(any(x.startswith("RULE 2") and x.endswith("NOT met") for x in lines))
+
+    def test_a_gain_that_comes_from_only_part_of_the_history_is_not_enough(self):
+        """+3R a longer-held trade until the end of 2022 and -1R from 2023: the average over all the trades is still above +0.05R and clear of 0, but
+        2023-26 is below 0."""
+        r = self.hl.step_result(self.file(gains=(3.0, 3.0, 3.0), late_shift=-4.0), "", "hold90", boot=300, seeds=4)
+        self.assertTrue(r["rules"][0])
+        self.assertFalse(r["rules"][2])
+        self.assertEqual([p["ok"] for p in r["periods"]], [True, True, False])
+        self.assertEqual(r["verdict"], "UNCLEAR")
+
+    def test_a_part_of_the_history_with_too_few_trades_cannot_be_judged(self):
+        with mock.patch.object(self.hl, "MIN_CELL", 100_000):
+            r = self.hl.step_result(self.file(), "", "hold90", boot=200, seeds=3)
+        self.assertFalse(r["rules"][2])
+        self.assertEqual(r["verdict"], "UNCLEAR")
+
+    def test_nothing_that_is_only_noise_is_called_better(self):
+        text, _ = self.answer(self.file(gains=(0.0, 0.0, 0.0)))
+        self.assertIn("RESULT: UNCLEAR", text)
+        self.assertIn("Nothing changes", text)
+
+    # ---- rule 4: the accounts --------------------------------------------------------------------------------------------------------
+    def test_the_accounts_run_both_limits_on_the_same_signals_and_veto_a_clearly_worse_one(self):
+        better = self.hl.accounts(self.file(), "", "hold90", seeds=6)
+        self.assertEqual([(x["risk"], x["stocks"]) for x in better], [(0.01, 8), (0.005, 12)])
+        for x in better:
+            self.assertTrue(x["ok"], x)
+            self.assertGreater(x["b"][1]["cagr"], x["a"][1]["cagr"])
+            self.assertGreaterEqual(x["band_growth"], self.hl.GROWTH_FLOOR)
+            self.assertGreaterEqual(x["band_dd"], self.hl.DD_FLOOR)
+            self.assertEqual(x["signals"], x["a"][0]["signals"])
+        worse = self.hl.accounts(self.file(gains=(-1.5, -1.5, -1.5)), "", "hold90", seeds=6)
+        self.assertFalse(all(x["ok"] for x in worse))
+        for x in worse:
+            self.assertLess(x["b"][1]["cagr"], x["a"][1]["cagr"])
+        # the same R a month later is not free: the money is tied up for longer and compounds later, which the account sees (a gain has to pay for that)
+        slower = self.hl.accounts(self.file(gains=(0.0, 0.0, 0.0), noise=0.0), "", "hold90", seeds=6)
+        for x in slower:
+            self.assertLess(x["b"][1]["cagr"], x["a"][1]["cagr"])
+
+    def test_a_signal_for_a_stock_the_longer_limit_still_holds_is_not_bought_in_the_longer_limits_account(self):
+        """Stock A is bought on 6 Jan and sold at its 60-session limit by the shipped plan, or 90 sessions on by the longer one; its next signal comes 70 sessions
+        after the first. The shipped account buys it; the longer limit's account still holds A, so the signal is dropped (and counted)."""
+        rows = [{"symbol": "A", "signal": "2020-01-06", "R": [2.0, 3.0, 3.0, 3.0, 3.0], "held": [60, 90, 90, 90, 90], "exit": ["time"] * 5},
+                {"symbol": "A", "signal": pd.Timestamp("2020-01-06") + pd.offsets.BDay(70), "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5},
+                {"symbol": "B", "signal": "2020-01-13", "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5},
+                {"symbol": "Z", "signal": "2022-06-01", "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5}]       # only sets the end of the file: too late to be used
+        got = self.hl.accounts(self.frame(rows), "", "hold90", seeds=3)
+        for x in got:
+            self.assertEqual(x["signals"], 3)
+            self.assertEqual((x["a"][0]["same_stock"], x["b"][0]["same_stock"]), (0, 1))
+            self.assertEqual((x["a"][0]["placed"], x["b"][0]["placed"]), (3, 2))
+
+    def test_an_account_takes_its_plan_s_own_status_result_sale_and_marks(self):
+        df = self.six()
+        keep = np.array([True] * 6 + [False] * 4)
+        base = self.hl.plan_frame(df, "", keep)
+        longer = self.hl.plan_frame(df, "hold90", keep)
+        self.assertEqual(len(base), 6)
+        self.assertEqual(list(base["R"]), [1.0, 2.0, -1.0, 1.5, 0.5, 3.0])
+        self.assertEqual(list(longer["R"]), [1.0, 3.0, -1.0, 2.0, 0.5, 2.4])
+        self.assertEqual(list(longer["exit_reason"]), ["trail", "time", "stop", "time", "trail", "trail"])
+        self.assertEqual(list(longer["exit_date"]), list(df["hold90_exit_date"][:6]))
+        self.assertEqual(list(longer["path_R"]), list(df["hold90_path_R"][:6]))
+        self.assertEqual(list(base["path_R"]), list(df["path_R"][:6]))
+        self.assertAlmostEqual(self.hl._band([1.0, 2.0, 3.0, 4.0, 5.0], 0.0), 1.6)                     # half the gap between the 10th (1.4) and 90th (4.6) percentile
+        self.assertEqual(self.hl._band([1.0, 1.01], 0.5), 0.5)                                          # never narrower than the floor
+        self.assertEqual(self.hl._band([float("nan"), 1.0], 0.5), 0.5)                                  # too few numbers: the floor
+
+    # ---- the tables and the command line ---------------------------------------------------------------------------------------------
+    def test_the_exit_table_and_the_last_weekly_marks_describe_the_shipped_plan(self):
+        df = self.frame([
+            {"symbol": "E1", "signal": "2020-01-06", "R": [1.0] * 5, "held": [20] * 5, "exit": ["trail"] * 5},
+            {"symbol": "E2", "signal": "2020-01-07", "R": [-1.0] * 5, "held": [10] * 5, "exit": ["stop"] * 5},
+            {"symbol": "E3", "signal": "2020-01-08", "R": [3.0] * 5, "held": [60] * 5, "exit": ["time"] * 5},
+            {"symbol": "E4", "signal": "2020-01-09", "R": [5.0] * 5, "held": [60] * 5, "exit": ["time"] * 5},
+            {"symbol": "E5", "signal": "2020-01-10", "R": [0.0] * 5, "held": [0] * 5, "exit": [""] * 5, "status": ["UNFILLED"] * 5}])
+        df.loc[df["symbol"] == "E3", "path_R"] = "0.0;0.5;1.0;1.5"
+        df.loc[df["symbol"] == "E4", "path_R"] = "0.2;0.7;1.2;1.7"
+        table = self.hl.exit_table(df)
+        timed = next(x for x in table if x.startswith("time"))
+        for need in (" 2 ", "50%", "+4.00", "100%"):                                                    # 2 of 4 filled trades, average and median +4.00R, 8R of 8R in all
+            self.assertIn(need, timed)
+        self.assertEqual(len([x for x in table if x.split()[0] in ("stop", "trail", "time")]), 3)
+        marks = self.hl.last_marks(df)
+        self.assertEqual(len(marks), 4)                                                                 # the median trade has four marks (fewer than the six asked for)
+        self.assertIn("0 sessions after the purchase: +0.10R over 2 trades", marks[0])
+        self.assertIn("15 sessions after the purchase: +1.60R over 2 trades", marks[-1])
+        self.assertEqual(self.hl.last_marks(df.assign(exit_reason="trail")), [])
+
+    def test_the_command_line_prints_the_study_and_saves_it(self):
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp:
+            src, out = os.path.join(tmp, "backtest_swing_yahoo_2026-11-12_trades.csv"), os.path.join(tmp, "evidence", "hold_limit.md")
+            self.file().to_csv(src, index=False)
+            buf = io.StringIO()
+            with mock.patch.object(self.hl, "BOOT", 200), mock.patch.object(self.hl, "SEEDS", 3), contextlib.redirect_stdout(buf):
+                code = self.hl.main([src, "--write", out])
+            self.assertEqual(code, 0)
+            self.assertIn("RESULT: BETTER", buf.getvalue())
+            self.assertIn("== 1. The plan as shipped: how the trades end ==", buf.getvalue())
+            with open(out, encoding="utf-8") as fh:
+                saved = fh.read()
+        self.assertTrue(saved.startswith("# Hold-limit study: is the 60-session time limit selling winners too early?"))
+        self.assertIn("backtest_swing_yahoo_2026-11-12_trades.csv", saved)
+        self.assertIn("RESULT: BETTER", saved)
+
+    def test_a_file_where_no_trade_was_held_to_the_limit_pays_nothing(self):
+        text, lines = self.answer(self.file(time_every=None))                                         # every trade is sold by the trail: nothing for a limit to change
+        self.assertIn("RESULT: UNCLEAR", text)
+        body = "\n".join(lines)
+        self.assertIn("the longer limit changed 0 of them (0%)", body)
+        self.assertIn("average change +0.000R (98% range +0.000R to +0.000R)", body)
+        self.assertNotIn("The trades the 60-session limit sold", body)                                # no trade was sold by the limit, so there are no last weeks to show
+
+    def test_a_file_too_short_for_any_step_says_there_is_nothing_to_compare(self):
+        text, lines = self.answer(self.file(start="2026-04", end="2026-06"))                         # three months: no signal is 100 sessions older than the last one
+        self.assertIn("RESULT: UNCLEAR", text)
+        body = "\n".join(lines)
+        self.assertEqual(body.count("no trade was filled and sold under both limits and made early enough: nothing to compare"), 3)
+        self.assertIn("nothing to compare", body.split("== 5. Shown only")[1])
+        self.assertEqual(self.hl.Step(self.file(start="2026-04", end="2026-06"), "", "hold90", boot=50).n, 0)
 
 if __name__ == "__main__":
     unittest.main()

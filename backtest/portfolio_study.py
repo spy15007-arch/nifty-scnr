@@ -96,6 +96,7 @@ class Book:
         self.strong = (d["sma200_chg"].to_numpy(float) >= ss.STRONG_TREND)
         self.fresh = (d["setup"] == "fresh").to_numpy()
         self.setup = d["setup"].astype(str).to_numpy()                                   # fresh / primed (the shipped rule) or turn (the early turn-up lane of backtest/turn_up_study.py)
+        self.symbol = d["symbol"].astype(str).to_numpy() if "symbol" in d.columns else np.array([f"#{k}" for k in range(self.n)])    # for simulate's lock_same_stock
         self.q = d["quality_pct"].to_numpy(float)
         self.tie = np.arange(self.n)                                                      # symbol order inside a day (the frame is sorted by it)
         self.has_path = "path_R" in d.columns
@@ -150,7 +151,7 @@ def day_ranks(book: Book) -> np.ndarray:
 
 
 def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float = 0.01, seed: int = 0, weak_half: bool = True,
-             cap: int | None = None, mult: np.ndarray | None = None, skip: np.ndarray | None = None) -> dict:
+             cap: int | None = None, mult: np.ndarray | None = None, skip: np.ndarray | None = None, lock_same_stock: bool = False) -> dict:
     """
     Run the account over the whole file. Returns the weekly marked-to-market equity and the counts.
     `cap` = the scan lists at most that many new picks a day (the first `cap` of the day's signals in the order `how`); the rest never reach the
@@ -158,6 +159,9 @@ def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float
     `mult` = one factor per signal of the book on the money risked on it (0.5 = half the usual risk, so half the money in the stock; None = 1 for
     all). `skip` = one flag per signal: a flagged signal is one the scan would not have listed, so it never reaches the account and is counted in
     out["skipped"] (before `cap` is applied). Both are used by backtest/busy_day_study.py; left out, every result is what it was.
+    `lock_same_stock` = one position per stock, as the scanner's tracker keeps it: a signal for a stock the account already holds or has a buy order
+    waiting for is never listed, and is counted in out["same_stock"] (before the rooms are looked at). Used by backtest/hold_limit_study.py, where a
+    trade held longer keeps its stock busy for longer; off, every result is what it was.
     """
     for name, arr in (("mult", mult), ("skip", skip)):
         if arr is not None and len(arr) != book.n:
@@ -168,7 +172,8 @@ def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float
     active: dict[int, tuple[float, float]] = {}      # trade -> (money risked, money in the stock)
     exits: list[tuple[int, int]] = []                # (day sold, trade) for bought stocks
     expiries: list[tuple[int, int]] = []             # (day the buy order lapses, trade)
-    out = {"placed": 0, "closed": 0, "unfilled": 0, "full": 0, "cash": 0, "capped": 0, "skipped": 0, "signals": book.n, "sum_R": 0.0}
+    in_book: dict[str, int] = {}                     # stock -> trades of it bought-or-waiting (only kept up to date for lock_same_stock)
+    out = {"placed": 0, "closed": 0, "unfilled": 0, "full": 0, "cash": 0, "capped": 0, "skipped": 0, "same_stock": 0, "signals": book.n, "sum_R": 0.0}
     if not book.n:
         return {**out, "equity": pd.Series(dtype=float), "held": 0.0, "invested": 0.0}
     fridays = pd.date_range(pd.Timestamp(book.start), pd.Timestamp(book.end), freq="W-FRI").to_numpy("datetime64[D]")
@@ -186,10 +191,12 @@ def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float
             equity += ra * book.R[i]
             committed -= value
             out["sum_R"] += book.R[i]
+            in_book[book.symbol[i]] = in_book.get(book.symbol[i], 1) - 1
         while expiries and expiries[0][0] <= upto:
             _, i = heapq.heappop(expiries)
             _, value = active.pop(i)
             committed -= value
+            in_book[book.symbol[i]] = in_book.get(book.symbol[i], 1) - 1
 
     for d in timeline:
         dn = np.datetime64(d, "D")
@@ -204,6 +211,9 @@ def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float
                 out["capped"] += len(day) - max(int(cap), 0)
                 day = day[:max(int(cap), 0)]
             for i in day:
+                if lock_same_stock and in_book.get(book.symbol[i], 0) > 0:
+                    out["same_stock"] += 1
+                    continue
                 if len(active) >= max_stocks:
                     out["full"] += 1
                     continue
@@ -213,6 +223,7 @@ def simulate(book: Book, how: str = "shipped", max_stocks: int = 10, risk: float
                     out["cash"] += 1
                     continue
                 active[i] = (ra, value)
+                in_book[book.symbol[i]] = in_book.get(book.symbol[i], 0) + 1
                 committed += value
                 out["placed"] += 1
                 if book.closed[i]:
