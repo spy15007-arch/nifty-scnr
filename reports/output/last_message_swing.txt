@@ -1,67 +1,77 @@
-📈 <b>SWING SCAN</b> · Tue 10 Nov · close of Mon 09 Nov
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.1% last session · global supportive
-📊 <b>BREADTH</b> 52% (stocks above their 50-day average) - mixed market
+📈 <b>SWING SCAN</b> · Wed 11 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.5% today · global hostile
+📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
 
-<b>NO NEW PICK.</b> 495 stocks checked, 88 in a breakout setup, 63 passed the quality filter - all already on your list.
+<b>NO NEW PICK.</b> 478 stocks checked, 94 in a breakout setup, 61 passed the quality filter - all already on your list.
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>SANSERA</b> 👀 💪 · Quality 91/100 · picked 9 Nov
-Buy at <b>4,753.00</b> · order valid 5 more sessions
+<b>SANSERA</b> 👀 💪 · Quality 96/100 · picked 9 Nov
+Buy at <b>4,753.00</b> · order valid 4 more sessions
 Profit marks 5,248.85 · 5,744.70 · 6,240.55
-<b>CIPLA</b> 👀 · Quality 92/100 · picked 4 Nov
-Buy at <b>1,446.50</b> · order valid 1 more session
-Profit marks 1,519.65 · 1,592.80 · 1,665.95
-<b>RADICO</b> 👀 · Quality 88/100 · picked 8 Nov
-Buy at <b>4,689.40</b> · order valid 4 more sessions
-Profit marks 5,076.50 · 5,463.60 · 5,850.65
-+14 more earlier picks also still qualify (on your list)
+<b>MOTHERSON</b> 👀 · Quality 87/100 · picked 5 Nov
+Buy at <b>171.05</b> · order valid 1 more session
+Profit marks 183.40 · 195.75 · 208.10
+<b>BAJFINANCE</b> 👀 · Quality 81/100 · picked 6 Nov
+Buy at <b>1,109.25</b> · order valid 2 more sessions
+Profit marks 1,192.45 · 1,275.60 · 1,358.80
++13 more earlier picks also still qualify (on your list)
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>WELSPUNLIV</b> 💪 · Quality 75/100 · 12-mo +92%
-5.7% below its 50-day high (267.42)
-<b>TITAN</b> · Quality 85/100 · 12-mo +34%
-3.5% below its 50-day high (5,186.70)
-<b>FEDERALBNK</b> · Quality 98/100 · 12-mo +45%
-3.6% below its 50-day high (356.95)
-<b>NUVAMA</b> · Quality 67/100 · 12-mo +31%
-3.7% below its 50-day high (1,943.30)
-<b>PTCIL</b> · Quality 76/100 · 12-mo +44%
-5.1% below its 50-day high (26,085.00)
-+5 more building up (all of them are in the dashboard)
+<b>CUPID</b> 💪 · Quality 97/100 · 12-mo +634%
+4.1% below its 50-day high (368.95)
+<b>WELSPUNLIV</b> 💪 · Quality 80/100 · 12-mo +98%
+4.4% below its 50-day high (267.42)
+<b>TITAN</b> · Quality 91/100 · 12-mo +30%
+3.9% below its 50-day high (5,169.90)
+<b>ADANIPOWER</b> · Quality 73/100 · 12-mo +31%
+3.9% below its 50-day high (216.50)
+<b>NUVAMA</b> · Quality 64/100 · 12-mo +29%
+5.4% below its 50-day high (1,948.40)
++1 more building up (all of them are in the dashboard)
 
 📒 <b>YOUR LIST</b>
-<b>BOUGHT, NOT SOLD YET (53)</b> - sell if the price falls to:
-SAILIFE 1,657.85 · TATASTEEL 179.73
-AXISBANK 1,232.30 · UNIONBANK 180.24
-LT 3,924.25 · TVSMOTOR 4,196.14
-MAHABANK 80.66 · INDIANB 850.45
-PPLPHARMA 215.74 · NAVINFLUOR 8,147.59
-LALPATHLAB 1,887.83 · GLENMARK 2,362.03
-HDFCBANK 719.17 · NHPC 76.82
-TATACONSUM 1,012.33 · BANKBARODA 236.32
-MCX 3,229.25 · MARICO 812.13
-ICICIBANK 1,431.32 · JSWSTEEL 1,259.90
-ULTRACEMCO 11,287.23 · BOSCHLTD 47,686.81
-GROWW 188.43 · SHYAMMETL 1,121.14
-...and 29 more in the dashboard
+• <b>MPHASIS</b> - sold at 2,387.91: stop-loss hit (-1.0R, -9.4% after costs)
+• <b>CIPLA</b> - buy order expired; no trade
+• <b>ABBOTINDIA</b> - buy order expired; no trade
+• <b>HDFCAMC</b> - bought at 2,703.40 (buy order triggered)
+• <b>SBIN</b> - bought at 1,062.15 (buy order triggered)
+• <b>IOC</b> - bought at 149.40 (buy order triggered)
+• <b>MGL</b> - bought at 1,141.40 (buy order triggered)
+• <b>MEESHO</b> - bought at 246.00 (buy order triggered)
 
-<b>WAITING TO BUY (31)</b> - buy when the price rises to:
-SANSERA 4,753.00 · SBIN 1,062.15
+<b>BOUGHT, NOT SOLD YET (59)</b> - sell if the price falls to:
+FEDERALBNK 339.69 · PETRONET 306.01
+SBIN 1,003.89 · IOC 140.26
+MGL 1,057.51 · MEESHO 223.52
+SAILIFE 1,657.85 · TATASTEEL 179.73
+HDFCAMC 2,516.50 · AXISBANK 1,232.30
+UNIONBANK 180.24 · LT 3,924.25
+TVSMOTOR 4,196.14 · MAHABANK 80.66
+INDIANB 850.45 · PPLPHARMA 215.74
+NAVINFLUOR 8,147.59 · LALPATHLAB 1,887.83
+GLENMARK 2,362.03 · HDFCBANK 719.94↑
+NHPC 76.82 · TATACONSUM 1,012.33
+BANKBARODA 242.00↑ · MCX 3,229.25
+↑ = moved up today
+...and 35 more in the dashboard
+
+<b>WAITING TO BUY (27)</b> - buy when the price rises to:
+FLUOROCHEM 4,897.70 · KARURVYSYA 391.60
+GILLETTE 7,615.20 · SANSERA 4,753.00
 ALKEM 5,485.95 · ANTHEM 991.10
 VBL 445.25 · BPCL 324.70
-IOC 149.40 · MGL 1,141.40
-NTPC 338.20 · MEESHO 246.00
-ABCAPITAL 413.95 · RADICO 4,689.40
-PAYTM 1,859.25 · JSWCEMENT 127.60
-NH 1,956.85 · STARHEALTH 589.20
-SHREECEM 25,305.55 · KPRMILL 1,208.95
-SBILIFE 1,802.50 · BAJFINANCE 1,109.25
-HINDUNILVR 2,056.05 · JINDALSTEL 1,198.80
-WIPRO 202.15 · HDFCAMC 2,703.40
-...and 7 more in the dashboard
+NTPC 338.20 · ABCAPITAL 413.95
+RADICO 4,689.40 · PAYTM 1,859.25
+JSWCEMENT 127.60 · NH 1,956.85
+STARHEALTH 589.20 · SHREECEM 25,305.55
+KPRMILL 1,208.95 · SBILIFE 1,802.50
+BAJFINANCE 1,109.25 · HINDUNILVR 2,056.05
+JINDALSTEL 1,198.80 · WIPRO 202.15
+GMRAIRPORT 101.50 · MOTHERSON 171.05
+...and 3 more in the dashboard
 
-🧾 <i>Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
-Open now: 40 of 53 up, average +3.3% after costs (not final)</i>
+🧾 <i>Record since 21 Oct: 2 sold, 0% won, average -1.04R (-8.6% per trade after costs) - too few to judge yet (need 30+)
+Open now: 45 of 59 up, average +3.6% after costs (not final)</i>
 <i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 800% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 850% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>

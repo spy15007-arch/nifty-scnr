@@ -1,50 +1,59 @@
 {
- "at": "2026-11-10 16:23 IST",
+ "at": "2026-11-11 16:50 IST",
  "budget_s": 2700,
  "kind": "universe",
- "loaded": 495,
+ "loaded": 478,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 487,
- "seconds": 1047,
+ "scored": 470,
+ "seconds": 2656,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    1
+    17
    ]
   ],
-  "failed": 6,
-  "loaded": 495,
+  "failed": 23,
+  "loaded": 478,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
+   "BAGMANE",
    "DUMMYHEG",
-   "HFCL",
+   "BIRET",
    "STLTECH",
    "EMBASSY",
-   "BIRET",
-   "BAGMANE"
+   "HFCL"
   ],
   "not_found_n": 6,
   "not_reached": 0,
   "pace": {
-   "calls": 522,
-   "rate_limited": 27,
-   "refused": 27,
-   "slowed_calls": 160,
-   "slowest_calls": 160,
-   "wait_now_s": 0.4
+   "calls": 728,
+   "rate_limited": 250,
+   "refused": 250,
+   "slowed_calls": 724,
+   "slowest_calls": 724,
+   "wait_now_s": 2.5
   },
-  "recovered": 1,
-  "refused": [],
-  "refused_n": 0,
+  "recovered": 0,
+  "refused": [
+   "JINDALSTEL",
+   "MGL",
+   "SAILIFE",
+   "SBIN",
+   "ZYDUSLIFE",
+   "LICI",
+   "PATANJALI",
+   "CAMS"
+  ],
+  "refused_n": 17,
   "requested": 501,
-  "seconds": 1047,
+  "seconds": 2656,
   "stopped": ""
  }
 }
