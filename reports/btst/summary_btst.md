@@ -1,46 +1,30 @@
-# 🌙 BTST scan - Tue 10 Nov 2026, 2:58 PM IST
+# 🌙 BTST scan - Wed 11 Nov 2026, 2:46 PM IST
 
-*Based on the close of Mon 09 Nov 2026*
+*Live prices at 2:46 PM IST (today's volume projected to a full day)*
 
-**Market:** 🧭 🟢 Bullish · Nifty +0.1% last session · global supportive
+**Market:** 🧭 🟢 Bullish · Nifty +0.6% today · global neutral
 
 **Breadth:** 52% of liquid stocks are above their 50-day average (mixed)
 
-*Quick check of last night's 149-stock watchlist (9 Nov close) with live prices; breadth is as of that close*
+*Quick check of last night's 150-stock watchlist (9 Nov close) with live quotes; breadth is as of that close*
 
-*Live quotes not used (quotes matched only 21 of 150 stocks); candles were fetched one by one instead*
-
-*No price bar for today yet (market holiday?) - based on the Mon 09 Nov close*
-
-*Funnel: 149 stocks checked → 9 fresh breakouts + 63 about to break → 63 in the top half by quality → 0 listed, 63 already on the list*
+*Funnel: 150 stocks checked → 11 fresh breakouts + 68 about to break → 66 in the top half by quality → 5 listed, 61 already on the list*
 
 | # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| - | No new pick | - | - | - | - | - | - |
+| 1 | **FEDERALBNK** | 🔥 Fresh breakout (first close above the 50-day high) | 91 | Buy near 361.05 | 339.65 (-5.9%) | 11.8% | 50% |
+| 2 | **PETRONET** | 🔥 Breakout continuing (day 2 above the 50-day high) | 78 | Buy near 328.50 | 306.00 (-6.8%) | 13.7% | 59% |
+| 3 | **FLUOROCHEM** | 👀 About to break out (1.0% below the 50-day high) | 67 | Buy at 4,897.70 (GTT / stop-limit buy order; skip if it opens above 5,044.60) | 4,472.30 (-8.7%) | 17.4% | 49% |
+| 4 | **KARURVYSYA** | 👀 About to break out (2.0% below the 50-day high) | 62 | Buy at 391.60 (GTT / stop-limit buy order; skip if it opens above 403.30) | 355.05 (-9.3%) | 18.6% | 44% |
+| 5 | **GILLETTE** | 👀 About to break out (2.1% below the 50-day high) | 58 | Buy at 7,615.20 (GTT / stop-limit buy order; skip if it opens above 7,843.65) | 7,166.10 (-5.9%) | 11.8% | 53% |
 
 *💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first*
 
 **Earlier picks, still strong** (picked before, order still waiting - no new order):
 
-- **SANSERA** 💪 - picked 2026-11-09, buy at 4,753.00 (order still waiting, valid 5 more sessions), quality 91/100, profit marks 5,248.85 · 5,744.70 · 6,240.55
-- **CIPLA** - picked 2026-11-04, buy at 1,446.50 (order still waiting, valid 1 more session), quality 92/100, profit marks 1,519.65 · 1,592.80 · 1,665.95
-- **RADICO** - picked 2026-11-08, buy at 4,689.40 (order still waiting, valid 4 more sessions), quality 88/100, profit marks 5,076.50 · 5,463.60 · 5,850.65
-- **NTPC** - picked 2026-11-09, buy at 338.20 (order still waiting, valid 5 more sessions), quality 82/100, profit marks 359.45 · 380.70 · 401.95
-- **SBIN** - picked 2026-11-09, buy at 1,062.15 (order still waiting, valid 5 more sessions), quality 81/100, profit marks 1,120.45 · 1,178.70 · 1,236.95
-- **HONASA** - picked 2026-11-05, buy at 494.00 (order still waiting, valid 2 more sessions), quality 80/100, profit marks 535.25 · 576.50 · 617.75
-- **LGEINDIA** - picked 2026-11-05, buy at 1,839.70 (order still waiting, valid 2 more sessions), quality 76/100, profit marks 1,968.90 · 2,098.05 · 2,227.20
-- **SBILIFE** - picked 2026-11-06, buy at 1,802.50 (order still waiting, valid 3 more sessions), quality 76/100, profit marks 1,905.45 · 2,008.40 · 2,111.35
-- **HINDUNILVR** - picked 2026-11-06, buy at 2,056.05 (order still waiting, valid 3 more sessions), quality 74/100, profit marks 2,184.30 · 2,312.50 · 2,440.70
-- **ALKEM** - picked 2026-11-09, buy at 5,485.95 (order still waiting, valid 5 more sessions), quality 70/100, profit marks 5,805.05 · 6,124.10 · 6,443.20
-- **MEESHO** - picked 2026-11-09, buy at 246.00 (order still waiting, valid 5 more sessions), quality 68/100, profit marks 268.50 · 291.00 · 313.45
-- **ABCAPITAL** - picked 2026-11-09, buy at 413.95 (order still waiting, valid 5 more sessions), quality 67/100, profit marks 446.10 · 478.25 · 510.40
-- **HDFCAMC** - picked 2026-11-06, buy at 2,703.40 (order still waiting, valid 3 more sessions), quality 65/100, profit marks 2,890.35 · 3,077.25 · 3,264.15
-- **VBL** - picked 2026-11-09, buy at 445.25 (order still waiting, valid 5 more sessions), quality 56/100, profit marks 480.65 · 516.00 · 551.35
-- **SHREECEM** - picked 2026-11-08, buy at 25,305.55 (order still waiting, valid 4 more sessions), quality 55/100, profit marks 26,845.50 · 28,385.45 · 29,925.40
-- **WIPRO** - picked 2026-11-06, buy at 202.15 (order still waiting, valid 3 more sessions), quality 51/100, profit marks 215.70 · 229.25 · 242.80
-- **BPCL** - picked 2026-11-09, buy at 324.70 (order still waiting, valid 5 more sessions), quality 50/100, profit marks 347.65 · 370.55 · 393.50
+- **SANSERA** 💪 - picked 2026-11-09, buy at 4,753.00 (order still waiting, valid 5 more sessions), quality 97/100, profit marks 5,248.85 · 5,744.70 · 6,240.55
 
-Already on your list (not repeated): SONACOMS, UNIONBANK, AUROPHARMA, INDIANB, PETRONET, DLF, ICICIBANK, LT, MARICO, TVSMOTOR, PNB, DRREDDY, TRENT, HDFCBANK, GAIL, MAHABANK, ATHERENERG, RELIANCE, ETERNAL, KOTAKBANK
+Already on your list (not repeated): SONACOMS, UNIONBANK, AUROPHARMA, INDIANB, DLF, ICICIBANK, LT, MARICO, TVSMOTOR, DRREDDY, TRENT, HDFCBANK, GAIL, MAHABANK, ATHERENERG, RELIANCE, ETERNAL, KOTAKBANK, PHOENIXLTD, TATACONSUM
 
 ---
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*

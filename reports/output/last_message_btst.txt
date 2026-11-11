@@ -1,26 +1,53 @@
-🌙 <b>BTST SCAN</b> · Tue 10 Nov · close of Mon 09 Nov
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.1% last session · global supportive
+🌙 <b>BTST SCAN</b> · Wed 11 Nov, 2:46 PM · live prices
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.6% today · global neutral
 📊 <b>BREADTH</b> 52% (stocks above their 50-day average) - mixed market
 
-ℹ️ Quick check of last night's 149-stock watchlist (9 Nov close) with live prices; breadth is as of that close
-ℹ️ Live quotes not used (quotes matched only 21 of 150 stocks); candles were fetched one by one instead
-ℹ️ No price bar for today yet (market holiday?) - based on the Mon 09 Nov close
-
-<b>NO NEW PICK.</b> 149 stocks checked, 72 in a breakout setup, 63 passed the quality filter - all already on your list.
+ℹ️ Quick check of last night's 150-stock watchlist (9 Nov close) with live quotes; breadth is as of that close
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>SANSERA</b> 👀 💪 · Quality 91/100 · picked 9 Nov
+<b>SANSERA</b> 👀 💪 · Quality 97/100 · picked 9 Nov
 Buy at <b>4,753.00</b> · order valid 5 more sessions
 Profit marks 5,248.85 · 5,744.70 · 6,240.55
-<b>CIPLA</b> 👀 · Quality 92/100 · picked 4 Nov
-Buy at <b>1,446.50</b> · order valid 1 more session
-Profit marks 1,519.65 · 1,592.80 · 1,665.95
-<b>RADICO</b> 👀 · Quality 88/100 · picked 8 Nov
-Buy at <b>4,689.40</b> · order valid 4 more sessions
-Profit marks 5,076.50 · 5,463.60 · 5,850.65
-+14 more earlier picks also still qualify (on your list)
+
+<b>NEW · BUY NOW</b> (near the close, only if the price is still above its breakout price)
+
+<b>1. FEDERALBNK</b> 🔥 Fresh breakout (first close above the 50-day high) · Quality 91/100 · Bank
+Buy near <b>361.05</b> · up 4.9% today on 2.6x volume
+Stop <b>339.65</b> (-5.9%) · trail 11.8%
+Profit marks 382.45 · 403.80 · 425.15
+near 52-wk high · low volatility · delivery ~50%
+
+<b>2. PETRONET</b> 🔥 Breakout continuing (day 2 above the 50-day high) · Quality 78/100 · Energy
+Buy near <b>328.50</b> · up 2.5% today on 2.2x volume
+Stop <b>306.00</b> (-6.8%) · trail 13.7%
+Profit marks 351.00 · 373.50 · 396.00
+near 52-wk high · low volatility · delivery ~59%
+
+<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
+
+<b>3. FLUOROCHEM</b> 👀 About to break out (1.0% below the 50-day high) · Quality 67/100
+Buy at <b>4,897.70</b> · skip if it opens above 5,044.60
+Stop <b>4,472.30</b> (-8.7%) · trail 17.4%
+Profit marks 5,323.10 · 5,748.45 · 6,173.85
+near 52-wk high · 200-day trend rising · delivery ~49%
+
+<b>4. KARURVYSYA</b> 👀 About to break out (2.0% below the 50-day high) · Quality 62/100
+Buy at <b>391.60</b> · skip if it opens above 403.30
+Stop <b>355.05</b> (-9.3%) · trail 18.6%
+Profit marks 428.15 · 464.65 · 501.15
+near 52-wk high · strong 12-mo return · delivery ~44%
+⚠️ 200-day trend rising, but already spiked 11% in 5 days - buy in continuation, not on a dip
+
+<b>5. GILLETTE</b> 👀 About to break out (2.1% below the 50-day high) · Quality 58/100
+Buy at <b>7,615.20</b> · skip if it opens above 7,843.65
+Stop <b>7,166.10</b> (-5.9%) · trail 11.8%
+Profit marks 8,064.30 · 8,513.35 · 8,962.40
+low volatility · no recent spike · delivery ~53%
+
++60 more qualify but are already on your list.
 
 🧾 <i>Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
 Open now: 40 of 53 up, average +3.3% after costs (not final)</i>
 <i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 800% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 870% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>

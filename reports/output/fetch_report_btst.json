@@ -1,45 +1,14 @@
 {
- "at": "2026-11-10 14:58 IST",
- "budget_s": 1122,
+ "at": "2026-11-11 14:46 IST",
+ "budget_s": 0,
  "kind": "watchlist",
- "loaded": 149,
+ "loaded": 150,
  "market_line_source": "^NSEI",
- "quote_note": "quotes matched only 21 of 150 stocks",
+ "quote_note": "",
  "requested": 150,
- "route": "candles",
+ "route": "quotes",
  "scan": "btst",
- "scored": 149,
- "seconds": 719,
- "store": {
-  "cooldowns": 0,
-  "errors": [
-   [
-    "Access denied because of exceeding access rate",
-    3
-   ]
-  ],
-  "failed": 1,
-  "loaded": 149,
-  "no_data": [],
-  "no_data_n": 0,
-  "not_found": [],
-  "not_found_n": 0,
-  "not_reached": 0,
-  "pace": {
-   "calls": 199,
-   "rate_limited": 50,
-   "refused": 50,
-   "slowed_calls": 181,
-   "slowest_calls": 181,
-   "wait_now_s": 2.5
-  },
-  "recovered": 1,
-  "refused": [
-   "HEROMOTOCO"
-  ],
-  "refused_n": 1,
-  "requested": 150,
-  "seconds": 708,
-  "stopped": ""
- }
+ "scored": 150,
+ "seconds": 11,
+ "store": {}
 }
