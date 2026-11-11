@@ -4,11 +4,11 @@
  "usable": 475,
  "no_data_n": 2,
  "no_data": [
-  "DUMMYHEG",
-  "BAGMANE"
+  "BAGMANE",
+  "DUMMYHEG"
  ],
  "too_short_n": 24,
- "seconds": 266,
+ "seconds": 220,
  "stopped": "",
  "errors": [],
  "start": "2015-06-01",
