@@ -1,59 +1,59 @@
 {
- "at": "2026-11-11 16:50 IST",
+ "at": "2026-11-12 16:51 IST",
  "budget_s": 2700,
  "kind": "universe",
- "loaded": 478,
+ "loaded": 450,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 470,
- "seconds": 2656,
+ "scored": 443,
+ "seconds": 2706,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    17
+    23
    ]
   ],
-  "failed": 23,
-  "loaded": 478,
+  "failed": 51,
+  "loaded": 450,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "BAGMANE",
-   "DUMMYHEG",
+   "EMBASSY",
    "BIRET",
    "STLTECH",
-   "EMBASSY",
-   "HFCL"
+   "BAGMANE",
+   "HFCL",
+   "DUMMYHEG"
   ],
   "not_found_n": 6,
-  "not_reached": 0,
+  "not_reached": 22,
   "pace": {
-   "calls": 728,
-   "rate_limited": 250,
-   "refused": 250,
-   "slowed_calls": 724,
-   "slowest_calls": 724,
+   "calls": 729,
+   "rate_limited": 279,
+   "refused": 279,
+   "slowed_calls": 727,
+   "slowest_calls": 727,
    "wait_now_s": 2.5
   },
   "recovered": 0,
   "refused": [
-   "JINDALSTEL",
-   "MGL",
-   "SAILIFE",
-   "SBIN",
-   "ZYDUSLIFE",
-   "LICI",
-   "PATANJALI",
-   "CAMS"
+   "COFORGE",
+   "DIVISLAB",
+   "NHPC",
+   "SHREECEM",
+   "RELIANCE",
+   "NATCOPHARM",
+   "TATACAP",
+   "AETHER"
   ],
-  "refused_n": 17,
+  "refused_n": 23,
   "requested": 501,
-  "seconds": 2656,
-  "stopped": ""
+  "seconds": 2706,
+  "stopped": "time budget"
  }
 }
