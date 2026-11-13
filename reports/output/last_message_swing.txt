@@ -1,64 +1,45 @@
-📈 <b>SWING SCAN</b> · Thu 12 Nov · today's close
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.6% today · global supportive
-📊 <b>BREADTH</b> 64% (stocks above their 50-day average) - healthy market
-
-ℹ️ Partial scan: 450 of 501 stocks loaded - the 45-minute limit was reached, so some names may be missing. The broker said: Access denied because of exceeding access rate (x23)
+📈 <b>SWING SCAN</b> · Fri 13 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -0.5% today · global neutral
+📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>RADICO</b> 👀 · Quality 90/100 · picked 8 Nov
-Buy at <b>4,689.40</b> · order valid 2 more sessions
+<b>RADICO</b> 👀 · Quality 92/100 · picked 8 Nov
+Buy at <b>4,689.40</b> · order valid 1 more session
 Profit marks 5,076.50 · 5,463.60 · 5,850.65
-<b>BEL</b> 👀 · Quality 79/100 · picked 12 Nov
-Buy at <b>416.85</b> · order valid 5 more sessions
-Profit marks 440.30 · 463.75 · 487.20
-<b>HINDUNILVR</b> 👀 · Quality 77/100 · picked 6 Nov
-Buy at <b>2,056.05</b> · order valid 1 more session
-Profit marks 2,184.30 · 2,312.50 · 2,440.70
-+6 more earlier picks also still qualify (on your list)
 
 <b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. M&amp;M</b> 👀 About to break out (1.9% below the 50-day high) · Quality 56/100 · Auto
-Buy at <b>3,471.95</b> · skip if it opens above 3,576.10
-Stop <b>3,258.80</b> (-6.1%) · trail 12.3%
-Profit marks 3,685.10 · 3,898.20 · 4,111.30
-very liquid · low volatility · delivery ~57%
-⚠️ Already spiked 9% in 5 days - buy in continuation, not on a dip
+<b>1. ADANIENSOL</b> 👀 About to break out (2.8% below the 50-day high) · Quality 84/100 · Energy
+Buy at <b>1,483.00</b> · skip if it opens above 1,527.45
+Stop <b>1,368.75</b> (-7.7%) · trail 15.4%
+Profit marks 1,597.25 · 1,711.50 · 1,825.75
+200-day trend rising · strong 12-mo return · delivery ~45%
 
-+60 more qualify but are already on your list.
++62 more qualify but are already on your list.
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>CEMPRO</b> 💪 · Quality 57/100 · 12-mo +57%
-6.0% below its 50-day high (1,414.30)
-<b>ADANIPOWER</b> · Quality 77/100 · 12-mo +36%
-3.8% below its 50-day high (216.10)
-<b>NUVAMA</b> · Quality 54/100 · 12-mo +29%
-4.0% below its 50-day high (1,964.30)
-<b>TITAN</b> · Quality 94/100 · 12-mo +30%
-4.6% below its 50-day high (5,159.00)
-<b>EMCURE</b> · Quality 57/100 · 12-mo +70%
-4.8% below its 50-day high (2,429.90)
-+1 more building up (all of them are in the dashboard)
+<b>ADANIPOWER</b> · Quality 83/100 · 12-mo +36%
+4.8% below its 50-day high (216.10)
+<b>TITAN</b> · Quality 98/100 · 12-mo +29%
+5.5% below its 50-day high (5,126.50)
+<b>NUVAMA</b> · Quality 56/100 · 12-mo +27%
+5.9% below its 50-day high (1,964.30)
+<b>BHEL</b> · Quality 86/100 · 12-mo +65%
+6.0% below its 50-day high (464.00)
 
 📒 <b>YOUR LIST</b>
-• <b>HAL</b> - sold at 4,809.31: stop-loss hit (-1.1R, -6.2% after costs)
-• <b>NHPC</b> - sold at 76.82: stop-loss hit (-1.1R, -6.7% after costs)
-• <b>MOTHERSON</b> - buy order expired; no trade
-• <b>HONASA</b> - bought at 494.00 (buy order triggered)
-• <b>LGEINDIA</b> - buy order expired; no trade
-• <b>INFY</b> - buy order expired; no trade
-• <b>SBILIFE</b> - bought at 1,802.50 (buy order triggered)
-• <b>BAJFINANCE</b> - bought at 1,109.25 (buy order triggered)
-• <b>PAYTM</b> - bought at 1,859.25 (buy order triggered)
-• <b>SHREECEM</b> - bought at 25,305.55 (buy order triggered)
-• <b>SANSERA</b> - bought at 4,753.00 (buy order triggered)
-• <b>ABCAPITAL</b> - bought at 413.95 (buy order triggered)
-• ...and 1 more update(s) in the dashboard
+• <b>HINDUNILVR</b> - buy order expired; no trade
+• <b>JINDALSTEL</b> - buy order expired; no trade
+• <b>WIPRO</b> - buy order expired; no trade
+• <b>GMRAIRPORT</b> - buy order expired; no trade
+• <b>INDUSTOWER</b> - bought at 400.30 (buy order triggered)
+• <b>ANGELONE</b> - bought at 345.05 (buy order triggered)
 
-<b>BOUGHT, NOT SOLD YET (66)</b> - sell if the price falls to:
-CUPID 349.48 · FEDERALBNK 339.69
+<b>BOUGHT, NOT SOLD YET (68)</b> - sell if the price falls to:
+CUPID 349.48 · INDUSTOWER 374.15
+ANGELONE 317.55 · FEDERALBNK 339.69
 PETRONET 306.01 · FLUOROCHEM 4,472.33
 SANSERA 4,257.16 · SBIN 1,003.89
 IOC 140.26 · MGL 1,057.51
@@ -69,24 +50,19 @@ BAJFINANCE 1,026.08 · TATASTEEL 179.73
 HDFCAMC 2,516.50 · AXISBANK 1,232.30
 UNIONBANK 180.24 · LT 3,924.25
 TVSMOTOR 4,196.14 · HONASA 452.76
-MAHABANK 80.66 · INDIANB 850.45
-...and 42 more in the dashboard
+...and 44 more in the dashboard
 
-<b>WAITING TO BUY (23)</b> - buy when the price rises to:
-INDUSTOWER 400.30 · BEL 416.85
-CHOLAFIN 1,873.15 · 360ONE 1,209.40
-ANGELONE 345.05 · ITCHOTELS 179.90
-LTTS 4,356.10 · KARURVYSYA 391.60
-GILLETTE 7,615.20 · ALKEM 5,485.95
-ANTHEM 991.10 · VBL 445.25
-BPCL 324.70 · NTPC 338.20
-RADICO 4,689.40 · JSWCEMENT 127.60
-NH 1,956.85 · STARHEALTH 589.20
-KPRMILL 1,208.95 · HINDUNILVR 2,056.05
-JINDALSTEL 1,198.80 · WIPRO 202.15
-GMRAIRPORT 101.50
+<b>WAITING TO BUY (18)</b> - buy when the price rises to:
+BEL 416.85 · CHOLAFIN 1,873.15
+360ONE 1,209.40 · ITCHOTELS 179.90
+LTTS 4,356.10 · M&amp;M 3,471.95
+KARURVYSYA 391.60 · GILLETTE 7,615.20
+ALKEM 5,485.95 · ANTHEM 991.10
+VBL 445.25 · BPCL 324.70
+NTPC 338.20 · RADICO 4,689.40
+JSWCEMENT 127.60 · NH 1,956.85
+STARHEALTH 589.20 · KPRMILL 1,208.95
 
 🧾 <i>Record since 21 Oct: 4 sold, 0% won, average -1.05R (-7.5% per trade after costs) - too few to judge yet (need 30+)
-Open now: 51 of 66 up, average +3.9% after costs (not final)</i>
-<i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 930% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+Open now: 46 of 68 up, average +3.4% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 890% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>

@@ -1,59 +1,50 @@
 {
- "at": "2026-11-12 16:51 IST",
- "budget_s": 2700,
+ "at": "2026-11-13 16:54 IST",
+ "budget_s": 4500,
  "kind": "universe",
- "loaded": 450,
+ "loaded": 495,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
  "requested": 501,
  "route": "candles",
  "scan": "swing",
- "scored": 443,
- "seconds": 2706,
+ "scored": 487,
+ "seconds": 2913,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    23
+    24
    ]
   ],
-  "failed": 51,
-  "loaded": 450,
+  "failed": 6,
+  "loaded": 495,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "EMBASSY",
    "BIRET",
-   "STLTECH",
    "BAGMANE",
    "HFCL",
+   "EMBASSY",
+   "STLTECH",
    "DUMMYHEG"
   ],
   "not_found_n": 6,
-  "not_reached": 22,
+  "not_reached": 0,
   "pace": {
-   "calls": 729,
-   "rate_limited": 279,
-   "refused": 279,
-   "slowed_calls": 727,
-   "slowest_calls": 727,
+   "calls": 769,
+   "rate_limited": 274,
+   "refused": 274,
+   "slowed_calls": 763,
+   "slowest_calls": 763,
    "wait_now_s": 2.5
   },
-  "recovered": 0,
-  "refused": [
-   "COFORGE",
-   "DIVISLAB",
-   "NHPC",
-   "SHREECEM",
-   "RELIANCE",
-   "NATCOPHARM",
-   "TATACAP",
-   "AETHER"
-  ],
-  "refused_n": 23,
+  "recovered": 24,
+  "refused": [],
+  "refused_n": 0,
   "requested": 501,
-  "seconds": 2706,
-  "stopped": "time budget"
+  "seconds": 2913,
+  "stopped": ""
  }
 }
