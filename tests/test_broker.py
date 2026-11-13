@@ -4,6 +4,7 @@ Broker-facing code, tested without a broker: the candle/quote client (a refused 
 honest report) and the saved-candles + live-quote merge.
 Run:  python -m unittest discover tests -v
 """
+import logging
 import os
 import random
 import shutil
@@ -426,10 +427,10 @@ class VirtualClock:
 
 
 class VirtualBroker:
-    """Stands in for the SmartAPI SDK: answers after `latency` seconds, refusing according to `refuse(elapsed_s, rng)`."""
+    """Stands in for the SmartAPI SDK: answers after `latency` seconds, refusing according to `refuse(elapsed_s, rng)` in the words of `refusal`."""
 
-    def __init__(self, clock, refuse, latency=0.35, seed=7):
-        self.clock, self.refuse, self.latency = clock, refuse, latency
+    def __init__(self, clock, refuse, latency=0.35, seed=7, refusal=REFUSAL):
+        self.clock, self.refuse, self.latency, self.refusal = clock, refuse, latency, refusal
         self.rng = random.Random(seed)
         self.t0 = clock.now
         self.calls = 0
@@ -438,7 +439,7 @@ class VirtualBroker:
         self.calls += 1
         self.clock.now += self.latency
         if self.refuse(self.clock.now - self.t0, self.rng):
-            return REFUSAL
+            return self.refusal
         return candle_reply(3)
 
 
@@ -507,6 +508,78 @@ class PaceSimulation(unittest.TestCase):
         self.assertEqual(rep["stopped"], "time budget")
         self.assertEqual(len(out) + rep["not_reached"] + rep["refused_n"], 501)
         self.assertGreater(rep["not_reached"], 300)
+
+
+class WeekdayEvening(unittest.TestCase):
+    """
+    The weekday evenings of 30 Oct - 12 Nov 2026 on a virtual clock. The broker refused 29-38% of the candle requests AT RANDOM, all in
+    the words "Access denied because of exceeding access rate" (although we called a tenth as fast as it allows), and an answer takes about
+    0.75 s. Those words keep the pace at its slowest and every retry waits 3 s, then 6 s, so the 495 stocks the broker lists (plus 6 it does
+    not list) took 42-45 minutes: the old 45-minute limit cut 4 of 9 trading-day scans short (12 Nov: 450 of 501 loaded, 22 stocks never
+    reached, the second pass that recovers the refused stocks never run). Holidays and Sundays are quiet (10 Nov: 5% refused).
+    """
+    LISTED, UNLISTED = 495, 6
+    OLD_LIMIT = 2700
+
+    def setUp(self):
+        logging.disable(logging.CRITICAL)                                                         # a 500-stock run logs a line per refusal
+        self.addCleanup(logging.disable, logging.NOTSET)
+
+    def run_fetch(self, share, budget, seed=1, latency=0.75):
+        names = [f"S{i:03d}" for i in range(self.LISTED)] + [f"BAD{i}" for i in range(self.UNLISTED)]
+        random.Random(1).shuffle(names)
+        clock = VirtualClock()
+        broker = VirtualBroker(clock, lambda t, r: r.random() < share, latency=latency, seed=seed, refusal=RATE_REFUSAL)
+        store = SimulatedStore(broker)
+        with mock.patch("time.sleep", clock.sleep), mock.patch("time.time", clock.time):
+            out = store.get_universe_bars(names, 320, max_duration_seconds=budget)
+        return out, store.last_report, broker
+
+    def test_the_simulation_matches_the_real_runs_and_shows_why_45_minutes_was_too_tight(self):
+        # calibration against reports/output/fetch_report_swing.json of 12 Nov: 729 calls, 279 refused (38%), 727 of them slowed, 2,706 s,
+        # 450 loaded, 23 refused for good, 22 never reached. (If the pacing is ever changed on purpose, this is the test that says the
+        # simulation no longer describes the live runs: refresh the numbers from the new fetch reports.)
+        for seed in (1, 2, 3):
+            out, rep, broker = self.run_fetch(0.36, self.OLD_LIMIT, seed)
+            pace = rep["pace"]
+            self.assertTrue(680 <= pace["calls"] <= 780, pace)
+            self.assertTrue(0.30 <= pace["refused"] / pace["calls"] <= 0.42, pace)
+            self.assertGreaterEqual(pace["slowed_calls"], 0.95 * pace["calls"])                   # the pace sits at its slowest all evening
+            self.assertTrue(2500 <= rep["seconds"] <= self.OLD_LIMIT + 10, rep["seconds"])        # the whole old limit was used up ...
+            self.assertEqual(rep["recovered"], 0)                                                 # ... so the second pass never got its time
+            self.assertLess(len(out), self.LISTED)                                                # and some listed stocks were missing
+            self.assertEqual(rep["not_found_n"], self.UNLISTED)
+            self.assertGreaterEqual(rep["refused_n"] + rep["not_reached"], 5)
+
+    def test_the_75_minute_limit_gets_every_listed_stock_even_when_it_is_worse_than_it_has_been(self):
+        import main as M
+        self.assertEqual(M.FETCH_CAP_S, 4500)
+        for share in (0.30, 0.36, 0.45):
+            for seed in (1, 2):
+                out, rep, _ = self.run_fetch(share, M.FETCH_CAP_S, seed)
+                label = f"share {share}, seed {seed}: {rep}"
+                self.assertEqual(rep["stopped"], "", label)
+                self.assertGreaterEqual(len(out), self.LISTED - 3, label)                         # the second pass recovers what the first pass was refused
+                self.assertEqual(rep["not_reached"], 0, label)
+                self.assertGreater(rep["recovered"], 0, label)
+                self.assertLess(rep["seconds"], 0.8 * M.FETCH_CAP_S, label)                       # and there is still room to spare
+
+    def test_a_market_holiday_or_a_sunday_is_quick(self):
+        out, rep, _ = self.run_fetch(0.05, self.OLD_LIMIT)                                        # 10 Nov: 522 calls, 27 refused, 1,047 s
+        self.assertEqual((len(out), rep["stopped"]), (self.LISTED, ""))
+        self.assertTrue(900 <= rep["seconds"] <= 1300, rep["seconds"])
+        out, rep, _ = self.run_fetch(0.0, self.OLD_LIMIT, latency=0.95)                           # 1 Nov (a Sunday): 495 calls, none refused, 673 s
+        self.assertEqual((len(out), rep["pace"]["refused"], rep["stopped"]), (self.LISTED, 0, ""))
+        self.assertTrue(600 <= rep["seconds"] <= 750, rep["seconds"])
+
+    def test_a_broker_that_really_is_unwell_still_ends_the_run_early_with_the_bigger_limit(self):
+        import main as M
+        for seed in (1, 2):
+            out, rep, _ = self.run_fetch(0.65, M.FETCH_CAP_S, seed)
+            self.assertEqual(rep["stopped"], "the broker kept refusing requests")
+            self.assertEqual(rep["cooldowns"], 3)
+            self.assertLess(rep["seconds"], 0.9 * M.FETCH_CAP_S)
+            self.assertLess(len(out), self.LISTED)
 
 
 # --------------------------------------------------------------------------- #

@@ -9,7 +9,8 @@ Fetches are SEQUENTIAL (the client paces the calls - see data/brokers/angelone_c
      up at once: it COOLS DOWN (45 s, up to 3 times) and carries on, because
      the throttle is a per-minute window that a short pause clears. Only if the
      broker keeps refusing after that does it stop and return what it has.
-  2. A SECOND PASS retries the stocks the broker refused the first time.
+  2. A SECOND PASS retries the stocks the broker refused the first time (it only runs while the budget has 90+ seconds
+     left, so the budget has to cover the first pass AND this one).
   3. TIME BUDGET - the run stops gracefully when its budget is spent and
      returns whatever was fetched, so scoring, reporting and committing still
      run on partial data instead of losing everything to an external kill.
@@ -75,11 +76,14 @@ class HistoricalStore:
         except Exception:  # noqa: BLE001 - diagnostics must never break a fetch
             return {}
 
-    def get_universe_bars(self, symbols: list[str], lookback_days: int, max_duration_seconds: int = 2700) -> dict[str, pd.DataFrame]:
+    def get_universe_bars(self, symbols: list[str], lookback_days: int, max_duration_seconds: int = 4500) -> dict[str, pd.DataFrame]:
         """
-        max_duration_seconds default 2700 (45 min): a healthy full-market fetch takes about 10 minutes, so this is
-        a generous cap that still leaves the run time to score, report and commit what it has, instead of the
-        whole job being killed mid-fetch.
+        max_duration_seconds default 4500 (75 min). A quiet day (or a market holiday) takes 10-17 minutes, but on a normal
+        weekday evening the broker refuses about a third of the requests at random and the first pass alone takes about 40
+        minutes (the waits after each refusal, not the broker's answers, are what take the time), so the second pass that
+        recovers the refused stocks needs a few more. The old 45-minute ceiling cut 4 of the 9 trading-day scans of 30 Oct - 12 Nov short
+        (see README, "When a scan says Partial scan"). The cap still leaves the run time to score, report and commit what it
+        has (the workflows allow 120 minutes), instead of the whole job being killed mid-fetch.
         """
         results: dict[str, pd.DataFrame] = {}
         total = len(symbols)

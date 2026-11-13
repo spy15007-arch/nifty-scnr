@@ -9,7 +9,7 @@ It is a **ranked shortlist, not a guarantee.** Replayed on seven years of real N
 | Scan | When | What it is |
 | :-- | :-- | :-- |
 | 🌙 **BTST** | about 2:45 PM IST, before the close | Fresh breakouts to **buy now, near the close**, plus stocks about to break out (buy orders that trigger on the way up). Re-checks last evening's watchlist (up to 150 stocks) with live prices: the evening run saves their candles, so the afternoon run needs only a few live-quote calls and finishes in minutes. |
-| 📈 **Swing** | about 4:05 PM IST, after the close | The full-market scan on the day's final candles: buy orders for tomorrow (each triggers only if the price rises to its Buy at price). Also builds tomorrow's BTST watchlist (and saves its candles) and refreshes the delivery-% data. It fetches about 500 stocks one by one at the broker's pace: roughly 10 minutes on a quiet day, up to 40 when the broker is busy and refuses many requests. |
+| 📈 **Swing** | about 4:05 PM IST, after the close | The full-market scan on the day's final candles: buy orders for tomorrow (each triggers only if the price rises to its Buy at price). Also builds tomorrow's BTST watchlist (and saves its candles) and refreshes the delivery-% data. It fetches about 500 stocks one by one at the broker's pace: 10-17 minutes on a quiet day (a Sunday, a market holiday), but 42-49 minutes on a normal weekday evening, when the broker refuses about a third of the requests at random (the limit is 75 minutes; see "When a scan says Partial scan" below), so its message arrives at about 5 PM. |
 | 🧭 **Market direction** | button | Which way Nifty/Bank Nifty and global cues lean (also a one-line header on both scans). |
 
 Index-option strike alerts are not part of the automatic run (the strike has moved by the time a scan reports). `python main.py options` still exists for manual use.
@@ -155,11 +155,11 @@ The afternoon BTST scan judges a half-formed day: it sees the live price and the
 
 ## When a scan says "Partial scan"
 
-The scans get their prices from Angel One, which now and then refuses requests. Each scan therefore says plainly what it got: *"Partial scan: 448 of 501 stocks loaded - the 45-minute limit was reached, so some names may be missing"*, plus the broker's own words when it refused (which stocks the broker does not list is in the fetch report, not the message). How it copes (`data/brokers/angelone_client.py`, `data/historical.py`):
+The scans get their prices from Angel One, which on trading-day evenings refuses about a third of the requests at random - [docs/BROKER_REFUSALS.md](docs/BROKER_REFUSALS.md) has the numbers, why a weekday scan takes 45 minutes, and what was changed on 13 Nov 2026 after four of nine trading-day scans came up short. Each scan therefore says plainly what it got: *"Partial scan: 450 of 501 stocks loaded - the broker kept refusing requests, so the 45-minute limit ran out and 45 stocks were not checked. The broker said: Access denied because of exceeding access rate"* (that was 12 Nov, under the old 45-minute limit; today the limit is 75). A full-market scan says this as soon as 5 or more stocks the broker lists were not checked (before 13 Nov only when under 90% had loaded); the six stocks the broker does not list at all are never counted, and are named in the fetch report, not the message. How it copes (`data/brokers/angelone_client.py`, `data/historical.py`):
 
 * an answer of "not found" / "invalid ..." is final for that stock (no retries, no slowdown); a refused request is retried after a short pause (1 s, then 2 s; longer if the broker said "rate") and does **not** slow the calls that follow - the pace only drops while the broker is refusing *right now* (3+ refusals in a row, or a third of the last 20 calls) and is back to full speed about 20 calls after it recovers;
 * a real outage (15 refused stocks in a row) triggers a 45-second cool-down, up to three times, then the run carries on; stocks refused the first time get a second pass;
-* the fetch stops after 45 minutes and the scan runs on what it has; stocks with an open tracked trade and last evening's watchlist are fetched first, so a cut-short run still has the ones that matter;
+* the fetch stops after 75 minutes (the job itself is allowed 120; a normal weekday evening needs 42-49, because the scan waits 2.5 s before each call and 3-6 s before each retry while the broker is refusing) and the scan runs on what it has; stocks with an open tracked trade and last evening's watchlist are fetched first, and any of them missed are fetched again afterwards, so a cut-short run still has the ones that matter;
 * the afternoon BTST needs only a few live-quote calls (not one per stock) and gets the market line from Yahoo Finance first, because the broker's candle endpoint is the unreliable one during market hours.
 
 Every run also commits `reports/output/fetch_report_<scan>.json` - route used (`quotes` or `candles`), stocks asked for and loaded, seconds, cool-downs, never-reached and refused counts, the broker's most common replies, and how many calls were slowed - so a slow or short scan can be explained without opening the run log.
@@ -206,5 +206,6 @@ data/yahoo_bars.py        split-adjusted 10-year daily bars from Yahoo Finance -
 reports/                  Telegram formatter, file writers, evidence
 app.py                    Streamlit dashboard
 docs/TIMER_SETUP.md       on-time timer setup
+docs/BROKER_REFUSALS.md   why a weekday Swing scan takes 45 minutes, what "Partial scan" means, what was changed (and not) on 13 Nov 2026
 tests/                    self-contained tests
 ```

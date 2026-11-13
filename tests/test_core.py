@@ -2321,6 +2321,14 @@ class BtstSchedule(unittest.TestCase):
         self.assertIn(f"about {clock} IST", self._read("README.md"))
         self.assertIn(f"{clock} IST", self._read(".github", "workflows", "btst-scan.yml"))
 
+    def test_the_full_market_fetch_limit_leaves_room_inside_the_job_timeouts(self):
+        import re
+        import main as M
+        self.assertEqual(M.FETCH_CAP_S, 4500)                                   # 12 Nov 2026: a weekday evening takes 42-48 minutes, so 45 was too tight
+        for name in ("swing-scan.yml", "run-all-scans.yml"):                    # the two jobs that fetch the whole market
+            minutes = int(re.search(r"timeout-minutes:\s*(\d+)", self._read(".github", "workflows", name)).group(1))
+            self.assertGreaterEqual(minutes * 60 - M.FETCH_CAP_S, 25 * 60, name)   # after the fetch: catch-up fetch, delivery %, scoring, reports, commit (~10 minutes)
+
     def test_the_fetch_deadline_follows_the_config(self):
         import main as M
         self.assertEqual(M._btst_deadline(at(2026, 11, 3, 14, 45), "timer").astimezone(IST).strftime("%H:%M"), "15:05")
@@ -4229,20 +4237,46 @@ class EndToEnd(E2EHarness, unittest.TestCase):
 
     def test_a_run_cut_short_says_so_in_plain_words_and_does_not_block_the_next_one(self):
         asked = list(self.bars) + [f"GONE{i}" for i in range(60)]                        # 60 more stocks asked for than the broker returns
-        report = {"stopped": "time budget", "not_reached": 59, "not_found": ["GONE0"], "not_found_n": 1,
+        report = {"stopped": "time budget", "not_reached": 55, "refused_n": 4, "not_found": ["GONE0"], "not_found_n": 1,
                   "errors": [("Access denied because of exceeding access rate", 4)]}
         code, _ = self._run(["scan_swing"], at(2026, 10, 13, 17, 0), universe=asked, report=report)
         self.assertEqual(code, 0)
         msg = "\n".join(self.sent)
-        self.assertIn(f"Partial scan: {len(self.bars)} of {len(asked)} stocks loaded - the 45-minute limit was reached, "
-                      f"so some names may be missing", msg)
-        self.assertIn("The broker said: Access denied because of exceeding access rate (x4)", msg)
+        self.assertIn(f"Partial scan: {len(self.bars)} of {len(asked)} stocks loaded - the broker kept refusing requests, "
+                      f"so the 75-minute limit ran out and 59 stocks were not checked", msg)
+        self.assertIn("The broker said: Access denied because of exceeding access rate", msg)
+        self.assertNotIn("(x4)", msg)                                                     # no bare counts that need explaining
         self.assertNotIn("GONE0", msg)                                                    # which stocks the broker lacks is in the fetch report
         self.assertNotIn("&#x27;", msg)                                                   # no stray quote characters
         doc = _load_json("reports/output/fetch_report_swing.json")
         self.assertEqual((doc["requested"], doc["loaded"], doc["store"]["stopped"], doc["store"]["not_reached"]),
-                         (len(asked), len(self.bars), "time budget", 59))
+                         (len(asked), len(self.bars), "time budget", 55))
         self.assertTrue(_load_json("data_cache/run_markers.json")["swing"]["ok"])      # 77% loaded still counts as a run
+
+    def test_a_full_run_says_so_as_soon_as_five_listed_stocks_were_not_checked(self):
+        # 11 Nov 2026: 478 of 501 loaded (95%), 17 refused for good, 6 not listed - and not a word in the message, because only "under 90%" was said
+        def run(refused):
+            self.sent.clear()
+            asked = list(self.bars) + [f"GONE{i}" for i in range(6 + refused)]                # 6 the broker does not list + `refused` it refused
+            report = {"stopped": "", "refused_n": refused, "not_reached": 0, "not_found": ["GONE0"], "not_found_n": 6,
+                      "errors": [("Access denied because of exceeding access rate", refused)] if refused else []}
+            self._run(["scan_swing"], at(2026, 10, 13, 17, 0), universe=asked, report=report)
+            return "\n".join(self.sent), asked
+        msg, asked = run(5)
+        self.assertGreaterEqual(len(self.bars) / len(asked), 0.9)                                 # the old rule would have stayed silent
+        self.assertIn(f"Partial scan: {len(self.bars)} of {len(asked)} stocks loaded - the broker kept refusing some requests "
+                      f"and 5 stocks were not checked. The broker said: Access denied because of exceeding access rate", msg)
+        msg, _ = run(4)
+        self.assertNotIn("Partial scan", msg)                                                     # 4 of 500 is noise, 5 is not
+        msg, _ = run(0)
+        self.assertNotIn("Partial scan", msg)                                                     # stocks the broker does not list are never a partial scan
+
+    def test_the_note_counts_what_could_not_be_checked_and_not_what_the_broker_does_not_list(self):
+        for report, expect in (({"refused_n": 4, "not_reached": 1, "not_found_n": 6}, 5),
+                               ({"refused_n": 0, "not_reached": 0, "not_found_n": 6}, 0),
+                               ({"not_found_n": 6, "no_data_n": 2}, 501 - 450 - 8),                # a report without the two counters: the arithmetic
+                               ({}, 51)):
+            self.assertEqual(self.M._unchecked({"loaded": 450, "requested": 501, "report": report}), expect, report)
 
     def test_priority_order_only_reorders(self):
         order = self.M._priority_order(["A", "B", "C", "D", "E"], ["D", "ZZ", "B", "D"])
@@ -4250,16 +4284,28 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertEqual(self.M._priority_order(["A", "B"], []), ["A", "B"])
 
     def test_partial_scan_wording(self):
-        base = {"loaded": 448, "requested": 501, "budget_s": 2700}
+        base = {"loaded": 450, "requested": 501, "budget_s": 2700}
+        # 12 Nov 2026, as the fetch report of that run puts it: 23 stocks refused for good, 22 never reached, 6 not listed at the broker
         note = self.M._partial_note({**base, "report": {
-            "stopped": "time budget", "not_reached": 51, "not_found": ["HFCL"], "not_found_n": 1,
-            "errors": [("Access denied because of exceeding access rate", 4)]}})
-        self.assertEqual(note, "Partial scan: 448 of 501 stocks loaded - the 45-minute limit was reached, so some names may be missing. "
-                               "The broker said: Access denied because of exceeding access rate (x4)")
-        for bad in ("#", "''", '""', "HFCL"):
+            "stopped": "time budget", "refused_n": 23, "not_reached": 22, "not_found": ["HFCL"], "not_found_n": 6,
+            "errors": [("Access denied because of exceeding access rate", 23)], "pace": {"calls": 729, "refused": 279}}})
+        self.assertEqual(note, "Partial scan: 450 of 501 stocks loaded - the broker kept refusing requests, so the 45-minute limit ran out "
+                               "and 45 stocks were not checked. The broker said: Access denied because of exceeding access rate")
+        for bad in ("#", "''", '""', "HFCL", "(x"):
             self.assertNotIn(bad, note)
+        # the time ran out but nothing was refused (a slow broker): no blame, still the count
+        slow = self.M._partial_note({"loaded": 480, "requested": 501, "budget_s": 4500, "report": {"stopped": "time budget", "not_reached": 15, "not_found_n": 6}})
+        self.assertEqual(slow, "Partial scan: 480 of 501 stocks loaded - the 75-minute limit was reached and 15 stocks were not checked")
+        # the run ended in time but the second pass could not recover some refused stocks (11 Nov 2026: 17)
+        refused = self.M._partial_note({"loaded": 478, "requested": 501, "report": {"stopped": "", "refused_n": 17, "not_reached": 0, "not_found_n": 6,
+                                                                                  "errors": [("Access denied because of exceeding access rate", 17)]}})
+        self.assertEqual(refused, "Partial scan: 478 of 501 stocks loaded - the broker kept refusing some requests and 17 stocks were not checked. "
+                                  "The broker said: Access denied because of exceeding access rate")
+        one = self.M._partial_note({"loaded": 500, "requested": 501, "report": {"stopped": "", "refused_n": 1, "not_reached": 0}})
+        self.assertIn("and 1 stock was not checked", one)
         many = self.M._partial_note({**base, "report": {"stopped": "", "not_found": list("ABCDEFGH"), "not_found_n": 11}})
-        self.assertIn("the broker returned no data for the rest", many)
+        self.assertIn("the broker returned no data for the rest, so some names may be missing", many)   # it was asked and had nothing: none "not checked"
+        self.assertNotIn("not checked", many)
         self.assertNotIn("A, B", many)                                                    # the names are in the fetch report, not the message
         self.assertEqual(self.M._partial_note({"loaded": 0, "requested": 501, "report": {"stopped": "the broker kept refusing requests"}}),
                          "None of the 501 stocks could be loaded - the broker kept refusing requests")
@@ -4491,7 +4537,8 @@ class QuoteRoute(E2EHarness, unittest.TestCase):
         self.assertIn("11 of 501", note)
         self.assertIn("kept refusing", note)
         self.assertIn("Something Went Wrong", note)
-        self.assertIn("(x440)", note)
+        self.assertIn("490 stocks were not checked", note)
+        self.assertNotIn("(x", note)
         self.assertIn("None of the 501", self.M._partial_note({"loaded": 0, "requested": 501, "report": {}}))
 
 

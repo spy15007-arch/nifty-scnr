@@ -21,6 +21,21 @@ WHAT WENT WRONG, AND WHAT EACH FIX DOES
   On a simulated broker that refuses 17% of calls at random, 501 stocks take about 9 minutes instead of 78
   (tests/test_broker.py::PaceSimulation).
 
+2026-11-12 - a third of the requests refused at random, and a 45-minute limit too tight for it.
+  On trading-day evenings (30 Oct - 12 Nov) the broker refused 29-38% of the candle requests, always with "Access denied
+  because of exceeding access rate", while we called about once every 3.7 seconds - a tenth of its documented 3 a second. The
+  refusals look random: the numbers fit the same share on a first try and on a retry 3-6 s later, and different stocks every day; and they come
+  only with a normal trading day (a Sunday, 1 Nov, had none; 10 Nov, when the market was shut, 5%). So the words say "rate"
+  but are no sign that we call too fast. Two such complaints in 20 calls put the pace at its slowest (2.5 s) and every retry
+  waits 3 s then 6 s, so a weekday run is ~720 calls and 42-45 minutes - almost all of it OUR waiting (the broker answers in
+  under a second). The 45-minute limit then cut 4 of the 9 trading-day scans short (4, 5, 11 and 12 Nov: 464, 471, 478 and 450
+  of 501 loaded): the second pass that recovers the refused stocks never got its time. Only the last one said so, because the
+  note appeared below 90% loaded only.
+  Now: the limit is 75 minutes (main.FETCH_CAP_S) and a full-market run says so as soon as 5 or more stocks were not checked.
+  The pacing is NOT changed: whether calling faster would draw more refusals is untested and the account is not worth the risk.
+  A simulated broker that refuses 36% of calls in these words reproduces the real numbers (12 Nov: 729 calls, 279 refused,
+  2,706 s) and shows that 75 minutes completes every stock up to about 45% refused (tests/test_broker.py::WeekdayEvening).
+
 LIVE QUOTES: `get_quotes` returns today's price, open/high/low, previous close and traded volume for up to 50
 stocks per call. The afternoon BTST scan uses it instead of 150 slow candle calls (see data/history_cache.py).
 """

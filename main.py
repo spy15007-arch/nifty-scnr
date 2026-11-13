@@ -248,7 +248,10 @@ def _btst_deadline(now: datetime, source: str) -> datetime:
     return deadline
 
 
-FETCH_CAP_S = 2700                           # a healthy full-market fetch takes ~10 minutes; 45 is a generous ceiling
+FETCH_CAP_S = 4500                           # 75 minutes. A quiet day (or a market holiday) takes ~10-17 minutes, but on a normal weekday evening the broker
+#                                              refuses about a third of the requests at random and the run takes 42-48 minutes, so the old 45-minute ceiling
+#                                              cut 4 of the 9 trading-day scans of 30 Oct - 12 Nov short. The workflow's own limit is 120 minutes (a test keeps it that way).
+PARTIAL_NOTE_MIN = 5                         # a full-market run says so when at least this many stocks the broker lists were not checked (about 1%)
 
 
 def _fetch(store, symbols: list[str], lookback: int, deadline: datetime | None = None,
@@ -269,28 +272,47 @@ def _fetch(store, symbols: list[str], lookback: int, deadline: datetime | None =
     return bars, info
 
 
+def _unchecked(f: dict) -> int:
+    """
+    How many stocks a fetch could have loaded but did not get: the ones the broker kept refusing plus the ones the run never reached.
+    (Stocks the broker does not list, or has no data for, are not counted - nothing could have been done for them.)
+    """
+    rep = f.get("report") or {}
+    if "refused_n" in rep or "not_reached" in rep:
+        return int(rep.get("refused_n") or 0) + int(rep.get("not_reached") or 0)
+    gone = int(rep.get("not_found_n") or 0) + int(rep.get("no_data_n") or 0)
+    return max(0, int(f.get("requested") or 0) - int(f.get("loaded") or 0) - gone)
+
+
 def _partial_note(f: dict) -> str:
     """
-    A short plain explanation for a scan that loaded fewer stocks than it asked for: how many, why it stopped, and the broker's
-    own words when it refused. (No quotes or '#' placeholders - the text is shown as is. Which stocks the broker does not know
-    is in reports/output/fetch_report_<scan>.json, not in the message.)
+    A short plain explanation for a scan that loaded fewer stocks than it asked for: how many, why, how many stocks were not
+    checked, and the broker's own words when it refused. (No quotes or '#' placeholders - the text is shown as is. Which stocks
+    the broker does not know is in reports/output/fetch_report_<scan>.json, not in the message.)
     """
     rep = f.get("report") or {}
     stopped = rep.get("stopped") or ""
+    refusing = bool(rep.get("refused_n") or (rep.get("pace") or {}).get("refused"))     # the broker said no to real requests (not just "nothing for this stock")
+    missed = _unchecked(f)
     if stopped == "time budget":
         mins = round((f.get("budget_s") or 0) / 60)
-        why = f"the {mins}-minute limit was reached" if mins else "the time limit was reached"
+        limit = f"the {mins}-minute limit" if mins else "the time limit"
+        why = f"the broker kept refusing requests, so {limit} ran out" if refusing else f"{limit} was reached"
     elif stopped:
         why = stopped
+    elif rep.get("refused_n"):
+        why = "the broker kept refusing some requests"
     else:
         why = "the broker returned no data for the rest"
+        missed = 0                                                                        # it was asked and had nothing: no stock was left unchecked
     if f["loaded"]:
-        text = f"Partial scan: {f['loaded']} of {f['requested']} stocks loaded - {why}, so some names may be missing"
+        text = f"Partial scan: {f['loaded']} of {f['requested']} stocks loaded - {why}"
+        text += f" and {missed} {'stock was' if missed == 1 else 'stocks were'} not checked" if missed else ", so some names may be missing"
     else:
         text = f"None of the {f['requested']} stocks could be loaded - {why}"
     errs = rep.get("errors") or []
     if errs:
-        text += f". The broker said: {errs[0][0]} (x{errs[0][1]})"
+        text += f". The broker said: {errs[0][0]}"
     return text
 
 
@@ -459,7 +481,10 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
                          f"breadth is as of that close")
         if fetch.get("via") != "quotes" and fetch.get("quote_note"):
             run_notes.append(f"Live quotes not used ({fetch['quote_note']}); candles were fetched one by one instead")
-    if fetch.get("requested") and fetch["loaded"] < 0.9 * fetch["requested"]:
+    # say so when a tenth is missing (any run) - or, in a full-market run, as soon as 5+ stocks the broker lists were not checked
+    # (before 12 Nov 2026 only the tenth counted, so the scans of 4, 5 and 11 Nov that missed 17-31 stocks said nothing)
+    if fetch.get("requested") and (fetch["loaded"] < 0.9 * fetch["requested"]
+                                   or (ctx["kind"] == "universe" and _unchecked(fetch) >= PARTIAL_NOTE_MIN)):
         run_notes.append(_partial_note(fetch))
 
     # --- 1. the scoreboard: replay tracked trades on completed sessions -------------------------
