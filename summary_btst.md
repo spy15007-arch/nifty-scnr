@@ -1,32 +1,37 @@
-# 🌙 BTST scan - Thu 12 Nov 2026, 2:46 PM IST
+# 🌙 BTST scan - Fri 13 Nov 2026, 2:46 PM IST
 
 *Live prices at 2:46 PM IST (today's volume projected to a full day)*
 
-**Market:** 🧭 🟢 Bullish · Nifty 0.0% today · global neutral
+**Market:** 🧭 🟢 Bullish · Nifty -0.7% today · global neutral
 
-**Breadth:** 59% of liquid stocks are above their 50-day average (mixed)
+**Breadth:** 64% of liquid stocks are above their 50-day average (healthy)
 
-*Quick check of last night's 150-stock watchlist (11 Nov close) with live quotes; breadth is as of that close*
+*Quick check of last night's 150-stock watchlist (12 Nov close) with live quotes; breadth is as of that close*
 
-*Funnel: 150 stocks checked → 10 fresh breakouts + 68 about to break → 72 in the top half by quality → 8 listed, 63 already on the list*
+*Funnel: 150 stocks checked → 3 fresh breakouts + 66 about to break → 61 in the top half by quality → 0 listed, 61 already on the list*
 
 | # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| 1 | **CUPID** 💪 | 🔥 Fresh breakout (first close above the 50-day high) | 84 | Buy near 383.40 | 349.45 (-8.8%) | 17.7% | 36% |
-| 2 | **INDUSTOWER** | 👀 About to break out (2.6% below the 50-day high) | 82 | Buy at 400.30 (GTT / stop-limit buy order; skip if it opens above 412.30) | 374.10 (-6.5%) | 13.1% | 59% |
-| 3 | **BEL** | 👀 About to break out (2.9% below the 50-day high) | 81 | Buy at 416.85 (GTT / stop-limit buy order; skip if it opens above 429.35) | 393.40 (-5.6%) | 11.2% | 52% |
-| 4 | **CHOLAFIN** | 👀 About to break out (0.7% below the 50-day high) | 71 | Buy at 1,873.15 (GTT / stop-limit buy order; skip if it opens above 1,929.30) | 1,733.95 (-7.4%) | 14.9% | 58% |
-| 5 | **360ONE** | 👀 About to break out (1.5% below the 50-day high) | 60 | Buy at 1,209.40 (GTT / stop-limit buy order; skip if it opens above 1,245.65) | 1,115.05 (-7.8%) | 15.6% | 54% |
-| 6 | **ANGELONE** | 👀 About to break out (1.4% below the 50-day high) | 60 | Buy at 345.05 (GTT / stop-limit buy order; skip if it opens above 355.40) | 317.50 (-8.0%) | 15.9% | 35% |
-| 7 | **ITCHOTELS** | 👀 About to break out (2.4% below the 50-day high) | 55 | Buy at 179.90 (GTT / stop-limit buy order; skip if it opens above 185.25) | 165.35 (-8.1%) | 16.2% | 50% |
-| 8 | **LTTS** | 👀 About to break out (1.3% below the 50-day high) | 51 | Buy at 4,356.10 (GTT / stop-limit buy order; skip if it opens above 4,486.75) | 4,012.80 (-7.9%) | 15.8% | 34% |
+| - | No new pick | - | - | - | - | - | - |
 
-*💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first*
+**Earlier picks, still strong** (picked before, order still waiting - no new order):
 
-Already on your list (not repeated): MARICO, GAIL, UNIONBANK, HDFCAMC, SHREECEM, PETRONET, NAVINFLUOR, FEDERALBNK, ANANDRATHI, HINDUNILVR, GMRAIRPORT, ITC, CIPLA, TRENT, BHARTIARTL, MCX, BSE, TATACONSUM, KOTAKBANK, INDIGO
+- **RADICO** - picked 2026-11-08, buy at 4,689.40 (order still waiting, valid 2 more sessions), quality 93/100, profit marks 5,076.50 · 5,463.60 · 5,850.65
+- **JINDALSTEL** - picked 2026-11-06, buy at 1,198.80 (order still waiting, valid 1 more session), quality 83/100, profit marks 1,273.70 · 1,348.60 · 1,423.45
+- **KARURVYSYA** - picked 2026-11-11, buy at 391.60 (order still waiting, valid 4 more sessions), quality 81/100, profit marks 428.15 · 464.65 · 501.15
+- **HINDUNILVR** - picked 2026-11-06, buy at 2,056.05 (order still waiting, valid 1 more session), quality 79/100, profit marks 2,184.30 · 2,312.50 · 2,440.70
+- **CHOLAFIN** - picked 2026-11-12, buy at 1,873.15 (order still waiting, valid 5 more sessions), quality 75/100, profit marks 2,012.35 · 2,151.55 · 2,290.75
+- **VBL** - picked 2026-11-09, buy at 445.25 (order still waiting, valid 3 more sessions), quality 75/100, profit marks 480.65 · 516.00 · 551.35
+- **GMRAIRPORT** - picked 2026-11-06, buy at 101.50 (order still waiting, valid 1 more session), quality 72/100, profit marks 109.50 · 117.45 · 125.45
+- **STARHEALTH** - picked 2026-11-08, buy at 589.20 (order still waiting, valid 2 more sessions), quality 65/100, profit marks 642.95 · 696.65 · 750.35
+- **360ONE** - picked 2026-11-12, buy at 1,209.40 (order still waiting, valid 5 more sessions), quality 61/100, profit marks 1,303.75 · 1,398.10 · 1,492.45
+- **JSWCEMENT** - picked 2026-11-08, buy at 127.60 (order still waiting, valid 2 more sessions), quality 58/100, profit marks 136.80 · 146.00 · 155.15
+- **LTTS** - picked 2026-11-12, buy at 4,356.10 (order still waiting, valid 5 more sessions), quality 57/100, profit marks 4,699.40 · 5,042.70 · 5,385.95
+
+Already on your list (not repeated): RADICO, UNIONBANK, PAYTM, SBILIFE, ABCAPITAL, DLF, ATHERENERG, SBIN, BAJFINANCE, MAHABANK, HONASA, CHOLAFIN, ANANDRATHI, PVRINOX, MCX, NAVINFLUOR, HDFCBANK, KOTAKBANK, SONACOMS, NYKAA
 
 ---
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
 
-*Record since 21 Oct: 2 sold, 0% won, average -1.04R (-8.6% per trade after costs) - too few to judge yet (need 30+)
-Open now: 45 of 59 up, average +3.6% after costs (not final)*
+*Record since 21 Oct: 4 sold, 0% won, average -1.05R (-7.5% per trade after costs) - too few to judge yet (need 30+)
+Open now: 51 of 66 up, average +3.9% after costs (not final)*

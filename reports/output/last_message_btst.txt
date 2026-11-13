@@ -1,67 +1,23 @@
-🌙 <b>BTST SCAN</b> · Thu 12 Nov, 2:46 PM · live prices
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty 0.0% today · global neutral
-📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
+🌙 <b>BTST SCAN</b> · Fri 13 Nov, 2:46 PM · live prices
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -0.7% today · global neutral
+📊 <b>BREADTH</b> 64% (stocks above their 50-day average) - healthy market
 
-ℹ️ Quick check of last night's 150-stock watchlist (11 Nov close) with live quotes; breadth is as of that close
+ℹ️ Quick check of last night's 150-stock watchlist (12 Nov close) with live quotes; breadth is as of that close
 
-<b>BUY NOW</b> (near the close, only if the price is still above its breakout price)
+<b>NO NEW PICK.</b> 150 stocks checked, 69 in a breakout setup, 61 passed the quality filter - all already on your list.
 
-<b>1. CUPID</b> 🔥 Fresh breakout (first close above the 50-day high) · Quality 84/100
-Buy near <b>383.40</b> · up 8.3% today on 5.6x volume
-Stop <b>349.45</b> (-8.8%) · trail 17.7%
-Profit marks 417.35 · 451.25 · 485.20
-💪 strong uptrend · strong 12-mo return · near 52-wk high · delivery ~36%
-⚠️ Already 3.9% above the breakout level
-⚠️ Very large one-day move
+⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
+<b>RADICO</b> 👀 · Quality 93/100 · picked 8 Nov
+Buy at <b>4,689.40</b> · order valid 2 more sessions
+Profit marks 5,076.50 · 5,463.60 · 5,850.65
+<b>JINDALSTEL</b> 👀 · Quality 83/100 · picked 6 Nov
+Buy at <b>1,198.80</b> · order valid 1 more session
+Profit marks 1,273.70 · 1,348.60 · 1,423.45
+<b>KARURVYSYA</b> 👀 · Quality 81/100 · picked 11 Nov
+Buy at <b>391.60</b> · order valid 4 more sessions
+Profit marks 428.15 · 464.65 · 501.15
++8 more earlier picks also still qualify (on your list)
 
-<b>PLACE THESE BUY ORDERS</b> (valid 5 sessions)
-Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
-
-<b>2. INDUSTOWER</b> 👀 About to break out (2.6% below the 50-day high) · Quality 82/100
-Buy at <b>400.30</b> · skip if it opens above 412.30
-Stop <b>374.10</b> (-6.5%) · trail 13.1%
-Profit marks 426.50 · 452.65 · 478.80
-low volatility · very liquid · delivery ~59%
-
-<b>3. BEL</b> 👀 About to break out (2.9% below the 50-day high) · Quality 81/100
-Buy at <b>416.85</b> · skip if it opens above 429.35
-Stop <b>393.40</b> (-5.6%) · trail 11.2%
-Profit marks 440.30 · 463.75 · 487.20
-low volatility · very liquid · delivery ~52%
-
-<b>4. CHOLAFIN</b> 👀 About to break out (0.7% below the 50-day high) · Quality 71/100
-Buy at <b>1,873.15</b> · skip if it opens above 1,929.30
-Stop <b>1,733.95</b> (-7.4%) · trail 14.9%
-Profit marks 2,012.35 · 2,151.55 · 2,290.75
-near 52-wk high · very liquid · delivery ~58%
-
-<b>5. 360ONE</b> 👀 About to break out (1.5% below the 50-day high) · Quality 60/100
-Buy at <b>1,209.40</b> · skip if it opens above 1,245.65
-Stop <b>1,115.05</b> (-7.8%) · trail 15.6%
-Profit marks 1,303.75 · 1,398.10 · 1,492.45
-near 52-wk high · low volatility · delivery ~54%
-
-<b>6. ANGELONE</b> 👀 About to break out (1.4% below the 50-day high) · Quality 60/100
-Buy at <b>345.05</b> · skip if it opens above 355.40
-Stop <b>317.50</b> (-8.0%) · trail 15.9%
-Profit marks 372.60 · 400.10 · 427.60
-near 52-wk high · 200-day trend rising · delivery ~35%
-
-<b>7. ITCHOTELS</b> 👀 About to break out (2.4% below the 50-day high) · Quality 55/100
-Buy at <b>179.90</b> · skip if it opens above 185.25
-Stop <b>165.35</b> (-8.1%) · trail 16.2%
-Profit marks 194.45 · 209.00 · 223.55
-no recent spike · low volatility · delivery ~50%
-
-<b>8. LTTS</b> 👀 About to break out (1.3% below the 50-day high) · Quality 51/100
-Buy at <b>4,356.10</b> · skip if it opens above 4,486.75
-Stop <b>4,012.80</b> (-7.9%) · trail 15.8%
-Profit marks 4,699.40 · 5,042.70 · 5,385.95
-very liquid · near 52-wk high · delivery ~34%
-
-+63 more qualify but are already on your list.
-
-🧾 <i>Record since 21 Oct: 2 sold, 0% won, average -1.04R (-8.6% per trade after costs) - too few to judge yet (need 30+)
-Open now: 45 of 59 up, average +3.6% after costs (not final)</i>
-<i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 960% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+🧾 <i>Record since 21 Oct: 4 sold, 0% won, average -1.05R (-7.5% per trade after costs) - too few to judge yet (need 30+)
+Open now: 51 of 66 up, average +3.9% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 930% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
