@@ -1,4 +1,4 @@
-# 🌙 BTST scan - Sat 14 Nov 2026, 2:56 PM IST
+# 🌙 BTST scan - Sun 15 Nov 2026, 2:57 PM IST
 
 *Based on the close of Fri 13 Nov 2026*
 
