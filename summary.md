@@ -1,4 +1,77 @@
 <!-- scan-section -->
+# 📈 Swing scan - Mon 16 Nov 2026, 4:57 PM IST
+
+*Based on the close of Mon 16 Nov 2026*
+
+**Market:** 🧭 🟢 Bullish · Nifty +0.3% today · global neutral
+
+**Breadth:** 57% of liquid stocks are above their 50-day average (mixed)
+
+*Funnel: 495 stocks checked → 5 fresh breakouts + 84 about to break → 58 in the top half by quality → 1 listed, 57 already on the list*
+
+| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
+| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
+| 1 | **UNITDSPR** | 👀 About to break out (2.9% below the 50-day high) | 67 | Buy at 1,492.90 (GTT / stop-limit buy order; skip if it opens above 1,537.65) | 1,396.10 (-6.5%) | 13.0% | 53% |
+
+**Earlier picks, still strong** (picked before, order still waiting - no new order):
+
+- **ADANIENSOL** - picked 2026-11-13, buy at 1,483.00 (order still waiting, valid 4 more sessions), quality 79/100, profit marks 1,597.25 · 1,711.50 · 1,825.75
+
+Already on your list (not repeated): ABCAPITAL, ADANIENSOL, ANANDRATHI, ASIANPAINT, AXISBANK, BAJFINANCE, BHARTIARTL, BSE, CHOLAFIN, DRREDDY, ETERNAL, FEDERALBNK, FLUOROCHEM, GAIL, GLENMARK, GROWW, HDFCBANK, ICICIBANK, INDHOTEL, INDIANB
+
+**Building up, near a breakout** (watch only - no order yet): strong stocks 3%-6% below their 50-day high; one joins the picks when it gets within 3% of that high.
+
+| Stock | Quality | Below its 50-day high | 50-day high | 12-month return |
+| :-- | :-: | :-: | --: | :-: |
+| **EMCURE** | 56 | 3.3% | 2,429.90 | +65% |
+| **TITAN** | 95 | 3.6% | 5,092.00 | +29% |
+| **LENSKART** | 98 | 3.7% | 762.75 | +82% |
+| **IGIL** | 55 | 4.4% | 453.65 | +25% |
+| **TECHM** | 99 | 4.5% | 1,860.00 | +27% |
+| **NUVAMA** | 52 | 4.9% | 1,964.30 | +25% |
+| **ADANIPOWER** | 80 | 5.0% | 216.10 | +37% |
+
+## Trades already on your list
+
+YOUR LIST
+• RADICO - bought at 4,689.40 (buy order triggered)
+• JSWCEMENT - buy order expired; no trade
+• NH - buy order expired; no trade
+• STARHEALTH - buy order expired; no trade
+• KPRMILL - bought at 1,208.95 (buy order triggered)
+• KARURVYSYA - bought at 391.60 (buy order triggered)
+
+BOUGHT, NOT SOLD YET (71) - sell if the price falls to:
+CUPID 349.48 · INDUSTOWER 374.15
+ANGELONE 317.55 · FEDERALBNK 339.69
+PETRONET 306.01 · FLUOROCHEM 4,472.33
+KARURVYSYA 355.10 · SANSERA 4,257.16
+SBIN 1,003.89 · IOC 140.26
+MGL 1,057.51 · MEESHO 223.52
+ABCAPITAL 381.82 · RADICO 4,302.32
+PAYTM 1,706.27 · SHREECEM 23,765.61
+KPRMILL 1,101.98 · SBILIFE 1,699.56
+SAILIFE 1,657.85 · BAJFINANCE 1,026.08
+TATASTEEL 179.73 · HDFCAMC 2,516.50
+AXISBANK 1,232.30 · UNIONBANK 180.24
+...and 47 more in the dashboard
+
+WAITING TO BUY (14) - buy when the price rises to:
+ASIANPAINT 2,624.65 · ADANIENSOL 1,483.00
+BEL 416.85 · CHOLAFIN 1,873.15
+360ONE 1,209.40 · ITCHOTELS 179.90
+LTTS 4,356.10 · M&M 3,471.95
+GILLETTE 7,615.20 · ALKEM 5,485.95
+ANTHEM 991.10 · VBL 445.25
+BPCL 324.70 · NTPC 338.20
+
+---
+*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
+
+*Record since 21 Oct: 4 sold, 0% won, average -1.05R (-7.5% per trade after costs) - too few to judge yet (need 30+)
+Open now: 46 of 71 up, average +2.9% after costs (not final)*
+
+<!-- scan-section -->
 # 🌙 BTST scan - Mon 16 Nov 2026, 2:46 PM IST
 
 *Live prices at 2:46 PM IST (today's volume projected to a full day)*
@@ -1314,64 +1387,6 @@ PNB 125.50
 - **GLAND** 💪 - picked 2026-10-29, buy at 3,177.35 (order still waiting, valid 3 more sessions), quality 97/100, profit marks 3,449.60 · 3,721.85 · 3,994.10
 
 Already on your list (not repeated): PETRONET, GAIL, DIVISLAB, BHARTIARTL, DLF, SONACOMS, COFORGE, NYKAA, ATHERENERG, ANANDRATHI, PERSISTENT, ADANIPORTS, INDHOTEL, PHOENIXLTD, ZYDUSLIFE, PVRINOX, ETERNAL, BSE, KOTAKBANK, DRREDDY
-
----
-*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
-
-*Record since 21 Oct: no trade sold yet*
-
-<!-- scan-section -->
-# 📈 Swing scan - Mon 2 Nov 2026, 4:49 PM IST
-
-*Based on the close of Mon 02 Nov 2026*
-
-**Market:** 🧭 🟢 Bullish · Nifty +1.1% today · global supportive
-
-**Breadth:** 24% of liquid stocks are above their 50-day average (weak - use half size)
-
-*3 of the 5 picks are in the same sector (Energy) - they tend to move together, so treat them as one position*
-
-*Funnel: 495 stocks checked → 1 fresh breakouts + 39 about to break → 29 in the top half by quality → 5 listed, 24 already on the list*
-
-| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
-| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| 1 | **POWERGRID** | 👀 About to break out (3.0% below the 50-day high) | 71 | Buy at 276.55 (GTT / stop-limit buy order; skip if it opens above 284.80) | 260.35 (-5.8%) | 11.7% | 63% |
-| 2 | **ITC** | 👀 About to break out (2.8% below the 50-day high) | 56 | Buy at 274.50 (GTT / stop-limit buy order; skip if it opens above 282.70) | 261.00 (-4.9%) | 9.8% | 55% |
-| 3 | **MPHASIS** | 👀 About to break out (2.1% below the 50-day high) | 55 | Buy at 2,623.65 (GTT / stop-limit buy order; skip if it opens above 2,702.35) | 2,386.45 (-9.0%) | 18.1% | 50% |
-| 4 | **RELIANCE** | 👀 About to break out (2.5% below the 50-day high) | 54 | Buy at 1,335.70 (GTT / stop-limit buy order; skip if it opens above 1,375.75) | 1,241.40 (-7.1%) | 14.1% | 51% |
-| 5 | **ADANIGREEN** | 👀 About to break out (3.0% below the 50-day high) | 51 | Buy at 1,380.60 (GTT / stop-limit buy order; skip if it opens above 1,422.00) | 1,270.35 (-8.0%) | 16.0% | 35% |
-
-**Earlier picks, still strong** (picked before, order still waiting - no new order):
-
-- **BHARTIARTL** - picked 2026-10-27, buy at 2,009.85 (order still waiting, valid 1 more session), quality 97/100, profit marks 2,138.70 · 2,267.55 · 2,396.40
-- **BSE** - picked 2026-10-27, buy at 3,546.50 (order still waiting, valid 1 more session), quality 81/100, profit marks 3,821.75 · 4,096.95 · 4,372.20
-- **GAIL** - picked 2026-11-02, buy at 177.90 (order still waiting, valid 5 more sessions), quality 79/100, profit marks 189.10 · 200.25 · 211.45
-- **PNB** - picked 2026-10-29, buy at 125.50 (order still waiting, valid 3 more sessions), quality 72/100, profit marks 133.80 · 142.10 · 150.40
-
-Already on your list (not repeated): ADANIPORTS, ANANDRATHI, ATHERENERG, BHARTIARTL, BSE, COFORGE, DIVISLAB, DLF, DRREDDY, ETERNAL, GAIL, GESHIP, HCLTECH, INDHOTEL, KOTAKBANK, NYKAA, PERSISTENT, PHOENIXLTD, PVRINOX, SONACOMS
-
-## Trades already on your list
-
-Your list
-• TECHM - buy order expired; no trade
-• ZYDUSLIFE - bought at 1,251.40 (buy order triggered)
-Bought, not sold yet (17) - sell if the price falls to:
-ATHERENERG 1,566.50 · ZYDUSLIFE 1,164.33
-ADANIPORTS 1,741.30 · ETERNAL 317.75
-SONACOMS 776.26 · GESHIP 1,466.43
-DIVISLAB 9,102.21 · NYKAA 321.82
-ACUTAAS 3,501.93 · DLF 649.84
-LAURUSLABS 2,051.41 · KOTAKBANK 427.39
-COFORGE 1,849.51 · ANANDRATHI 2,145.10
-INDHOTEL 727.86 · DRREDDY 1,201.50
-PVRINOX 1,301.35
-Waiting to buy (11) - buy when the price rises to:
-GAIL 177.90 · PHOENIXLTD 2,042.40
-PERSISTENT 6,116.75 · HCLTECH 1,470.45
-MANKIND 2,564.15 · GLAND 3,177.35
-PNB 125.50 · BHARTIARTL 2,009.85
-BSE 3,546.50 · APLAPOLLO 2,285.60
-IPCALAB 2,042.10
 
 ---
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*

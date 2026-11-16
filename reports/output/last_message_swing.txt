@@ -1,68 +1,69 @@
-📈 <b>SWING SCAN</b> · Fri 13 Nov · today's close
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -0.5% today · global neutral
-📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
+📈 <b>SWING SCAN</b> · Mon 16 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.3% today · global neutral
+📊 <b>BREADTH</b> 57% (stocks above their 50-day average) - mixed market
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>RADICO</b> 👀 · Quality 92/100 · picked 8 Nov
-Buy at <b>4,689.40</b> · order valid 1 more session
-Profit marks 5,076.50 · 5,463.60 · 5,850.65
+<b>ADANIENSOL</b> 👀 · Quality 79/100 · picked 13 Nov
+Buy at <b>1,483.00</b> · order valid 4 more sessions
+Profit marks 1,597.25 · 1,711.50 · 1,825.75
 
 <b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. ADANIENSOL</b> 👀 About to break out (2.8% below the 50-day high) · Quality 84/100 · Energy
-Buy at <b>1,483.00</b> · skip if it opens above 1,527.45
-Stop <b>1,368.75</b> (-7.7%) · trail 15.4%
-Profit marks 1,597.25 · 1,711.50 · 1,825.75
-200-day trend rising · strong 12-mo return · delivery ~45%
+<b>1. UNITDSPR</b> 👀 About to break out (2.9% below the 50-day high) · Quality 67/100 · FMCG
+Buy at <b>1,492.90</b> · skip if it opens above 1,537.65
+Stop <b>1,396.10</b> (-6.5%) · trail 13.0%
+Profit marks 1,589.70 · 1,686.50 · 1,783.30
+near 52-wk high · low volatility · delivery ~53%
 
-+62 more qualify but are already on your list.
++56 more qualify but are already on your list.
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>ADANIPOWER</b> · Quality 83/100 · 12-mo +36%
-4.8% below its 50-day high (216.10)
-<b>TITAN</b> · Quality 98/100 · 12-mo +29%
-5.5% below its 50-day high (5,126.50)
-<b>NUVAMA</b> · Quality 56/100 · 12-mo +27%
-5.9% below its 50-day high (1,964.30)
-<b>BHEL</b> · Quality 86/100 · 12-mo +65%
-6.0% below its 50-day high (464.00)
+<b>EMCURE</b> · Quality 56/100 · 12-mo +65%
+3.3% below its 50-day high (2,429.90)
+<b>TITAN</b> · Quality 95/100 · 12-mo +29%
+3.6% below its 50-day high (5,092.00)
+<b>LENSKART</b> · Quality 98/100 · 12-mo +82%
+3.7% below its 50-day high (762.75)
+<b>IGIL</b> · Quality 55/100 · 12-mo +25%
+4.4% below its 50-day high (453.65)
+<b>TECHM</b> · Quality 99/100 · 12-mo +27%
+4.5% below its 50-day high (1,860.00)
++2 more building up (all of them are in the dashboard)
 
 📒 <b>YOUR LIST</b>
-• <b>HINDUNILVR</b> - buy order expired; no trade
-• <b>JINDALSTEL</b> - buy order expired; no trade
-• <b>WIPRO</b> - buy order expired; no trade
-• <b>GMRAIRPORT</b> - buy order expired; no trade
-• <b>INDUSTOWER</b> - bought at 400.30 (buy order triggered)
-• <b>ANGELONE</b> - bought at 345.05 (buy order triggered)
+• <b>RADICO</b> - bought at 4,689.40 (buy order triggered)
+• <b>JSWCEMENT</b> - buy order expired; no trade
+• <b>NH</b> - buy order expired; no trade
+• <b>STARHEALTH</b> - buy order expired; no trade
+• <b>KPRMILL</b> - bought at 1,208.95 (buy order triggered)
+• <b>KARURVYSYA</b> - bought at 391.60 (buy order triggered)
 
-<b>BOUGHT, NOT SOLD YET (68)</b> - sell if the price falls to:
+<b>BOUGHT, NOT SOLD YET (71)</b> - sell if the price falls to:
 CUPID 349.48 · INDUSTOWER 374.15
 ANGELONE 317.55 · FEDERALBNK 339.69
 PETRONET 306.01 · FLUOROCHEM 4,472.33
-SANSERA 4,257.16 · SBIN 1,003.89
-IOC 140.26 · MGL 1,057.51
-MEESHO 223.52 · ABCAPITAL 381.82
+KARURVYSYA 355.10 · SANSERA 4,257.16
+SBIN 1,003.89 · IOC 140.26
+MGL 1,057.51 · MEESHO 223.52
+ABCAPITAL 381.82 · RADICO 4,302.32
 PAYTM 1,706.27 · SHREECEM 23,765.61
-SBILIFE 1,699.56 · SAILIFE 1,657.85
-BAJFINANCE 1,026.08 · TATASTEEL 179.73
-HDFCAMC 2,516.50 · AXISBANK 1,232.30
-UNIONBANK 180.24 · LT 3,924.25
-TVSMOTOR 4,196.14 · HONASA 452.76
-...and 44 more in the dashboard
+KPRMILL 1,101.98 · SBILIFE 1,699.56
+SAILIFE 1,657.85 · BAJFINANCE 1,026.08
+TATASTEEL 179.73 · HDFCAMC 2,516.50
+AXISBANK 1,232.30 · UNIONBANK 180.24
+...and 47 more in the dashboard
 
-<b>WAITING TO BUY (18)</b> - buy when the price rises to:
+<b>WAITING TO BUY (14)</b> - buy when the price rises to:
+ASIANPAINT 2,624.65 · ADANIENSOL 1,483.00
 BEL 416.85 · CHOLAFIN 1,873.15
 360ONE 1,209.40 · ITCHOTELS 179.90
 LTTS 4,356.10 · M&amp;M 3,471.95
-KARURVYSYA 391.60 · GILLETTE 7,615.20
-ALKEM 5,485.95 · ANTHEM 991.10
-VBL 445.25 · BPCL 324.70
-NTPC 338.20 · RADICO 4,689.40
-JSWCEMENT 127.60 · NH 1,956.85
-STARHEALTH 589.20 · KPRMILL 1,208.95
+GILLETTE 7,615.20 · ALKEM 5,485.95
+ANTHEM 991.10 · VBL 445.25
+BPCL 324.70 · NTPC 338.20
 
 🧾 <i>Record since 21 Oct: 4 sold, 0% won, average -1.05R (-7.5% per trade after costs) - too few to judge yet (need 30+)
-Open now: 46 of 68 up, average +3.4% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 890% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+Open now: 46 of 71 up, average +2.9% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 880% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
