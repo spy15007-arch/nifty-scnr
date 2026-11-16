@@ -1,21 +1,32 @@
-🌙 <b>BTST SCAN</b> · Sun 15 Nov · close of Fri 13 Nov
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -0.5% last session · global neutral
+🌙 <b>BTST SCAN</b> · Mon 16 Nov, 2:46 PM · live prices
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.3% today · global neutral
 📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
 
-<b>NO NEW PICK.</b> 495 stocks checked, 95 in a breakout setup, 64 passed the quality filter - all already on your list.
+ℹ️ Quick check of last night's 150-stock watchlist (13 Nov close) with live quotes; breadth is as of that close
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>RADICO</b> 👀 · Quality 92/100 · picked 8 Nov
-Buy at <b>4,689.40</b> · order valid 1 more session
-Profit marks 5,076.50 · 5,463.60 · 5,850.65
 <b>ADANIENSOL</b> 👀 · Quality 84/100 · picked 13 Nov
 Buy at <b>1,483.00</b> · order valid 5 more sessions
 Profit marks 1,597.25 · 1,711.50 · 1,825.75
-<b>KARURVYSYA</b> 👀 · Quality 80/100 · picked 11 Nov
-Buy at <b>391.60</b> · order valid 3 more sessions
-Profit marks 428.15 · 464.65 · 501.15
-+6 more earlier picks also still qualify (on your list)
+<b>CHOLAFIN</b> 👀 · Quality 72/100 · picked 12 Nov
+Buy at <b>1,873.15</b> · order valid 4 more sessions
+Profit marks 2,012.35 · 2,151.55 · 2,290.75
+<b>VBL</b> 👀 · Quality 68/100 · picked 9 Nov
+Buy at <b>445.25</b> · order valid 2 more sessions
+Profit marks 480.65 · 516.00 · 551.35
++1 more earlier pick also still qualifies (on your list)
+
+<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
+
+<b>1. ASIANPAINT</b> 👀 About to break out (1.5% below the 50-day high) · Quality 64/100
+Buy at <b>2,624.65</b> · skip if it opens above 2,703.35
+Stop <b>2,446.00</b> (-6.8%) · trail 13.6%
+Profit marks 2,803.30 · 2,981.95 · 3,160.60
+very liquid · low volatility · delivery ~52%
+
++47 more qualify but are already on your list.
 
 🧾 <i>Record since 21 Oct: 4 sold, 0% won, average -1.05R (-7.5% per trade after costs) - too few to judge yet (need 30+)
 Open now: 46 of 68 up, average +3.4% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 890% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 900% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>

@@ -1,4 +1,36 @@
 <!-- scan-section -->
+# 🌙 BTST scan - Mon 16 Nov 2026, 2:46 PM IST
+
+*Live prices at 2:46 PM IST (today's volume projected to a full day)*
+
+**Market:** 🧭 🟢 Bullish · Nifty +0.3% today · global neutral
+
+**Breadth:** 59% of liquid stocks are above their 50-day average (mixed)
+
+*Quick check of last night's 150-stock watchlist (13 Nov close) with live quotes; breadth is as of that close*
+
+*Funnel: 150 stocks checked → 2 fresh breakouts + 62 about to break → 52 in the top half by quality → 1 listed, 51 already on the list*
+
+| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
+| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
+| 1 | **ASIANPAINT** | 👀 About to break out (1.5% below the 50-day high) | 64 | Buy at 2,624.65 (GTT / stop-limit buy order; skip if it opens above 2,703.35) | 2,446.00 (-6.8%) | 13.6% | 52% |
+
+**Earlier picks, still strong** (picked before, order still waiting - no new order):
+
+- **ADANIENSOL** - picked 2026-11-13, buy at 1,483.00 (order still waiting, valid 5 more sessions), quality 84/100, profit marks 1,597.25 · 1,711.50 · 1,825.75
+- **CHOLAFIN** - picked 2026-11-12, buy at 1,873.15 (order still waiting, valid 4 more sessions), quality 72/100, profit marks 2,012.35 · 2,151.55 · 2,290.75
+- **VBL** - picked 2026-11-09, buy at 445.25 (order still waiting, valid 2 more sessions), quality 68/100, profit marks 480.65 · 516.00 · 551.35
+- **STARHEALTH** - picked 2026-11-08, buy at 589.20 (order still waiting, valid 1 more session), quality 68/100, profit marks 642.95 · 696.65 · 750.35
+
+Already on your list (not repeated): BAJFINANCE, NYKAA, BSE, BHARTIARTL, RELIANCE, MAHABANK, SBIN, GAIL, CHOLAFIN, UNIONBANK, KOTAKBANK, INDUSTOWER, ANGELONE, GLAND, ANANDRATHI, MCX, RADICO, FEDERALBNK, INDHOTEL, DLF
+
+---
+*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
+
+*Record since 21 Oct: 4 sold, 0% won, average -1.05R (-7.5% per trade after costs) - too few to judge yet (need 30+)
+Open now: 46 of 68 up, average +3.4% after costs (not final)*
+
+<!-- scan-section -->
 # 🌙 BTST scan - Sun 15 Nov 2026, 2:57 PM IST
 
 *Based on the close of Fri 13 Nov 2026*
@@ -1340,37 +1372,6 @@ MANKIND 2,564.15 · GLAND 3,177.35
 PNB 125.50 · BHARTIARTL 2,009.85
 BSE 3,546.50 · APLAPOLLO 2,285.60
 IPCALAB 2,042.10
-
----
-*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
-
-*Record since 21 Oct: no trade sold yet*
-
-<!-- scan-section -->
-# 🌙 BTST scan - Mon 2 Nov 2026, 2:01 PM IST
-
-*Live prices at 2:01 PM IST (today's volume projected to a full day)*
-
-**Market:** 🧭 🟢 Bullish · Nifty +0.8% today · global supportive
-
-**Breadth:** 19% of liquid stocks are above their 50-day average (weak - use half size)
-
-*Quick check of last night's 95-stock watchlist (30 Oct close) with live quotes; breadth is as of that close*
-
-*Funnel: 95 stocks checked → 0 fresh breakouts + 28 about to break → 25 in the top half by quality → 3 listed, 22 already on the list*
-
-| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
-| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| 1 | **GAIL** | 👀 About to break out (1.3% below the 50-day high) | 81 | Buy at 177.90 (GTT / stop-limit buy order; skip if it opens above 183.20) | 166.70 (-6.3%) | 12.6% | 60% |
-| 2 | **PHOENIXLTD** | 👀 About to break out (2.2% below the 50-day high) | 72 | Buy at 2,042.40 (GTT / stop-limit buy order; skip if it opens above 2,103.65) | 1,887.45 (-7.6%) | 15.2% | 57% |
-| 3 | **PERSISTENT** | 👀 At the breakout level (volume not confirmed yet) | 54 | Buy at 6,116.75 (GTT / stop-limit buy order; skip if it opens above 6,300.25) | 5,588.30 (-8.6%) | 17.3% | 43% |
-
-**Earlier picks, still strong** (picked before, order still waiting - no new order):
-
-- **BHARTIARTL** - picked 2026-10-27, buy at 2,009.85 (order still waiting, valid 2 more sessions), quality 97/100, profit marks 2,138.70 · 2,267.55 · 2,396.40
-- **BSE** - picked 2026-10-27, buy at 3,546.50 (order still waiting, valid 2 more sessions), quality 82/100, profit marks 3,821.75 · 4,096.95 · 4,372.20
-
-Already on your list (not repeated): ZYDUSLIFE, KOTAKBANK, BHARTIARTL, ACUTAAS, BSE, COFORGE, ETERNAL, DRREDDY, DIVISLAB, SONACOMS, DLF, ADANIPORTS, NYKAA, INDHOTEL, ATHERENERG, ANANDRATHI, PVRINOX, PNB, HCLTECH, GESHIP
 
 ---
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
