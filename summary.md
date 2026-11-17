@@ -1,4 +1,80 @@
 <!-- scan-section -->
+# 📈 Swing scan - Tue 17 Nov 2026, 4:55 PM IST
+
+*Based on the close of Tue 17 Nov 2026*
+
+**Market:** 🧭 🟢 Bullish · Nifty +0.7% today · global hostile
+
+**Breadth:** 58% of liquid stocks are above their 50-day average (mixed)
+
+*Funnel: 495 stocks checked → 8 fresh breakouts + 82 about to break → 54 in the top half by quality → 1 listed, 53 already on the list*
+
+| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
+| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
+| 1 | **WELSPUNLIV** 💪 | 👀 About to break out (0.7% below the 50-day high) | 52 | Buy at 268.05 (GTT / stop-limit buy order; skip if it opens above 276.05) | 230.60 (-14.0%) | 27.9% | 31% |
+
+*💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first*
+
+Already on your list (not repeated): 360ONE, ADANIENSOL, ANANDRATHI, ASIANPAINT, AXISBANK, BAJFINANCE, BHARTIARTL, CHOLAFIN, DLF, DRREDDY, EICHERMOT, ETERNAL, FEDERALBNK, GROWW, HDFCAMC, HONASA, ICICIBANK, INDHOTEL, INDIANB, IOC
+
+**Building up, near a breakout** (watch only - no order yet): strong stocks 3%-6% below their 50-day high; one joins the picks when it gets within 3% of that high.
+
+| Stock | Quality | Below its 50-day high | 50-day high | 12-month return |
+| :-- | :-: | :-: | --: | :-: |
+| **CEMPRO** 💪 | 57 | 4.4% | 1,414.30 | +67% |
+| **LENSKART** | 97 | 3.1% | 762.75 | +78% |
+| **TITAN** | 96 | 3.2% | 5,072.50 | +29% |
+| **ADANIPOWER** | 79 | 3.7% | 216.10 | +38% |
+| **EMCURE** | 55 | 3.7% | 2,429.90 | +71% |
+| **NUVAMA** | 52 | 3.9% | 1,964.30 | +29% |
+| **MINDACORP** | 50 | 4.6% | 742.00 | +19% |
+| **TECHM** | 98 | 5.3% | 1,860.00 | +25% |
+| **APLAPOLLO** | 90 | 5.4% | 2,312.30 | +22% |
+| **MEDANTA** | 70 | 5.7% | 1,527.00 | +23% |
+| **GESHIP** | 54 | 6.0% | 1,647.00 | +40% |
+
+## Trades already on your list
+
+YOUR LIST
+• TATASTEEL - sold at 179.73: stop-loss hit (-1.1R, -7.0% after costs)
+• ALKEM - buy order expired; no trade
+• ANTHEM - buy order expired; no trade
+• VBL - buy order expired; no trade
+• BPCL - buy order expired; no trade
+• NTPC - buy order expired; no trade
+• CHOLAFIN - bought at 1,873.15 (buy order triggered)
+• 360ONE - bought at 1,209.40 (buy order triggered)
+• ITCHOTELS - bought at 179.90 (buy order triggered)
+• ADANIENSOL - bought at 1,483.00 (buy order triggered)
+• ASIANPAINT - bought at 2,624.65 (buy order triggered)
+
+BOUGHT, NOT SOLD YET (75) - sell if the price falls to:
+ASIANPAINT 2,446.00 · ADANIENSOL 1,368.75
+CUPID 349.48 · INDUSTOWER 374.15
+CHOLAFIN 1,733.96 · 360ONE 1,115.06
+ANGELONE 317.55 · ITCHOTELS 165.36
+FEDERALBNK 339.69 · PETRONET 306.01
+FLUOROCHEM 4,472.33 · KARURVYSYA 355.10
+SANSERA 4,257.16 · SBIN 1,003.89
+IOC 140.26 · MGL 1,057.51
+MEESHO 223.52 · ABCAPITAL 381.82
+RADICO 4,302.32 · PAYTM 1,706.27
+SHREECEM 23,765.61 · KPRMILL 1,101.98
+SBILIFE 1,699.56 · SAILIFE 1,657.85
+...and 51 more in the dashboard
+
+WAITING TO BUY (6) - buy when the price rises to:
+EICHERMOT 7,962.90 · UNITDSPR 1,492.90
+BEL 416.85 · LTTS 4,356.10
+M&M 3,471.95 · GILLETTE 7,615.20
+
+---
+*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
+
+*Record since 21 Oct: 5 sold, 0% won, average -1.05R (-7.4% per trade after costs) - too few to judge yet (need 30+)
+Open now: 52 of 75 up, average +3.2% after costs (not final)*
+
+<!-- scan-section -->
 # 🌙 BTST scan - Tue 17 Nov 2026, 2:47 PM IST
 
 *Live prices at 2:47 PM IST (today's volume projected to a full day)*
@@ -1301,80 +1377,6 @@ PNB 125.50
 - **AUROPHARMA** - picked 2026-11-03, buy at 1,743.50 (order still waiting, valid 5 more sessions), quality 97/100, profit marks 1,857.65 · 1,971.75 · 2,085.90
 
 Already on your list (not repeated): DIVISLAB, INDHOTEL, DRREDDY, MARICO, DLF, ETERNAL, GAIL, KOTAKBANK, BSE, GROWW, ADANIPORTS, ANANDRATHI, PHOENIXLTD, GLAND, PERSISTENT, NYKAA, BHARTIARTL, ATHERENERG, TRENT, ULTRACEMCO
-
----
-*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
-
-*Record since 21 Oct: no trade sold yet*
-
-<!-- scan-section -->
-# 📈 Swing scan - Tue 3 Nov 2026, 4:48 PM IST
-
-*Based on the close of Tue 03 Nov 2026*
-
-**Market:** 🧭 🟢 Mildly bullish · Nifty +1.6% today · global hostile
-
-**Breadth:** 29% of liquid stocks are above their 50-day average (weak - use half size)
-
-*Funnel: 495 stocks checked → 7 fresh breakouts + 39 about to break → 35 in the top half by quality → 3 listed, 32 already on the list*
-
-| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
-| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| 1 | **AUROPHARMA** | 👀 About to break out (2.6% below the 50-day high) | 97 | Buy at 1,743.50 (GTT / stop-limit buy order; skip if it opens above 1,795.80) | 1,629.35 (-6.5%) | 13.1% | 54% |
-| 2 | **HAL** | 👀 About to break out (2.7% below the 50-day high) | 94 | Buy at 5,107.60 (GTT / stop-limit buy order; skip if it opens above 5,260.80) | 4,809.30 (-5.8%) | 11.7% | 51% |
-| 3 | **TRENT** | 👀 About to break out (0.9% below the 50-day high) | 56 | Buy at 3,069.45 (GTT / stop-limit buy order; skip if it opens above 3,161.50) | 2,851.70 (-7.1%) | 14.2% | 42% |
-
-*💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first*
-
-**Earlier picks, still strong** (picked before, order still waiting - no new order):
-
-- **GLAND** 💪 - picked 2026-10-29, buy at 3,177.35 (order still waiting, valid 2 more sessions), quality 96/100, profit marks 3,449.60 · 3,721.85 · 3,994.10
-- **ICICIBANK** - picked 2026-11-03, buy at 1,456.95 (order still waiting, valid 5 more sessions), quality 99/100, profit marks 1,529.25 · 1,601.55 · 1,673.85
-
-Already on your list (not repeated): ADANIGREEN, ADANIPORTS, ANANDRATHI, ATHERENERG, BHARTIARTL, BOSCHLTD, BSE, COFORGE, DIVISLAB, DLF, DRREDDY, ETERNAL, GAIL, GLAND, GROWW, HCLTECH, ICICIBANK, INDHOTEL, JSWSTEEL, KOTAKBANK
-
-**Building up, near a breakout** (watch only - no order yet): strong stocks 3%-6% below their 50-day high; one joins the picks when it gets within 3% of that high.
-
-| Stock | Quality | Below its 50-day high | 50-day high | 12-month return |
-| :-- | :-: | :-: | --: | :-: |
-| **NAVINFLUOR** | 92 | 4.7% | 8,949.50 | +69% |
-| **UNIONBANK** | 93 | 4.7% | 192.33 | +26% |
-| **GLENMARK** | 75 | 5.1% | 2,537.60 | +33% |
-| **LALPATHLAB** | 93 | 5.5% | 2,038.60 | +22% |
-
-## Trades already on your list
-
-Your list
-• BHARTIARTL - bought at 2,009.85 (buy order triggered)
-• BSE - bought at 3,546.50 (buy order triggered)
-• APLAPOLLO - buy order expired; no trade
-• IPCALAB - buy order expired; no trade
-• GAIL - bought at 177.90 (buy order triggered)
-• PHOENIXLTD - bought at 2,042.40 (buy order triggered)
-• PERSISTENT - bought at 6,116.75 (buy order triggered)
-Bought, not sold yet (24) - sell if the price falls to:
-MCX 3,229.25 · MARICO 812.13
-GAIL 166.73 · PHOENIXLTD 1,887.50
-PERSISTENT 5,588.35 · ATHERENERG 1,566.50
-ZYDUSLIFE 1,164.33 · ADANIPORTS 1,741.30
-ETERNAL 317.75 · SONACOMS 776.26
-BHARTIARTL 1,881.01 · GESHIP 1,466.43
-BSE 3,271.28 · DIVISLAB 9,102.21
-NYKAA 321.82 · ACUTAAS 3,501.93
-DLF 649.84 · LAURUSLABS 2,051.41
-KOTAKBANK 427.39 · COFORGE 1,849.51
-ANANDRATHI 2,145.10 · INDHOTEL 728.79↑
-DRREDDY 1,215.98↑ · PVRINOX 1,301.35
-↑ = moved up today
-Waiting to buy (15) - buy when the price rises to:
-ICICIBANK 1,456.95 · JSWSTEEL 1,353.75
-ULTRACEMCO 11,843.65 · BOSCHLTD 50,601.00
-GROWW 205.65 · SHYAMMETL 1,256.05
-POWERGRID 276.55 · ITC 274.50
-MPHASIS 2,623.65 · RELIANCE 1,335.70
-ADANIGREEN 1,380.60 · HCLTECH 1,470.45
-MANKIND 2,564.15 · GLAND 3,177.35
-PNB 125.50
 
 ---
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
