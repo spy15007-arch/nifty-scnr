@@ -1,46 +1,34 @@
-📈 <b>SWING SCAN</b> · Tue 17 Nov · today's close
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.7% today · global hostile
-📊 <b>BREADTH</b> 58% (stocks above their 50-day average) - mixed market
+📈 <b>SWING SCAN</b> · Wed 18 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -0.6% today · global supportive
+📊 <b>BREADTH</b> 52% (stocks above their 50-day average) - mixed market
 
 <b>PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. WELSPUNLIV</b> 👀 About to break out (0.7% below the 50-day high) · Quality 52/100
-Buy at <b>268.05</b> · skip if it opens above 276.05
-Stop <b>230.60</b> (-14.0%) · trail 27.9%
-Profit marks 305.50 · 342.90 · 380.35
-💪 strong uptrend · strong 12-mo return · near 52-wk high · delivery ~31%
-⚠️ Already spiked 5% in 5 days - buy in continuation, not on a dip
-⚠️ Volatile (daily range ~5.6%), wide stop
+<b>1. APOLLOHOSP</b> 👀 About to break out (2.8% below the 50-day high) · Quality 91/100 · Healthcare
+Buy at <b>9,088.65</b> · skip if it opens above 9,361.30
+Stop <b>8,608.30</b> (-5.3%) · trail 10.6%
+Profit marks 9,569.00 · 10,049.30 · 10,529.60
+near 52-wk high · low volatility · delivery ~56%
 
-+53 more qualify but are already on your list.
++42 more qualify but are already on your list.
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>CEMPRO</b> 💪 · Quality 57/100 · 12-mo +67%
-4.4% below its 50-day high (1,414.30)
-<b>LENSKART</b> · Quality 97/100 · 12-mo +78%
-3.1% below its 50-day high (762.75)
-<b>TITAN</b> · Quality 96/100 · 12-mo +29%
-3.2% below its 50-day high (5,072.50)
-<b>ADANIPOWER</b> · Quality 79/100 · 12-mo +38%
-3.7% below its 50-day high (216.10)
-<b>EMCURE</b> · Quality 55/100 · 12-mo +71%
-3.7% below its 50-day high (2,429.90)
-+6 more building up (all of them are in the dashboard)
+<b>CEMPRO</b> 💪 · Quality 59/100 · 12-mo +65%
+4.2% below its 50-day high (1,414.30)
+<b>EMCURE</b> · Quality 56/100 · 12-mo +75%
+3.9% below its 50-day high (2,429.90)
+<b>LENSKART</b> · Quality 97/100 · 12-mo +74%
+4.0% below its 50-day high (762.75)
+<b>ADANIPOWER</b> · Quality 82/100 · 12-mo +35%
+5.0% below its 50-day high (216.10)
+<b>CRAFTSMAN</b> · Quality 60/100 · 12-mo +61%
+5.4% below its 50-day high (11,999.00)
++3 more building up (all of them are in the dashboard)
 
 📒 <b>YOUR LIST</b>
-• <b>TATASTEEL</b> - sold at 179.73: stop-loss hit (-1.1R, -7.0% after costs)
-• <b>ALKEM</b> - buy order expired; no trade
-• <b>ANTHEM</b> - buy order expired; no trade
-• <b>VBL</b> - buy order expired; no trade
-• <b>BPCL</b> - buy order expired; no trade
-• <b>NTPC</b> - buy order expired; no trade
-• <b>CHOLAFIN</b> - bought at 1,873.15 (buy order triggered)
-• <b>360ONE</b> - bought at 1,209.40 (buy order triggered)
-• <b>ITCHOTELS</b> - bought at 179.90 (buy order triggered)
-• <b>ADANIENSOL</b> - bought at 1,483.00 (buy order triggered)
-• <b>ASIANPAINT</b> - bought at 2,624.65 (buy order triggered)
+• <b>GILLETTE</b> - buy order expired; no trade
 
 <b>BOUGHT, NOT SOLD YET (75)</b> - sell if the price falls to:
 ASIANPAINT 2,446.00 · ADANIENSOL 1,368.75
@@ -49,20 +37,24 @@ CHOLAFIN 1,733.96 · 360ONE 1,115.06
 ANGELONE 317.55 · ITCHOTELS 165.36
 FEDERALBNK 339.69 · PETRONET 306.01
 FLUOROCHEM 4,472.33 · KARURVYSYA 355.10
-SANSERA 4,257.16 · SBIN 1,003.89
+SANSERA 4,257.16 · SBIN 1,010.49↑
 IOC 140.26 · MGL 1,057.51
 MEESHO 223.52 · ABCAPITAL 381.82
 RADICO 4,302.32 · PAYTM 1,706.27
 SHREECEM 23,765.61 · KPRMILL 1,101.98
 SBILIFE 1,699.56 · SAILIFE 1,657.85
+↑ = moved up today
 ...and 51 more in the dashboard
 
-<b>WAITING TO BUY (6)</b> - buy when the price rises to:
-EICHERMOT 7,962.90 · UNITDSPR 1,492.90
+<b>WAITING TO BUY (11)</b> - buy when the price rises to:
+BAJAJHLDNG 11,471.90 · UNOMINDA 1,409.35
+CANBK 137.10 · IGIL 454.60
+POONAWALLA 499.45 · EICHERMOT 7,962.90
+WELSPUNLIV 268.05 · UNITDSPR 1,492.90
 BEL 416.85 · LTTS 4,356.10
-M&amp;M 3,471.95 · GILLETTE 7,615.20
+M&amp;M 3,471.95
 
 🧾 <i>Record since 21 Oct: 5 sold, 0% won, average -1.05R (-7.4% per trade after costs) - too few to judge yet (need 30+)
-Open now: 52 of 75 up, average +3.2% after costs (not final)</i>
+Open now: 45 of 75 up, average +2.8% after costs (not final)</i>
 <i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 810% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 880% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
