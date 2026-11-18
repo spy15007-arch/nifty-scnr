@@ -1,20 +1,44 @@
-🌙 <b>BTST SCAN</b> · Tue 17 Nov, 2:47 PM · live prices
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.6% today · global hostile
-📊 <b>BREADTH</b> 57% (stocks above their 50-day average) - mixed market
+🌙 <b>BTST SCAN</b> · Wed 18 Nov, 2:46 PM · live prices
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -0.6% today · global supportive
+📊 <b>BREADTH</b> 58% (stocks above their 50-day average) - mixed market
 
-ℹ️ Quick check of last night's 149-stock watchlist (16 Nov close) with live quotes; breadth is as of that close
+ℹ️ Quick check of last night's 150-stock watchlist (17 Nov close) with live quotes; breadth is as of that close
 
 <b>PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. EICHERMOT</b> 👀 About to break out (1.8% below the 50-day high) · Quality 83/100 · Auto
-Buy at <b>7,962.90</b> · skip if it opens above 8,201.75
-Stop <b>7,436.15</b> (-6.6%) · trail 13.2%
-Profit marks 8,489.65 · 9,016.35 · 9,543.10
-very liquid · near 52-wk high · delivery ~52%
+<b>1. BAJAJHLDNG</b> 👀 About to break out (2.1% below the 50-day high) · Quality 61/100
+Buy at <b>11,471.90</b> · skip if it opens above 11,816.05
+Stop <b>10,750.10</b> (-6.3%) · trail 12.6%
+Profit marks 12,193.70 · 12,915.50 · 13,637.30
+low volatility · near 52-wk high · delivery ~47%
 
-+52 more qualify but are already on your list.
+<b>2. UNOMINDA</b> 👀 About to break out (2.7% below the 50-day high) · Quality 55/100 · Auto
+Buy at <b>1,409.35</b> · skip if it opens above 1,451.60
+Stop <b>1,278.60</b> (-9.3%) · trail 18.5%
+Profit marks 1,540.10 · 1,670.80 · 1,801.50
+near 52-wk high · very liquid · delivery ~47%
 
-🧾 <i>Record since 21 Oct: 4 sold, 0% won, average -1.05R (-7.5% per trade after costs) - too few to judge yet (need 30+)
-Open now: 46 of 71 up, average +2.9% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 890% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+<b>3. CANBK</b> 👀 About to break out (2.7% below the 50-day high) · Quality 54/100 · Bank
+Buy at <b>137.10</b> · skip if it opens above 141.20
+Stop <b>128.95</b> (-5.9%) · trail 11.9%
+Profit marks 145.25 · 153.40 · 161.55
+low volatility · very liquid · delivery ~45%
+
+<b>4. IGIL</b> 👀 About to break out (1.9% below the 50-day high) · Quality 53/100
+Buy at <b>454.60</b> · skip if it opens above 468.20
+Stop <b>408.60</b> (-10.1%) · trail 20.2%
+Profit marks 500.60 · 546.55 · 592.50
+near 52-wk high · 200-day trend rising · delivery ~47%
+
+<b>5. POONAWALLA</b> 👀 About to break out (0.4% below the 50-day high) · Quality 53/100
+Buy at <b>499.45</b> · skip if it opens above 514.40
+Stop <b>453.45</b> (-9.2%) · trail 18.4%
+Profit marks 545.45 · 591.45 · 637.40
+near 52-wk high · very liquid · delivery ~45%
+
++42 more qualify but are already on your list.
+
+🧾 <i>Record since 21 Oct: 5 sold, 0% won, average -1.05R (-7.4% per trade after costs) - too few to judge yet (need 30+)
+Open now: 52 of 75 up, average +3.2% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 880% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
