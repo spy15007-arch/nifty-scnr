@@ -1,45 +1,14 @@
 {
- "at": "2026-11-19 14:47 IST",
- "budget_s": 1130,
+ "at": "2026-11-20 14:46 IST",
+ "budget_s": 0,
  "kind": "watchlist",
- "loaded": 149,
+ "loaded": 150,
  "market_line_source": "^NSEI",
  "quote_note": "",
  "requested": 150,
  "route": "quotes",
  "scan": "btst",
- "scored": 149,
- "seconds": 65,
- "store": {
-  "cooldowns": 0,
-  "errors": [
-   [
-    "Access denied because of exceeding access rate",
-    2
-   ]
-  ],
-  "failed": 1,
-  "loaded": 2,
-  "no_data": [],
-  "no_data_n": 0,
-  "not_found": [],
-  "not_found_n": 0,
-  "not_reached": 0,
-  "pace": {
-   "calls": 10,
-   "rate_limited": 8,
-   "refused": 8,
-   "slowed_calls": 8,
-   "slowest_calls": 8,
-   "wait_now_s": 2.5
-  },
-  "recovered": 0,
-  "refused": [
-   "HONASA"
-  ],
-  "refused_n": 1,
-  "requested": 3,
-  "seconds": 53,
-  "stopped": ""
- }
+ "scored": 150,
+ "seconds": 12,
+ "store": {}
 }
