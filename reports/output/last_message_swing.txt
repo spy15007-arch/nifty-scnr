@@ -1,86 +1,77 @@
-📈 <b>SWING SCAN</b> · Thu 19 Nov · today's close
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.9% today · global neutral
-📊 <b>BREADTH</b> 58% (stocks above their 50-day average) - mixed market
+📈 <b>SWING SCAN</b> · Fri 20 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.2% today · global hostile
+📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>CEMPRO</b> 👀 💪 · Quality 55/100 · picked 19 Nov
-Buy at <b>1,417.15</b> · order valid 5 more sessions
-Profit marks 1,562.40 · 1,707.65 · 1,852.90
-<b>HEROMOTOCO</b> 🔥 · Quality 63/100 · picked 19 Nov
-Buy at <b>5,561.10</b> · order valid 5 more sessions
-Profit marks 5,883.80 · 6,206.45 · 6,529.10
+<b>LENSKART</b> 👀 · Quality 99/100 · picked 19 Nov
+Buy at <b>764.30</b> · order valid 4 more sessions
+Profit marks 826.85 · 889.35 · 951.85
+<b>MANKIND</b> 👀 · Quality 88/100 · picked 20 Nov
+Buy at <b>2,710.45</b> · order valid 5 more sessions
+Profit marks 2,857.95 · 3,005.45 · 3,152.90
+<b>LICI</b> 👀 · Quality 83/100 · picked 20 Nov
+Buy at <b>418.65</b> · order valid 5 more sessions
+Profit marks 442.55 · 466.40 · 490.25
++6 more earlier picks also still qualify (on your list)
 
 <b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. LENSKART</b> 👀 About to break out (2.8% below the 50-day high) · Quality 97/100
-Buy at <b>764.30</b> · skip if it opens above 787.20
-Stop <b>701.75</b> (-8.2%) · trail 16.4%
-Profit marks 826.85 · 889.35 · 951.85
-strong 12-mo return · 200-day trend rising · delivery ~59%
-
-<b>2. PIDILITIND</b> 👀 About to break out (3.0% below the 50-day high) · Quality 84/100
-Buy at <b>1,632.20</b> · skip if it opens above 1,681.15
-Stop <b>1,536.65</b> (-5.9%) · trail 11.7%
-Profit marks 1,727.75 · 1,823.25 · 1,918.75
+<b>1. ICICIGI</b> 👀 About to break out (2.8% below the 50-day high) · Quality 52/100
+Buy at <b>1,789.60</b> · skip if it opens above 1,843.25
+Stop <b>1,685.75</b> (-5.8%) · trail 11.6%
+Profit marks 1,893.45 · 1,997.25 · 2,101.05
 low volatility · near 52-wk high · delivery ~57%
 
-<b>3. ADANIPOWER</b> 👀 About to break out (2.6% below the 50-day high) · Quality 77/100 · Energy
-Buy at <b>216.55</b> · skip if it opens above 223.00
-Stop <b>204.55</b> (-5.5%) · trail 11.1%
-Profit marks 228.55 · 240.50 · 252.50
-low volatility · very liquid · delivery ~38%
+<b>2. SRF</b> 👀 About to break out (2.1% below the 50-day high) · Quality 51/100
+Buy at <b>2,575.05</b> · skip if it opens above 2,652.30
+Stop <b>2,450.60</b> (-4.8%) · trail 9.7%
+Profit marks 2,699.50 · 2,823.95 · 2,948.40
+low volatility · delivery ~51%
 
-+57 more qualify but are already on your list.
++58 more qualify but are already on your list.
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>MEDANTA</b> · Quality 60/100 · 12-mo +23%
-3.2% below its 50-day high (1,527.00)
-<b>EMCURE</b> · Quality 64/100 · 12-mo +70%
-3.5% below its 50-day high (2,429.90)
-<b>RKFORGE</b> · Quality 72/100 · 12-mo +38%
-4.5% below its 50-day high (804.00)
-<b>ENGINERSIN</b> · Quality 61/100 · 12-mo +61%
-5.0% below its 50-day high (323.65)
-<b>GESHIP</b> · Quality 51/100 · 12-mo +37%
-5.6% below its 50-day high (1,647.00)
-+1 more building up (all of them are in the dashboard)
+<b>EMCURE</b> · Quality 75/100 · 12-mo +71%
+3.7% below its 50-day high (2,429.90)
+<b>URBANCO</b> · Quality 52/100 · 12-mo +20%
+5.1% below its 50-day high (178.00)
 
 📒 <b>YOUR LIST</b>
-• <b>PAYTM</b> - sold at 1,706.27: stop-loss hit (-1.0R, -8.6% after costs)
-• <b>BEL</b> - buy order expired; no trade
-• <b>LTTS</b> - buy order expired; no trade
-• <b>M&amp;M</b> - bought at 3,471.95 (buy order triggered)
-• <b>EICHERMOT</b> - bought at 7,962.90 (buy order triggered)
-• <b>UNOMINDA</b> - bought at 1,409.35 (buy order triggered)
-• <b>POONAWALLA</b> - bought at 503.00 (buy order triggered)
+• <b>WELSPUNLIV</b> - bought at 268.05 (buy order triggered)
+• <b>BAJAJHLDNG</b> - bought at 11,471.90 (buy order triggered)
+• <b>CANBK</b> - bought at 137.10 (buy order triggered)
+• <b>APOLLOHOSP</b> - bought at 9,088.65 (buy order triggered)
+• <b>CEMPRO</b> - bought at 1,417.15 (buy order triggered)
+• <b>HEROMOTOCO</b> - bought at 5,561.10 (buy order triggered)
+• <b>CRAFTSMAN</b> - bought at 12,023.00 (buy order triggered)
 
-<b>BOUGHT, NOT SOLD YET (78)</b> - sell if the price falls to:
-UNOMINDA 1,278.64 · POONAWALLA 456.70
-EICHERMOT 7,436.18 · ASIANPAINT 2,446.00
-ADANIENSOL 1,368.75 · CUPID 349.48
-INDUSTOWER 374.15 · CHOLAFIN 1,733.96
-360ONE 1,115.06 · ANGELONE 317.55
-ITCHOTELS 165.36 · M&amp;M 3,258.85
-FEDERALBNK 339.69 · PETRONET 306.01
-FLUOROCHEM 4,472.33 · KARURVYSYA 355.10
-SANSERA 4,257.16 · SBIN 1,029.19↑
-IOC 140.26 · MGL 1,057.51
-MEESHO 223.52 · ABCAPITAL 381.82
-RADICO 4,302.32 · SHREECEM 23,765.61
-↑ = moved up today
-...and 54 more in the dashboard
+<b>BOUGHT, NOT SOLD YET (85)</b> - sell if the price falls to:
+CEMPRO 1,271.91 · HEROMOTOCO 5,238.44
+CRAFTSMAN 11,026.89 · BAJAJHLDNG 10,750.11
+UNOMINDA 1,278.64 · CANBK 128.96
+POONAWALLA 456.70 · APOLLOHOSP 8,608.34
+EICHERMOT 7,436.18 · WELSPUNLIV 230.63
+ASIANPAINT 2,446.00 · ADANIENSOL 1,368.75
+CUPID 349.48 · INDUSTOWER 374.15
+CHOLAFIN 1,733.96 · 360ONE 1,115.06
+ANGELONE 317.55 · ITCHOTELS 165.36
+M&amp;M 3,258.85 · FEDERALBNK 339.69
+PETRONET 306.01 · FLUOROCHEM 4,472.33
+KARURVYSYA 355.10 · SANSERA 4,257.16
+...and 61 more in the dashboard
 
-<b>WAITING TO BUY (11)</b> - buy when the price rises to:
-CEMPRO 1,417.15 · SUNPHARMA 1,947.80
-HEROMOTOCO 5,561.10 · CRAFTSMAN 12,023.00
-PRESTIGE 1,707.55 · BAJAJHLDNG 11,471.90
-CANBK 137.10 · IGIL 454.60
-APOLLOHOSP 9,088.65 · WELSPUNLIV 268.05
+<b>WAITING TO BUY (15)</b> - buy when the price rises to:
+MANKIND 2,710.45 · LICI 418.65
+ANURAS 1,333.10 · MEDANTA 1,530.10
+BAJAJFINSV 1,955.85 · OBEROIRLTY 1,886.70
+TMCV 465.35 · PNBHOUSING 1,227.25
+SUNPHARMA 1,947.80 · PRESTIGE 1,707.55
+LENSKART 764.30 · PIDILITIND 1,632.20
+ADANIPOWER 216.55 · IGIL 454.60
 UNITDSPR 1,492.90
 
 🧾 <i>Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
-Open now: 52 of 78 up, average +3.5% after costs (not final)</i>
-<i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 950% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+Open now: 61 of 85 up, average +3.9% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1110% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
