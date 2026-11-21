@@ -1,72 +1,33 @@
-🌙 <b>BTST SCAN</b> · Fri 20 Nov, 2:46 PM · live prices
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.9% today · global hostile
-📊 <b>BREADTH</b> 58% (stocks above their 50-day average) - mixed market
-
-ℹ️ Quick check of last night's 150-stock watchlist (19 Nov close) with live quotes; breadth is as of that close
+🌙 <b>BTST SCAN</b> · Sat 21 Nov · close of Fri 20 Nov
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.2% last session · global hostile
+📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
 <b>LENSKART</b> 👀 · Quality 99/100 · picked 19 Nov
-Buy at <b>764.30</b> · order valid 5 more sessions
+Buy at <b>764.30</b> · order valid 4 more sessions
 Profit marks 826.85 · 889.35 · 951.85
-<b>SUNPHARMA</b> 👀 · Quality 92/100 · picked 19 Nov
-Buy at <b>1,947.80</b> · order valid 5 more sessions
-Profit marks 2,065.25 · 2,182.65 · 2,300.05
+<b>MANKIND</b> 👀 · Quality 89/100 · picked 20 Nov
+Buy at <b>2,710.45</b> · order valid 5 more sessions
+Profit marks 2,857.95 · 3,005.45 · 3,152.90
 
 <b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. MANKIND</b> 👀 About to break out (1.9% below the 50-day high) · Quality 87/100 · Pharma
-Buy at <b>2,710.45</b> · skip if it opens above 2,791.75
-Stop <b>2,562.95</b> (-5.4%) · trail 10.9%
-Profit marks 2,857.95 · 3,005.45 · 3,152.90
-near 52-wk high · low volatility · delivery ~50%
+<b>1. RELIANCE</b> 👀 About to break out (0.4% below the 50-day high) · Quality 84/100 · Energy
+Buy at <b>1,385.80</b> · skip if it opens above 1,427.35
+Stop <b>1,326.85</b> (-4.3%) · trail 8.5%
+Profit marks 1,444.75 · 1,503.65 · 1,562.60
+very liquid · low volatility · delivery ~50%
 
-<b>2. LICI</b> 👀 About to break out (2.2% below the 50-day high) · Quality 84/100
-Buy at <b>418.65</b> · skip if it opens above 431.20
-Stop <b>394.75</b> (-5.7%) · trail 11.4%
-Profit marks 442.55 · 466.40 · 490.25
+<b>2. POWERGRID</b> 👀 About to break out (1.8% below the 50-day high) · Quality 73/100 · Energy
+Buy at <b>274.60</b> · skip if it opens above 282.80
+Stop <b>258.25</b> (-5.9%) · trail 11.9%
+Profit marks 290.95 · 307.25 · 323.55
 low volatility · very liquid · delivery ~60%
-
-<b>3. ANURAS</b> 👀 About to break out (0.9% below the 50-day high) · Quality 71/100
-Buy at <b>1,333.10</b> · skip if it opens above 1,373.05
-Stop <b>1,261.85</b> (-5.3%) · trail 10.7%
-Profit marks 1,404.35 · 1,475.60 · 1,546.80
-low volatility · near 52-wk high · delivery ~60%
-
-<b>4. MEDANTA</b> 👀 About to break out (3.0% below the 50-day high) · Quality 68/100
-Buy at <b>1,530.10</b> · skip if it opens above 1,576.00
-Stop <b>1,418.00</b> (-7.3%) · trail 14.6%
-Profit marks 1,642.20 · 1,754.25 · 1,866.30
-near 52-wk high · 200-day trend rising · delivery ~56%
-
-<b>5. BAJAJFINSV</b> 👀 About to break out (2.7% below the 50-day high) · Quality 59/100
-Buy at <b>1,955.85</b> · skip if it opens above 2,014.50
-Stop <b>1,830.90</b> (-6.4%) · trail 12.8%
-Profit marks 2,080.80 · 2,205.70 · 2,330.65
-low volatility · near 52-wk high · delivery ~51%
-
-<b>6. OBEROIRLTY</b> 👀 About to break out (2.4% below the 50-day high) · Quality 58/100 · Realty
-Buy at <b>1,886.70</b> · skip if it opens above 1,943.30
-Stop <b>1,749.05</b> (-7.3%) · trail 14.6%
-Profit marks 2,024.35 · 2,162.00 · 2,299.65
-near 52-wk high · low volatility · delivery ~52%
-
-<b>7. TMCV</b> 👀 About to break out (2.6% below the 50-day high) · Quality 55/100
-Buy at <b>465.35</b> · skip if it opens above 479.30
-Stop <b>425.20</b> (-8.6%) · trail 17.2%
-Profit marks 505.50 · 545.60 · 585.70
-very liquid · strong 12-mo return · delivery ~47%
 ⚠️ Already spiked 4% in 5 days - buy in continuation, not on a dip
 
-<b>8. PNBHOUSING</b> 👀 About to break out (2.1% below the 50-day high) · Quality 54/100
-Buy at <b>1,227.25</b> · skip if it opens above 1,264.05
-Stop <b>1,148.95</b> (-6.4%) · trail 12.8%
-Profit marks 1,305.55 · 1,383.85 · 1,462.15
-near 52-wk high · low volatility · delivery ~46%
-⚠️ 200-day trend rising, but already spiked 7% in 5 days - buy in continuation, not on a dip
-
-+55 more qualify but are already on your list.
++65 more qualify but are already on your list.
 
 🧾 <i>Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
-Open now: 52 of 78 up, average +3.5% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1080% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+Open now: 61 of 85 up, average +3.9% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1150% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
