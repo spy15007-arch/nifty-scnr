@@ -1,6 +1,8 @@
-🌙 <b>BTST SCAN</b> · Sat 21 Nov · close of Fri 20 Nov
+🌙 <b>BTST SCAN</b> · Sun 22 Nov · close of Fri 20 Nov
 🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.2% last session · global hostile
 📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
+
+<b>NO NEW PICK.</b> 495 stocks checked, 129 in a breakout setup, 69 passed the quality filter - all already on your list.
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
 <b>LENSKART</b> 👀 · Quality 99/100 · picked 19 Nov
@@ -9,24 +11,10 @@ Profit marks 826.85 · 889.35 · 951.85
 <b>MANKIND</b> 👀 · Quality 89/100 · picked 20 Nov
 Buy at <b>2,710.45</b> · order valid 5 more sessions
 Profit marks 2,857.95 · 3,005.45 · 3,152.90
-
-<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
-Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
-
-<b>1. RELIANCE</b> 👀 About to break out (0.4% below the 50-day high) · Quality 84/100 · Energy
-Buy at <b>1,385.80</b> · skip if it opens above 1,427.35
-Stop <b>1,326.85</b> (-4.3%) · trail 8.5%
+<b>RELIANCE</b> 👀 · Quality 84/100 · picked 20 Nov
+Buy at <b>1,385.80</b> · order valid 5 more sessions
 Profit marks 1,444.75 · 1,503.65 · 1,562.60
-very liquid · low volatility · delivery ~50%
-
-<b>2. POWERGRID</b> 👀 About to break out (1.8% below the 50-day high) · Quality 73/100 · Energy
-Buy at <b>274.60</b> · skip if it opens above 282.80
-Stop <b>258.25</b> (-5.9%) · trail 11.9%
-Profit marks 290.95 · 307.25 · 323.55
-low volatility · very liquid · delivery ~60%
-⚠️ Already spiked 4% in 5 days - buy in continuation, not on a dip
-
-+65 more qualify but are already on your list.
++10 more earlier picks also still qualify (on your list)
 
 🧾 <i>Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
 Open now: 61 of 85 up, average +3.9% after costs (not final)</i>

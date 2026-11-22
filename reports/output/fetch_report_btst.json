@@ -1,5 +1,5 @@
 {
- "at": "2026-11-21 15:02 IST",
+ "at": "2026-11-22 15:03 IST",
  "budget_s": 4500,
  "kind": "universe",
  "loaded": 495,
@@ -9,7 +9,7 @@
  "route": "candles",
  "scan": "btst",
  "scored": 487,
- "seconds": 1013,
+ "seconds": 1029,
  "store": {
   "cooldowns": 0,
   "errors": [],
@@ -18,11 +18,11 @@
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "EMBASSY",
-   "HFCL",
    "DUMMYHEG",
-   "STLTECH",
+   "EMBASSY",
    "BIRET",
+   "STLTECH",
+   "HFCL",
    "BAGMANE"
   ],
   "not_found_n": 6,
@@ -31,15 +31,15 @@
    "calls": 513,
    "rate_limited": 18,
    "refused": 18,
-   "slowed_calls": 156,
-   "slowest_calls": 156,
-   "wait_now_s": 0.4
+   "slowed_calls": 153,
+   "slowest_calls": 153,
+   "wait_now_s": 2.5
   },
   "recovered": 0,
   "refused": [],
   "refused_n": 0,
   "requested": 501,
-  "seconds": 1013,
+  "seconds": 1029,
   "stopped": ""
  }
 }

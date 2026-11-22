@@ -1,4 +1,43 @@
 <!-- scan-section -->
+# 🌙 BTST scan - Sun 22 Nov 2026, 3:03 PM IST
+
+*Based on the close of Fri 20 Nov 2026*
+
+**Market:** 🧭 🟢 Bullish · Nifty +1.2% last session · global hostile
+
+**Breadth:** 59% of liquid stocks are above their 50-day average (mixed)
+
+*Funnel: 495 stocks checked → 15 fresh breakouts + 114 about to break → 69 in the top half by quality → 0 listed, 69 already on the list*
+
+| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
+| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
+| - | No new pick | - | - | - | - | - | - |
+
+**Earlier picks, still strong** (picked before, order still waiting - no new order):
+
+- **LENSKART** - picked 2026-11-19, buy at 764.30 (order still waiting, valid 4 more sessions), quality 99/100, profit marks 826.85 · 889.35 · 951.85
+- **MANKIND** - picked 2026-11-20, buy at 2,710.45 (order still waiting, valid 5 more sessions), quality 89/100, profit marks 2,857.95 · 3,005.45 · 3,152.90
+- **RELIANCE** - picked 2026-11-20, buy at 1,385.80 (order still waiting, valid 5 more sessions), quality 84/100, profit marks 1,444.75 · 1,503.65 · 1,562.60
+- **LICI** - picked 2026-11-20, buy at 418.65 (order still waiting, valid 5 more sessions), quality 83/100, profit marks 442.55 · 466.40 · 490.25
+- **ADANIPOWER** - picked 2026-11-19, buy at 216.55 (order still waiting, valid 4 more sessions), quality 77/100, profit marks 228.55 · 240.50 · 252.50
+- **POWERGRID** - picked 2026-11-20, buy at 274.60 (order still waiting, valid 5 more sessions), quality 73/100, profit marks 290.95 · 307.25 · 323.55
+- **PIDILITIND** - picked 2026-11-19, buy at 1,632.20 (order still waiting, valid 4 more sessions), quality 69/100, profit marks 1,727.75 · 1,823.25 · 1,918.75
+- **UNITDSPR** - picked 2026-11-16, buy at 1,492.90 (order still waiting, valid 1 more session), quality 67/100, profit marks 1,589.70 · 1,686.50 · 1,783.30
+- **PNBHOUSING** - picked 2026-11-20, buy at 1,227.25 (order still waiting, valid 5 more sessions), quality 61/100, profit marks 1,305.55 · 1,383.85 · 1,462.15
+- **OBEROIRLTY** - picked 2026-11-20, buy at 1,886.70 (order still waiting, valid 5 more sessions), quality 59/100, profit marks 2,024.35 · 2,162.00 · 2,299.65
+- **TMCV** - picked 2026-11-20, buy at 465.35 (order still waiting, valid 5 more sessions), quality 54/100, profit marks 505.50 · 545.60 · 585.70
+- **ICICIGI** - picked 2026-11-20, buy at 1,789.60 (order still waiting, valid 5 more sessions), quality 52/100, profit marks 1,893.45 · 1,997.25 · 2,101.05
+- **SRF** - picked 2026-11-20, buy at 2,575.05 (order still waiting, valid 5 more sessions), quality 51/100, profit marks 2,699.50 · 2,823.95 · 2,948.40
+
+Already on your list (not repeated): 360ONE, ABCAPITAL, ADANIENSOL, ADANIGREEN, ADANIPOWER, ANANDRATHI, ANURAS, APOLLOHOSP, ASIANPAINT, AXISBANK, BAJFINANCE, BHARTIARTL, CHOLAFIN, DLF, DRREDDY, EICHERMOT, FEDERALBNK, FLUOROCHEM, GAIL, GLAND
+
+---
+*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
+
+*Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
+Open now: 61 of 85 up, average +3.9% after costs (not final)*
+
+<!-- scan-section -->
 # 🌙 BTST scan - Sat 21 Nov 2026, 3:02 PM IST
 
 *Based on the close of Fri 20 Nov 2026*
@@ -1273,51 +1312,3 @@ YOUR LIST
 
 *Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
 Open now: 33 of 47 up, average +2.8% after costs (not final)*
-
-<!-- scan-section -->
-# 🌙 BTST scan - Sun 8 Nov 2026, 2:56 PM IST
-
-*Based on the close of Sun 08 Nov 2026*
-
-**Market:** 🧭 🟢 Bullish · Nifty +0.4% today · global hostile
-
-**Breadth:** 51% of liquid stocks are above their 50-day average (mixed)
-
-*Funnel: 495 stocks checked → 0 fresh breakouts + 96 about to break → 63 in the top half by quality → 7 listed, 56 already on the list*
-
-| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
-| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| 1 | **RADICO** | 👀 About to break out (2.9% below the 50-day high) | 84 | Buy at 4,689.40 (GTT / stop-limit buy order; skip if it opens above 4,830.05) | 4,302.30 (-8.3%) | 16.5% | 52% |
-| 2 | **PAYTM** | 👀 About to break out (3.0% below the 50-day high) | 80 | Buy at 1,859.25 (GTT / stop-limit buy order; skip if it opens above 1,915.00) | 1,706.25 (-8.2%) | 16.5% | 40% |
-| 3 | **JSWCEMENT** | 👀 About to break out (1.8% below the 50-day high) | 54 | Buy at 127.60 (GTT / stop-limit buy order; skip if it opens above 131.40) | 118.40 (-7.2%) | 14.4% | 50% |
-| 4 | **NH** | 👀 About to break out (1.4% below the 50-day high) | 54 | Buy at 1,956.85 (GTT / stop-limit buy order; skip if it opens above 2,015.55) | 1,808.70 (-7.6%) | 15.1% | 52% |
-| 5 | **STARHEALTH** | 👀 About to break out (2.7% below the 50-day high) | 51 | Buy at 589.20 (GTT / stop-limit buy order; skip if it opens above 606.85) | 535.45 (-9.1%) | 18.2% | 58% |
-| 6 | **SHREECEM** | 👀 About to break out (0.8% below the 50-day high) | 50 | Buy at 25,305.55 (GTT / stop-limit buy order; skip if it opens above 26,064.70) | 23,765.60 (-6.1%) | 12.2% | 50% |
-| 7 | **KPRMILL** | 👀 About to break out (2.4% below the 50-day high) | 50 | Buy at 1,208.95 (GTT / stop-limit buy order; skip if it opens above 1,245.20) | 1,101.95 (-8.8%) | 17.7% | 45% |
-
-**Earlier picks, still strong** (picked before, order still waiting - no new order):
-
-- **UNIONBANK** - picked 2026-11-05, buy at 192.75 (order still waiting, valid 3 more sessions), quality 95/100, profit marks 205.30 · 217.80 · 230.30
-- **CIPLA** - picked 2026-11-04, buy at 1,446.50 (order still waiting, valid 2 more sessions), quality 91/100, profit marks 1,519.65 · 1,592.80 · 1,665.95
-- **LT** - picked 2026-11-05, buy at 4,133.60 (order still waiting, valid 3 more sessions), quality 90/100, profit marks 4,353.75 · 4,573.90 · 4,794.05
-
-Already on your list (not repeated): ADANIGREEN, ADANIPORTS, ANANDRATHI, ATHERENERG, AUROPHARMA, AXISBANK, BAJFINANCE, BANKBARODA, BHARTIARTL, BOSCHLTD, BSE, CIPLA, COFORGE, DIVISLAB, DLF, DRREDDY, ETERNAL, GAIL, GLAND, GROWW
-
-## Trades already on your list
-
-YOUR LIST
-• INDHOTEL - raise your stop-loss 774.07 → 779.91
-• DIVISLAB - raise your stop-loss 9,102.21 → 9,366.91
-• POWERGRID - buy order expired; no trade
-• RELIANCE - buy order expired; no trade
-• ICICIBANK - raise your stop-loss 1,415.29 → 1,417.00
-• TATACONSUM - bought at 1,086.90 (buy order triggered)
-• TVSMOTOR - bought at 4,505.10 (buy order triggered)
-• MAHABANK - bought at 87.70 (buy order triggered)
-• PPLPHARMA - bought at 243.70 (buy order triggered)
-
----
-*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
-
-*Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
-Open now: 34 of 47 up, average +3.1% after costs (not final)*
