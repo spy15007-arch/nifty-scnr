@@ -1,77 +1,73 @@
-# 📈 Swing scan - Fri 20 Nov 2026, 4:38 PM IST
+# 📈 Swing scan - Mon 23 Nov 2026, 4:44 PM IST
 
-*Based on the close of Fri 20 Nov 2026*
+*Based on the close of Mon 23 Nov 2026*
 
-**Market:** 🧭 🟢 Bullish · Nifty +1.2% today · global hostile
+**Market:** 🧭 🟢 Mildly bullish · Nifty -1.6% today · global hostile
 
-**Breadth:** 59% of liquid stocks are above their 50-day average (mixed)
+**Breadth:** 56% of liquid stocks are above their 50-day average (mixed)
 
-*Funnel: 495 stocks checked → 15 fresh breakouts + 113 about to break → 69 in the top half by quality → 2 listed, 67 already on the list*
+*Funnel: 495 stocks checked → 2 fresh breakouts + 77 about to break → 41 in the top half by quality → 0 listed, 41 already on the list*
 
 | # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| 1 | **ICICIGI** | 👀 About to break out (2.8% below the 50-day high) | 52 | Buy at 1,789.60 (GTT / stop-limit buy order; skip if it opens above 1,843.25) | 1,685.75 (-5.8%) | 11.6% | 57% |
-| 2 | **SRF** | 👀 About to break out (2.1% below the 50-day high) | 51 | Buy at 2,575.05 (GTT / stop-limit buy order; skip if it opens above 2,652.30) | 2,450.60 (-4.8%) | 9.7% | 51% |
+| - | No new pick | - | - | - | - | - | - |
 
 **Earlier picks, still strong** (picked before, order still waiting - no new order):
 
-- **LENSKART** - picked 2026-11-19, buy at 764.30 (order still waiting, valid 4 more sessions), quality 99/100, profit marks 826.85 · 889.35 · 951.85
-- **MANKIND** - picked 2026-11-20, buy at 2,710.45 (order still waiting, valid 5 more sessions), quality 88/100, profit marks 2,857.95 · 3,005.45 · 3,152.90
-- **LICI** - picked 2026-11-20, buy at 418.65 (order still waiting, valid 5 more sessions), quality 83/100, profit marks 442.55 · 466.40 · 490.25
-- **ADANIPOWER** - picked 2026-11-19, buy at 216.55 (order still waiting, valid 4 more sessions), quality 77/100, profit marks 228.55 · 240.50 · 252.50
-- **PIDILITIND** - picked 2026-11-19, buy at 1,632.20 (order still waiting, valid 4 more sessions), quality 69/100, profit marks 1,727.75 · 1,823.25 · 1,918.75
-- **UNITDSPR** - picked 2026-11-16, buy at 1,492.90 (order still waiting, valid 1 more session), quality 67/100, profit marks 1,589.70 · 1,686.50 · 1,783.30
-- **PNBHOUSING** - picked 2026-11-20, buy at 1,227.25 (order still waiting, valid 5 more sessions), quality 61/100, profit marks 1,305.55 · 1,383.85 · 1,462.15
-- **OBEROIRLTY** - picked 2026-11-20, buy at 1,886.70 (order still waiting, valid 5 more sessions), quality 59/100, profit marks 2,024.35 · 2,162.00 · 2,299.65
-- **TMCV** - picked 2026-11-20, buy at 465.35 (order still waiting, valid 5 more sessions), quality 54/100, profit marks 505.50 · 545.60 · 585.70
+- **LICI** - picked 2026-11-20, buy at 418.65 (order still waiting, valid 4 more sessions), quality 83/100, profit marks 442.55 · 466.40 · 490.25
+- **PIDILITIND** - picked 2026-11-19, buy at 1,632.20 (order still waiting, valid 3 more sessions), quality 76/100, profit marks 1,727.75 · 1,823.25 · 1,918.75
+- **ICICIGI** - picked 2026-11-20, buy at 1,789.60 (order still waiting, valid 4 more sessions), quality 52/100, profit marks 1,893.45 · 1,997.25 · 2,101.05
+- **OBEROIRLTY** - picked 2026-11-20, buy at 1,886.70 (order still waiting, valid 4 more sessions), quality 51/100, profit marks 2,024.35 · 2,162.00 · 2,299.65
 
-Already on your list (not repeated): 360ONE, ABCAPITAL, ADANIENSOL, ADANIGREEN, ADANIPOWER, ANANDRATHI, ANURAS, APOLLOHOSP, ASIANPAINT, AXISBANK, BAJFINANCE, BHARTIARTL, CHOLAFIN, DLF, DRREDDY, EICHERMOT, FEDERALBNK, FLUOROCHEM, GAIL, GLAND
+Already on your list (not repeated): 360ONE, ABCAPITAL, ANANDRATHI, ANURAS, APOLLOHOSP, ATHERENERG, BHARTIARTL, COFORGE, DLF, DRREDDY, EICHERMOT, FLUOROCHEM, GLENMARK, HEROMOTOCO, HONASA, ICICIGI, INDHOTEL, LALPATHLAB, M&M, MARICO
 
 **Building up, near a breakout** (watch only - no order yet): strong stocks 3%-6% below their 50-day high; one joins the picks when it gets within 3% of that high.
 
 | Stock | Quality | Below its 50-day high | 50-day high | 12-month return |
 | :-- | :-: | :-: | --: | :-: |
-| **EMCURE** | 75 | 3.7% | 2,429.90 | +71% |
-| **URBANCO** | 52 | 5.1% | 178.00 | +20% |
+| **KIMS** | 55 | 3.0% | 819.00 | +17% |
+| **TORNTPHARM** | 93 | 4.9% | 5,010.00 | +25% |
+| **EMCURE** | 78 | 4.9% | 2,429.90 | +66% |
+| **URBANCO** | 56 | 5.2% | 178.00 | +16% |
+| **JSWINFRA** | 64 | 5.8% | 375.50 | +26% |
 
 ## Trades already on your list
 
 YOUR LIST
-• WELSPUNLIV - bought at 268.05 (buy order triggered)
-• BAJAJHLDNG - bought at 11,471.90 (buy order triggered)
-• CANBK - bought at 137.10 (buy order triggered)
-• APOLLOHOSP - bought at 9,088.65 (buy order triggered)
-• CEMPRO - bought at 1,417.15 (buy order triggered)
-• HEROMOTOCO - bought at 5,561.10 (buy order triggered)
-• CRAFTSMAN - bought at 12,023.00 (buy order triggered)
+• UNITDSPR - buy order expired; no trade
+• ANURAS - bought at 1,337.70 (buy order triggered)
+• MEDANTA - bought at 1,530.10 (buy order triggered)
+• RELIANCE - bought at 1,385.80 (buy order triggered)
 
-BOUGHT, NOT SOLD YET (85) - sell if the price falls to:
-CEMPRO 1,271.91 · HEROMOTOCO 5,238.44
-CRAFTSMAN 11,026.89 · BAJAJHLDNG 10,750.11
-UNOMINDA 1,278.64 · CANBK 128.96
-POONAWALLA 456.70 · APOLLOHOSP 8,608.34
-EICHERMOT 7,436.18 · WELSPUNLIV 230.63
-ASIANPAINT 2,446.00 · ADANIENSOL 1,368.75
-CUPID 349.48 · INDUSTOWER 374.15
-CHOLAFIN 1,733.96 · 360ONE 1,115.06
-ANGELONE 317.55 · ITCHOTELS 165.36
-M&M 3,258.85 · FEDERALBNK 339.69
-PETRONET 306.01 · FLUOROCHEM 4,472.33
-KARURVYSYA 355.10 · SANSERA 4,257.16
-...and 61 more in the dashboard
+BOUGHT, NOT SOLD YET (88) - sell if the price falls to:
+ANURAS 1,266.22 · MEDANTA 1,418.05
+RELIANCE 1,326.88 · CEMPRO 1,271.91
+HEROMOTOCO 5,238.44 · CRAFTSMAN 11,026.89
+BAJAJHLDNG 10,750.11 · UNOMINDA 1,278.64
+CANBK 128.96 · POONAWALLA 456.70
+APOLLOHOSP 8,608.34 · EICHERMOT 7,436.18
+WELSPUNLIV 230.63 · ASIANPAINT 2,446.00
+ADANIENSOL 1,368.75 · CUPID 349.48
+INDUSTOWER 374.15 · CHOLAFIN 1,733.96
+360ONE 1,115.06 · ANGELONE 317.55
+ITCHOTELS 165.36 · M&M 3,258.85
+FEDERALBNK 339.69 · PETRONET 306.01
+...and 64 more in the dashboard
 
-WAITING TO BUY (15) - buy when the price rises to:
+WAITING TO BUY (19) - buy when the price rises to:
+LICHSGFIN 627.10 · DELHIVERY 467.00
+PRIVISCL 3,712.45 · SAGILITY 47.10
 MANKIND 2,710.45 · LICI 418.65
-ANURAS 1,333.10 · MEDANTA 1,530.10
 BAJAJFINSV 1,955.85 · OBEROIRLTY 1,886.70
 TMCV 465.35 · PNBHOUSING 1,227.25
-SUNPHARMA 1,947.80 · PRESTIGE 1,707.55
-LENSKART 764.30 · PIDILITIND 1,632.20
-ADANIPOWER 216.55 · IGIL 454.60
-UNITDSPR 1,492.90
+ICICIGI 1,789.60 · SRF 2,575.05
+POWERGRID 274.60 · SUNPHARMA 1,947.80
+PRESTIGE 1,707.55 · LENSKART 764.30
+PIDILITIND 1,632.20 · ADANIPOWER 216.55
+IGIL 454.60
 
 ---
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
 
 *Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
-Open now: 61 of 85 up, average +3.9% after costs (not final)*
+Open now: 53 of 88 up, average +2.7% after costs (not final)*
