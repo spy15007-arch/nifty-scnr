@@ -1,4 +1,39 @@
 <!-- scan-section -->
+# 🌙 BTST scan - Mon 23 Nov 2026, 2:46 PM IST
+
+*Live prices at 2:46 PM IST (today's volume projected to a full day)*
+
+**Market:** 🧭 🟢 Mildly bullish · Nifty -1.5% today · global hostile
+
+**Breadth:** 59% of liquid stocks are above their 50-day average (mixed)
+
+*Quick check of last night's 150-stock watchlist (20 Nov close) with live quotes; breadth is as of that close*
+
+*Funnel: 150 stocks checked → 2 fresh breakouts + 64 about to break → 60 in the top half by quality → 4 listed, 56 already on the list*
+
+| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
+| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
+| 1 | **LICHSGFIN** | 👀 About to break out (2.6% below the 50-day high) | 61 | Buy at 627.10 (GTT / stop-limit buy order; skip if it opens above 645.90) | 578.75 (-7.7%) | 15.4% | 47% |
+| 2 | **DELHIVERY** | 👀 About to break out (2.1% below the 50-day high) | 53 | Buy at 467.00 (GTT / stop-limit buy order; skip if it opens above 481.00) | 433.40 (-7.2%) | 14.4% | 49% |
+| 3 | **PRIVISCL** | 👀 About to break out (1.9% below the 50-day high) | 52 | Buy at 3,712.45 (GTT / stop-limit buy order; skip if it opens above 3,823.80) | 3,413.80 (-8.0%) | 16.1% | 57% |
+| 4 | **SAGILITY** | 👀 About to break out (2.0% below the 50-day high) | 50 | Buy at 47.10 (GTT / stop-limit buy order; skip if it opens above 48.50) | 43.85 (-6.9%) | 13.7% | 54% |
+
+**Earlier picks, still strong** (picked before, order still waiting - no new order):
+
+- **MANKIND** - picked 2026-11-20, buy at 2,710.45 (order still waiting, valid 5 more sessions), quality 90/100, profit marks 2,857.95 · 3,005.45 · 3,152.90
+- **LICI** - picked 2026-11-20, buy at 418.65 (order still waiting, valid 5 more sessions), quality 84/100, profit marks 442.55 · 466.40 · 490.25
+- **PIDILITIND** - picked 2026-11-19, buy at 1,632.20 (order still waiting, valid 4 more sessions), quality 77/100, profit marks 1,727.75 · 1,823.25 · 1,918.75
+- **UNITDSPR** - picked 2026-11-16, buy at 1,492.90 (order still waiting, valid 1 more session), quality 68/100, profit marks 1,589.70 · 1,686.50 · 1,783.30
+
+Already on your list (not repeated): ULTRACEMCO, PIDILITIND, ABCAPITAL, INDHOTEL, SHREECEM, MAHABANK, TATACONSUM, RELIANCE, BAJFINANCE, SBILIFE, EICHERMOT, GAIL, BHARTIARTL, JSWCEMENT, TRENT, POONAWALLA, M&M, PHOENIXLTD, ANURAS, RADICO
+
+---
+*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
+
+*Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
+Open now: 61 of 85 up, average +3.9% after costs (not final)*
+
+<!-- scan-section -->
 # 🌙 BTST scan - Sun 22 Nov 2026, 3:03 PM IST
 
 *Based on the close of Fri 20 Nov 2026*
@@ -1269,46 +1304,3 @@ MOTHERSON 171.05 · HONASA 494.00
 
 *Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
 Open now: 40 of 53 up, average +3.3% after costs (not final)*
-
-<!-- scan-section -->
-# 🌙 BTST scan - Mon 9 Nov 2026, 3:05 PM IST
-
-*Live prices at 3:05 PM IST (today's volume projected to a full day)*
-
-**Market:** 🧭 🟢 Bullish · Nifty -0.1% today · global supportive
-
-**Breadth:** 51% of liquid stocks are above their 50-day average (mixed)
-
-*Quick check of last night's 143-stock watchlist (8 Nov close) with live prices; breadth is as of that close*
-
-*Live quotes not used (quotes matched only 72 of 150 stocks); candles were fetched one by one instead*
-
-*3 of the 8 picks are in the same sector (Energy) - they tend to move together, so treat them as one position*
-
-*Funnel: 143 stocks checked → 8 fresh breakouts + 58 about to break → 61 in the top half by quality → 8 listed, 53 already on the list*
-
-| # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
-| :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| 1 | **SANSERA** 💪 | 👀 About to break out (1.7% below the 50-day high) | 91 | Buy at 4,753.00 (GTT / stop-limit buy order; skip if it opens above 4,895.55) | 4,257.15 (-10.4%) | 20.9% | 48% |
-| 2 | **SBIN** | 👀 About to break out (1.8% below the 50-day high) | 83 | Buy at 1,062.15 (GTT / stop-limit buy order; skip if it opens above 1,094.00) | 1,003.85 (-5.5%) | 11.0% | 50% |
-| 3 | **ALKEM** | 👀 About to break out (1.8% below the 50-day high) | 75 | Buy at 5,485.95 (GTT / stop-limit buy order; skip if it opens above 5,650.50) | 5,166.85 (-5.8%) | 11.6% | 54% |
-| 4 | **ANTHEM** | 👀 About to break out (2.9% below the 50-day high) | 60 | Buy at 991.10 (GTT / stop-limit buy order; skip if it opens above 1,020.80) | 918.95 (-7.3%) | 14.6% | 54% |
-| 5 | **VBL** | 👀 About to break out (2.4% below the 50-day high) | 58 | Buy at 445.25 (GTT / stop-limit buy order; skip if it opens above 458.60) | 409.85 (-7.9%) | 15.9% | 54% |
-| 6 | **BPCL** | 👀 About to break out (2.7% below the 50-day high) | 55 | Buy at 324.70 (GTT / stop-limit buy order; skip if it opens above 334.40) | 301.75 (-7.1%) | 14.1% | 55% |
-| 7 | **IOC** | 👀 About to break out (1.3% below the 50-day high) | 52 | Buy at 149.40 (GTT / stop-limit buy order; skip if it opens above 153.85) | 140.25 (-6.1%) | 12.2% | 55% |
-| 8 | **MGL** | 👀 About to break out (1.3% below the 50-day high) | 50 | Buy at 1,141.40 (GTT / stop-limit buy order; skip if it opens above 1,175.60) | 1,057.50 (-7.3%) | 14.7% | 57% |
-
-*💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first*
-
-Already on your list (not repeated): ADANIPORTS, MANKIND, ICICIBANK, AXISBANK, TVSMOTOR, ETERNAL, TATACONSUM, SHYAMMETL, LT, ADANIGREEN, ULTRACEMCO, INDHOTEL, HDFCBANK, AUROPHARMA, SONACOMS, BSE, PPLPHARMA, DRREDDY, SHREECEM, MCX
-
-## Trades already on your list
-
-YOUR LIST
-• DIVISLAB - raise your stop-loss 9,366.91 → 9,602.27
-
----
-*Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
-
-*Record since 21 Oct: 1 sold, 0% won, average -1.05R (-7.9% per trade after costs) - too few to judge yet (need 30+)
-Open now: 33 of 47 up, average +2.8% after costs (not final)*

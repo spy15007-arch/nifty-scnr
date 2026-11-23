@@ -1,10 +1,10 @@
 {
  "btst": {
-  "at": "2026-11-22 15:03 IST",
-  "key": "2026-11-22",
-  "live": false,
+  "at": "2026-11-23 14:46 IST",
+  "key": "2026-11-23",
+  "live": true,
   "ok": true,
-  "picks": 0,
+  "picks": 4,
   "source": "timer"
  },
  "swing": {
