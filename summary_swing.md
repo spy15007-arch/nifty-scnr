@@ -1,12 +1,12 @@
-# 📈 Swing scan - Mon 23 Nov 2026, 4:44 PM IST
+# 📈 Swing scan - Tue 24 Nov 2026, 4:23 PM IST
 
 *Based on the close of Mon 23 Nov 2026*
 
-**Market:** 🧭 🟢 Mildly bullish · Nifty -1.6% today · global hostile
+**Market:** 🧭 🟢 Bullish · Nifty -1.6% last session · global supportive
 
 **Breadth:** 56% of liquid stocks are above their 50-day average (mixed)
 
-*Funnel: 495 stocks checked → 2 fresh breakouts + 77 about to break → 41 in the top half by quality → 0 listed, 41 already on the list*
+*Funnel: 495 stocks checked → 2 fresh breakouts + 78 about to break → 41 in the top half by quality → 0 listed, 41 already on the list*
 
 | # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
@@ -19,7 +19,7 @@
 - **ICICIGI** - picked 2026-11-20, buy at 1,789.60 (order still waiting, valid 4 more sessions), quality 52/100, profit marks 1,893.45 · 1,997.25 · 2,101.05
 - **OBEROIRLTY** - picked 2026-11-20, buy at 1,886.70 (order still waiting, valid 4 more sessions), quality 51/100, profit marks 2,024.35 · 2,162.00 · 2,299.65
 
-Already on your list (not repeated): 360ONE, ABCAPITAL, ANANDRATHI, ANURAS, APOLLOHOSP, ATHERENERG, BHARTIARTL, COFORGE, DLF, DRREDDY, EICHERMOT, FLUOROCHEM, GLENMARK, HEROMOTOCO, HONASA, ICICIGI, INDHOTEL, LALPATHLAB, M&M, MARICO
+Already on your list (not repeated): 360ONE, ABCAPITAL, ANANDRATHI, ANURAS, APOLLOHOSP, ATHERENERG, BHARTIARTL, COFORGE, DLF, DRREDDY, EICHERMOT, FLUOROCHEM, GLENMARK, HEROMOTOCO, HONASA, ICICIGI, INDHOTEL, LALPATHLAB, LICI, M&M
 
 **Building up, near a breakout** (watch only - no order yet): strong stocks 3%-6% below their 50-day high; one joins the picks when it gets within 3% of that high.
 
@@ -34,11 +34,6 @@ Already on your list (not repeated): 360ONE, ABCAPITAL, ANANDRATHI, ANURAS, APOL
 ## Trades already on your list
 
 YOUR LIST
-• UNITDSPR - buy order expired; no trade
-• ANURAS - bought at 1,337.70 (buy order triggered)
-• MEDANTA - bought at 1,530.10 (buy order triggered)
-• RELIANCE - bought at 1,385.80 (buy order triggered)
-
 BOUGHT, NOT SOLD YET (88) - sell if the price falls to:
 ANURAS 1,266.22 · MEDANTA 1,418.05
 RELIANCE 1,326.88 · CEMPRO 1,271.91
