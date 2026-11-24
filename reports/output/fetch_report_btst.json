@@ -1,14 +1,38 @@
 {
- "at": "2026-11-23 14:46 IST",
- "budget_s": 0,
+ "at": "2026-11-24 14:54 IST",
+ "budget_s": 1134,
  "kind": "watchlist",
  "loaded": 150,
  "market_line_source": "^NSEI",
- "quote_note": "",
+ "quote_note": "quotes matched only 16 of 150 stocks",
  "requested": 150,
- "route": "quotes",
+ "route": "candles",
  "scan": "btst",
  "scored": 150,
- "seconds": 11,
- "store": {}
+ "seconds": 496,
+ "store": {
+  "cooldowns": 0,
+  "errors": [],
+  "failed": 0,
+  "loaded": 150,
+  "no_data": [],
+  "no_data_n": 0,
+  "not_found": [],
+  "not_found_n": 0,
+  "not_reached": 0,
+  "pace": {
+   "calls": 168,
+   "rate_limited": 18,
+   "refused": 18,
+   "slowed_calls": 120,
+   "slowest_calls": 120,
+   "wait_now_s": 0.4
+  },
+  "recovered": 0,
+  "refused": [],
+  "refused_n": 0,
+  "requested": 150,
+  "seconds": 484,
+  "stopped": ""
+ }
 }

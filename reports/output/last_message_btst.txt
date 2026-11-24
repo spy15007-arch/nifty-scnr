@@ -1,52 +1,25 @@
-🌙 <b>BTST SCAN</b> · Mon 23 Nov, 2:46 PM · live prices
-🧭 <b>MARKET:</b> 🟢 <b>Mildly bullish</b> · Nifty -1.5% today · global hostile
-📊 <b>BREADTH</b> 59% (stocks above their 50-day average) - mixed market
+🌙 <b>BTST SCAN</b> · Tue 24 Nov · close of Mon 23 Nov
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -1.7% last session · global supportive
+📊 <b>BREADTH</b> 56% (stocks above their 50-day average) - mixed market
 
-ℹ️ Quick check of last night's 150-stock watchlist (20 Nov close) with live quotes; breadth is as of that close
+ℹ️ Quick check of last night's 150-stock watchlist (23 Nov close) with live prices; breadth is as of that close
+ℹ️ Live quotes not used (quotes matched only 16 of 150 stocks); candles were fetched one by one instead
+ℹ️ No price bar for today yet (market holiday?) - based on the Mon 23 Nov close
+
+<b>NO NEW PICK.</b> 150 stocks checked, 53 in a breakout setup, 41 passed the quality filter - all already on your list.
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>MANKIND</b> 👀 · Quality 90/100 · picked 20 Nov
-Buy at <b>2,710.45</b> · order valid 5 more sessions
-Profit marks 2,857.95 · 3,005.45 · 3,152.90
-<b>LICI</b> 👀 · Quality 84/100 · picked 20 Nov
-Buy at <b>418.65</b> · order valid 5 more sessions
+<b>LICI</b> 👀 · Quality 83/100 · picked 20 Nov
+Buy at <b>418.65</b> · order valid 4 more sessions
 Profit marks 442.55 · 466.40 · 490.25
-<b>PIDILITIND</b> 👀 · Quality 77/100 · picked 19 Nov
-Buy at <b>1,632.20</b> · order valid 4 more sessions
+<b>PIDILITIND</b> 👀 · Quality 76/100 · picked 19 Nov
+Buy at <b>1,632.20</b> · order valid 3 more sessions
 Profit marks 1,727.75 · 1,823.25 · 1,918.75
+<b>ICICIGI</b> 👀 · Quality 52/100 · picked 20 Nov
+Buy at <b>1,789.60</b> · order valid 4 more sessions
+Profit marks 1,893.45 · 1,997.25 · 2,101.05
 +1 more earlier pick also still qualifies (on your list)
 
-<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
-Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
-
-<b>1. LICHSGFIN</b> 👀 About to break out (2.6% below the 50-day high) · Quality 61/100
-Buy at <b>627.10</b> · skip if it opens above 645.90
-Stop <b>578.75</b> (-7.7%) · trail 15.4%
-Profit marks 675.45 · 723.75 · 772.05
-near 52-wk high · very liquid · delivery ~47%
-
-<b>2. DELHIVERY</b> 👀 About to break out (2.1% below the 50-day high) · Quality 53/100
-Buy at <b>467.00</b> · skip if it opens above 481.00
-Stop <b>433.40</b> (-7.2%) · trail 14.4%
-Profit marks 500.60 · 534.20 · 567.80
-near 52-wk high · very liquid · delivery ~49%
-
-<b>3. PRIVISCL</b> 👀 About to break out (1.9% below the 50-day high) · Quality 52/100
-Buy at <b>3,712.45</b> · skip if it opens above 3,823.80
-Stop <b>3,413.80</b> (-8.0%) · trail 16.1%
-Profit marks 4,011.10 · 4,309.70 · 4,608.35
-near 52-wk high · delivery ~57%
-⚠️ 200-day trend rising, but already spiked 8% in 5 days - buy in continuation, not on a dip
-
-<b>4. SAGILITY</b> 👀 About to break out (2.0% below the 50-day high) · Quality 50/100
-Buy at <b>47.10</b> · skip if it opens above 48.50
-Stop <b>43.85</b> (-6.9%) · trail 13.7%
-Profit marks 50.35 · 53.60 · 56.85
-very liquid · low volatility · delivery ~54%
-⚠️ Already spiked 6% in 5 days - buy in continuation, not on a dip
-
-+52 more qualify but are already on your list.
-
 🧾 <i>Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
-Open now: 61 of 85 up, average +3.9% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1210% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+Open now: 53 of 88 up, average +2.7% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1190% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
