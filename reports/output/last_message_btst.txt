@@ -1,25 +1,41 @@
-🌙 <b>BTST SCAN</b> · Tue 24 Nov · close of Mon 23 Nov
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -1.7% last session · global supportive
+🌙 <b>BTST SCAN</b> · Wed 25 Nov, 2:46 PM · live prices
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.5% today · global neutral
 📊 <b>BREADTH</b> 56% (stocks above their 50-day average) - mixed market
 
-ℹ️ Quick check of last night's 150-stock watchlist (23 Nov close) with live prices; breadth is as of that close
-ℹ️ Live quotes not used (quotes matched only 16 of 150 stocks); candles were fetched one by one instead
-ℹ️ No price bar for today yet (market holiday?) - based on the Mon 23 Nov close
+ℹ️ Quick check of last night's 150-stock watchlist (23 Nov close) with live quotes; breadth is as of that close
 
-<b>NO NEW PICK.</b> 150 stocks checked, 53 in a breakout setup, 41 passed the quality filter - all already on your list.
+<b>BUY NOW</b> (near the close, only if the price is still above its breakout price)
 
-⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>LICI</b> 👀 · Quality 83/100 · picked 20 Nov
-Buy at <b>418.65</b> · order valid 4 more sessions
-Profit marks 442.55 · 466.40 · 490.25
-<b>PIDILITIND</b> 👀 · Quality 76/100 · picked 19 Nov
-Buy at <b>1,632.20</b> · order valid 3 more sessions
-Profit marks 1,727.75 · 1,823.25 · 1,918.75
-<b>ICICIGI</b> 👀 · Quality 52/100 · picked 20 Nov
-Buy at <b>1,789.60</b> · order valid 4 more sessions
-Profit marks 1,893.45 · 1,997.25 · 2,101.05
-+1 more earlier pick also still qualifies (on your list)
+<b>1. INDIGO</b> 🔥 Fresh breakout (first close above the 50-day high) · Quality 71/100
+Buy near <b>5,725.00</b> · up 3.7% today on 1.9x volume
+Stop <b>5,326.50</b> (-7.0%) · trail 13.9%
+Profit marks 6,123.50 · 6,522.00 · 6,920.45
+very liquid · near 52-wk high · delivery ~48%
+
+<b>PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
+
+<b>2. CIPLA</b> 👀 About to break out (1.0% below the 50-day high) · Quality 82/100 · Pharma
+Buy at <b>1,449.90</b> · skip if it opens above 1,493.35
+Stop <b>1,386.25</b> (-4.4%) · trail 8.8%
+Profit marks 1,513.55 · 1,577.20 · 1,640.85
+low volatility · near 52-wk high · delivery ~57%
+
+<b>3. LODHA</b> 👀 About to break out (2.6% below the 50-day high) · Quality 54/100 · Realty
+Buy at <b>1,245.10</b> · skip if it opens above 1,282.45
+Stop <b>1,130.35</b> (-9.2%) · trail 18.4%
+Profit marks 1,359.85 · 1,474.60 · 1,589.35
+near 52-wk high · very liquid · delivery ~47%
+
+<b>4. IDFCFIRSTB</b> 👀 About to break out (2.7% below the 50-day high) · Quality 50/100 · Bank
+Buy at <b>89.80</b> · skip if it opens above 92.45
+Stop <b>83.50</b> (-7.0%) · trail 14.0%
+Profit marks 96.10 · 102.40 · 108.70
+near 52-wk high · very liquid · delivery ~49%
+⚠️ Already spiked 4% in 5 days - buy in continuation, not on a dip
+
++62 more qualify but are already on your list.
 
 🧾 <i>Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
 Open now: 53 of 88 up, average +2.7% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1190% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1250% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>

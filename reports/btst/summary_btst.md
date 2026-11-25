@@ -1,31 +1,23 @@
-# 🌙 BTST scan - Tue 24 Nov 2026, 2:54 PM IST
+# 🌙 BTST scan - Wed 25 Nov 2026, 2:46 PM IST
 
-*Based on the close of Mon 23 Nov 2026*
+*Live prices at 2:46 PM IST (today's volume projected to a full day)*
 
-**Market:** 🧭 🟢 Bullish · Nifty -1.7% last session · global supportive
+**Market:** 🧭 🟢 Bullish · Nifty +1.5% today · global neutral
 
 **Breadth:** 56% of liquid stocks are above their 50-day average (mixed)
 
-*Quick check of last night's 150-stock watchlist (23 Nov close) with live prices; breadth is as of that close*
+*Quick check of last night's 150-stock watchlist (23 Nov close) with live quotes; breadth is as of that close*
 
-*Live quotes not used (quotes matched only 16 of 150 stocks); candles were fetched one by one instead*
-
-*No price bar for today yet (market holiday?) - based on the Mon 23 Nov close*
-
-*Funnel: 150 stocks checked → 2 fresh breakouts + 51 about to break → 41 in the top half by quality → 0 listed, 41 already on the list*
+*Funnel: 150 stocks checked → 7 fresh breakouts + 62 about to break → 66 in the top half by quality → 4 listed, 62 already on the list*
 
 | # | Stock | Setup | Quality | Buy | Stop-loss | Trailing stop-loss (% below highest close) | Delivery % (20-day avg) |
 | :-: | :-- | :-- | :-: | :-- | :-: | :-: | :-: |
-| - | No new pick | - | - | - | - | - | - |
+| 1 | **INDIGO** | 🔥 Fresh breakout (first close above the 50-day high) | 71 | Buy near 5,725.00 | 5,326.50 (-7.0%) | 13.9% | 48% |
+| 2 | **CIPLA** | 👀 About to break out (1.0% below the 50-day high) | 82 | Buy at 1,449.90 (GTT / stop-limit buy order; skip if it opens above 1,493.35) | 1,386.25 (-4.4%) | 8.8% | 57% |
+| 3 | **LODHA** | 👀 About to break out (2.6% below the 50-day high) | 54 | Buy at 1,245.10 (GTT / stop-limit buy order; skip if it opens above 1,282.45) | 1,130.35 (-9.2%) | 18.4% | 47% |
+| 4 | **IDFCFIRSTB** | 👀 About to break out (2.7% below the 50-day high) | 50 | Buy at 89.80 (GTT / stop-limit buy order; skip if it opens above 92.45) | 83.50 (-7.0%) | 14.0% | 49% |
 
-**Earlier picks, still strong** (picked before, order still waiting - no new order):
-
-- **LICI** - picked 2026-11-20, buy at 418.65 (order still waiting, valid 4 more sessions), quality 83/100, profit marks 442.55 · 466.40 · 490.25
-- **PIDILITIND** - picked 2026-11-19, buy at 1,632.20 (order still waiting, valid 3 more sessions), quality 76/100, profit marks 1,727.75 · 1,823.25 · 1,918.75
-- **ICICIGI** - picked 2026-11-20, buy at 1,789.60 (order still waiting, valid 4 more sessions), quality 52/100, profit marks 1,893.45 · 1,997.25 · 2,101.05
-- **OBEROIRLTY** - picked 2026-11-20, buy at 1,886.70 (order still waiting, valid 4 more sessions), quality 51/100, profit marks 2,024.35 · 2,162.00 · 2,299.65
-
-Already on your list (not repeated): DLF, MARICO, HONASA, UNITDSPR, PERSISTENT, HEROMOTOCO, OBEROIRLTY, EICHERMOT, INDHOTEL, RADICO, JSWCEMENT, APOLLOHOSP, COFORGE, DRREDDY, LALPATHLAB, SBILIFE, NAVINFLUOR, BHARTIARTL, SHREECEM, ATHERENERG
+Already on your list (not repeated): DLF, MARICO, UNITDSPR, PRESTIGE, HEROMOTOCO, OBEROIRLTY, EICHERMOT, INDHOTEL, RADICO, JSWCEMENT, APOLLOHOSP, DRREDDY, LALPATHLAB, SBILIFE, ANURAS, DELHIVERY, BHARTIARTL, SHREECEM, PHOENIXLTD, GLENMARK
 
 ---
 *Ranked shortlist, not a guarantee. Quality is a filter (top half of liquid stocks), not a ladder: a higher number did not mean a better result in the back-test. Risk at most 1% of capital per trade (half in a weak market) and sell only when the stop-loss is hit - it trails up behind the price. Back-test 2019-2026: about 4 trades in 10 won and a few big winners paid for the many small stop-loss exits; 2019-23 was strong, 2024-26 was about break-even after costs. Judge it over 30+ trades.*
