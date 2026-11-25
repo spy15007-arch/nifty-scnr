@@ -4,8 +4,10 @@ Telegram messages (HTML parse mode; every dynamic piece is escaped).
 The scan message is short on purpose. For each pick it says only what is needed to act - where to buy, where the stop is,
 how far the stop trails - plus a few words on why. It never states a share count or an amount of money to invest: that
 depends on the money the reader still has free, which no scan can know (a fixed-capital assumption gave wrong numbers as
-soon as other stocks had been bought). The standing rules are said once, in the last lines. Everything longer lives in the
-dashboard and in the Markdown files the scan commits.
+soon as other stocks had been bought). The standing rules (risk per trade, half size in a weak market, how the trail works, what the profit
+marks are) are not repeated in the message: they live in the README and the dashboard, and the Markdown files the scan commits still say them.
+Since 2026-11-25, at the user's request ("not required"), the message also carries no stop-loss list of every stock bought, no record lines and no
+footnote. Everything longer lives in the dashboard and in the Markdown files the scan commits.
 
 SECURITY: the bot token is part of Telegram's URL, so any exception text from
 the HTTP library could contain it. Everything that is logged here is passed
@@ -122,11 +124,15 @@ def format_pick(p, idx: int) -> str:
     return "\n".join(lines)
 
 
-def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bool = True, max_events: int = MAX_EVENTS_SHOWN) -> str:
+def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bool = True, max_events: int = MAX_EVENTS_SHOWN,
+                         stops: bool = True) -> str:
     """
-    What happened to trades already on the list, and (snapshot=True, the evening scan) the stop-loss of every stock you have bought and not sold yet
-    and the buy orders still waiting. The afternoon scan leaves that snapshot out: the stops only change after a completed session, so it would
-    repeat last night.
+    What happened to trades already on the list, and (snapshot=True, the evening scan) the buy orders still waiting and - unless `stops` is False -
+    the stop-loss of every stock you have bought and not sold yet. The afternoon scan leaves that snapshot out: the stops only change after a
+    completed session, so it would repeat last night.
+    `stops=False` is what the Telegram message uses since 2026-11-25 (at the user's request: with 88 stocks bought the stop-loss list "is not
+    required", and the dashboard has it); the Markdown report is still built with the list. Without the list there is nothing to carry the "moved up
+    today" arrow, so a raised stop-loss is shown as a line of its own again (as it is in the afternoon message) and no information is lost.
     Plain words on purpose (changed 2026-11-01 at the user's request, the old headings "Open - current stops" and "Buy-stops still waiting" were
     confusing): "bought" / "sold" / "buy order" / "stop-loss"; the same words are used in the earlier-picks block.
     The headings are bold and in CAPITALS (2026-11-06, at the user's request: they were getting lost among the bold stock names), with the
@@ -134,11 +140,15 @@ def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bo
     """
     holding = [r for r in open_rows if r.get("status") == "OPEN"]
     waiting = [r for r in open_rows if r.get("status") == "PENDING"]
+    show_stops = snapshot and stops
     raised = {ev.get("symbol"): ev.get("new") for ev in events if ev.get("kind") == "trail_raised"}
-    in_snapshot = {r["symbol"] for r in holding} if snapshot else set()
+    in_snapshot = {r["symbol"] for r in holding} if show_stops else set()
 
     # a raised stop of an open trade is shown as an arrow in the stop list below, not as a line of its own
     evs = [ev for ev in events if not (ev.get("kind") == "trail_raised" and ev.get("symbol") in in_snapshot)]
+    # raised stop-losses go last: with many stocks held a lot of them can move on one evening, and they must never push a purchase, a sale or an
+    # expired order out of the capped lines
+    evs = [ev for ev in evs if ev.get("kind") != "trail_raised"] + [ev for ev in evs if ev.get("kind") == "trail_raised"]
     lines: list[str] = []
     for ev in evs[:max_events]:
         k = ev.get("kind")
@@ -160,7 +170,7 @@ def format_tracked_block(events: list[dict], open_rows: list[dict], snapshot: bo
     if len(evs) > max_events:
         lines.append(f"• ...and {len(evs) - max_events} more update(s) in the dashboard")
 
-    if snapshot and holding:
+    if show_stops and holding:
         up = any(r["symbol"] in raised for r in holding[:MAX_STOPS_SHOWN])
         items = [f"{_e(r['symbol'])} {fmt_price(r['trail'])}{'↑' if r['symbol'] in raised else ''}" for r in holding[:MAX_STOPS_SHOWN]]
         if lines:
@@ -267,12 +277,11 @@ def _no_pick_line(result) -> str:
 
 
 def format_scan_message(result, scan_mode: str, now: datetime | None = None, market_line: str = "",
-                        tracked_block: str = "", scoreboard_line: str = "", notes: list[str] | None = None,
-                        earlier: list | None = None, building: list | None = None, list_load: float | None = None) -> str:
+                        tracked_block: str = "", notes: list[str] | None = None,
+                        earlier: list | None = None, building: list | None = None) -> str:
     """
-    The whole message as a string of blocks separated by blank lines.
-    `list_load` = what the whole list (bought + waiting) would need as a fraction of the capital at the risk rule stated in the footer (capital_plan.
-    list_load): above 1.0 the footer says so in one sentence, because a reader who follows every card cannot hold them all (added 2026-11-05).
+    The whole message as a string of blocks separated by blank lines. It ends with the list block (or with the 💪 line when a card carries the tag):
+    the footnote with the standing rules, the record lines and the whole-list sentence were taken out on 2026-11-25 at the user's request.
     `earlier` = earlier picks that are still strong (pipeline.earlier_picks): shown above the new picks, which then say NEW in their headings
     so the two cannot be mixed up (on a day with no new pick the block follows the "No new pick" line).
     `building` = strong stocks building up near a breakout (pipeline.building_up): a watch block after the picks, on the swing message only - the
@@ -349,20 +358,8 @@ def format_scan_message(result, scan_mode: str, now: datetime | None = None, mar
     if tracked_block:
         blocks.append(tracked_block)
 
-    marks_note = ("Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). "
-                  if (picks or shown_earlier) else "")                          # explained only when a card carries them, like the 💪 tag
-    load_note = ""
-    if list_load is not None and math.isfinite(list_load) and list_load > 1.0:
-        load_note = (f"Your whole list now needs about {int(round(list_load * 100, -1))}% of your capital at that rule, so it cannot all be held - "
-                     f"choose which to hold (dashboard: Capital plan). ")
-    footer = (f"ℹ️ <i>{marks_note}Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. "
-              f"Risk at most {config.RISK_PER_TRADE_PCT:g}% of your capital per trade, half in a weak market. {load_note}"
-              f"A ranked shortlist, not a guarantee.</i>")
     if any(getattr(p, "strong_trend", False) for p in list(picks) + shown_earlier + shown_building):
-        footer = f"<i>{_e(fp.strong_trend_legend())}</i>\n" + footer          # the tag is explained only when a card carries it
-    if scoreboard_line:
-        footer = f"🧾 <i>{_e(scoreboard_line)}</i>\n" + footer
-    blocks.append(footer)
+        blocks.append(f"<i>{_e(fp.strong_trend_legend())}</i>")               # the 💪 tag is explained only when a card carries it
     return "\n\n".join(blocks)
 
 
@@ -428,14 +425,13 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
 
 
 def notify_scan(result, scan_mode: str, bot_token: str, chat_id: str, now: datetime | None = None,
-                market_line: str = "", tracked_block: str = "", scoreboard_line: str = "",
+                market_line: str = "", tracked_block: str = "",
                 notes: list[str] | None = None, save_to: str | None = None, earlier: list | None = None,
-                building: list | None = None, list_load: float | None = None) -> bool:
+                building: list | None = None) -> bool:
     """Build the scan message and send it. `save_to`: also keep the exact text that was sent (the run log is not always reachable)."""
     try:
         message = format_scan_message(result, scan_mode, now=now, market_line=market_line,
-                                      tracked_block=tracked_block, scoreboard_line=scoreboard_line, notes=notes,
-                                      earlier=earlier, building=building, list_load=list_load)
+                                      tracked_block=tracked_block, notes=notes, earlier=earlier, building=building)
     except Exception:  # noqa: BLE001 - a formatting slip must never cost the whole message
         logger.exception("Could not format the scan message")
         message = _e(f"The {scan_mode.upper()} scan finished, but its message could not be formatted. "

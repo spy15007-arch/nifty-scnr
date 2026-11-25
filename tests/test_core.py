@@ -2629,11 +2629,12 @@ class StrongUptrend(unittest.TestCase):
         self.assertTrue(line.startswith("💪 strong uptrend · up "), line)
         self.assertEqual(len(line.split(" · ")), 5, line)
 
-    def test_the_footer_explains_the_tag_only_when_a_card_carries_it(self):
+    def test_the_message_explains_the_tag_only_when_a_card_carries_it(self):
+        # the line is the last thing in the message: the grey footnote that used to follow it was taken out on 2026-11-25, at the user's request
         legend = "strong uptrend = the 200-day average is up 5%+ in a month; these are listed first"
         msg = notify.format_scan_message(self.res, "swing", now=self.now)
         self.assertEqual(msg.count(legend), 1)
-        self.assertLess(msg.index(legend), msg.index("Trail = keep the stop"))
+        self.assertEqual(msg.split("\n\n")[-1], f"<i>💪 {legend}</i>")
         none = dataclasses.replace(self.res, picks=[dataclasses.replace(p, strong_trend=False) for p in self.res.picks])
         self.assertNotIn("💪", notify.format_scan_message(none, "swing", now=self.now))
 
@@ -2926,7 +2927,7 @@ class EarlierPicks(unittest.TestCase):
         self.assertEqual(msg.count("NEW · "), 1)
         self.assertEqual(msg.count("<b>1. "), 1)                                    # the new cards are numbered from 1; the earlier block has no numbers
         self.assertEqual(msg.count(self.LEGEND), 1)                                # no new pick is strong: the 💪 is on the earlier block only
-        self.assertLess(msg.index(self.LEGEND), msg.index("Trail = keep the stop"))
+        self.assertTrue(msg.endswith(f"{self.LEGEND}</i>"))                          # the legend is the last line: no footnote follows it
         chk = Messages._Check()
         chk.feed(msg)
         self.assertEqual((chk.err, chk.stack), ([], []))
@@ -3280,7 +3281,6 @@ class BuildingUpWatch(unittest.TestCase):
         ])
         self.assertLess(msg.index("PLACE THESE BUY ORDERS"), msg.index("🔭"))
         self.assertLess(msg.index("🔭"), msg.index("📒 <b>YOUR LIST</b>"))
-        self.assertLess(msg.index("🔭"), msg.index("Trail = keep the stop"))
         chk = Messages._Check()
         chk.feed(msg)
         self.assertEqual((chk.err, chk.stack), ([], []))
@@ -3407,7 +3407,7 @@ class Messages(unittest.TestCase):
     def test_no_share_counts_or_money_amounts_anywhere(self):
         for res, mode, now in self._all_messages():
             self.assertTrue(res.picks)
-            msg = notify.format_scan_message(res, mode, now=now, scoreboard_line="Record: nothing tracked yet")
+            msg = notify.format_scan_message(res, mode, now=now)
             low = msg.lower()
             for bad in ("share", "lakh", "crore", "₹", "position cap", "reference level", "risks ≈", "capital of"):
                 self.assertNotIn(bad, low, bad)
@@ -3453,16 +3453,24 @@ class Messages(unittest.TestCase):
         for bad in (None, (), (1.0, 2.0), (float("nan"), 2.0, 3.0), (0.0, 1.0, 2.0), ("x", 1.0, 2.0)):
             self.assertEqual(notify._marks_line(bad), "")                               # unknown or unusable: no line, never a made-up number
 
-    def test_the_footer_explains_profit_marks_only_when_a_card_carries_them(self):
-        explain = "Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only)."
+    def test_the_message_has_no_footnote_but_the_cards_keep_their_profit_marks(self):
+        # 2026-11-25, at the user's request ("not required"): the grey footnote under the message is gone - what the profit marks are, the trail and risk
+        # rule, the whole-list sentence and the "ranked shortlist" line - and so are the record lines above it. The cards still show their marks; the
+        # README and the dashboard explain them.
         res, now = self._swing(), at(2026, 10, 13, 17, 0)
-        self.assertEqual(notify.format_scan_message(res, "swing", now=now).count(explain), 1)
         none = dataclasses.replace(res, picks=[], repeats=[])
-        self.assertNotIn("Profit marks", notify.format_scan_message(none, "swing", now=now))                       # no card: nothing to explain
         e = pl.EarlierPick("ZZZ", "primed", 88.0, False, "2026-10-12", 123.4, 2, (130.0, 137.0, 144.0))
-        msg = notify.format_scan_message(none, "swing", now=now, earlier=[e])
-        self.assertEqual(msg.count(explain), 1)                                                                     # an earlier pick's marks need it too
-        self.assertIn("Buy at <b>123.40</b> · order valid 2 more sessions\nProfit marks 130.00 · 137.00 · 144.00", msg)
+        quiet = notify.format_scan_message(none, "swing", now=now)
+        carded = notify.format_scan_message(none, "swing", now=now, earlier=[e])
+        full = notify.format_scan_message(res, "swing", now=now)
+        afternoon = notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 45))
+        for msg in (quiet, carded, full, afternoon):
+            for gone in ("Profit marks =", "Trail = keep", "Risk at most", "half in a weak market", "ranked shortlist", "not a guarantee",
+                         "whole list now needs", "ℹ️ <i>", "🧾", "Record since", "Open now"):
+                self.assertNotIn(gone, msg, gone)
+        self.assertNotIn("Profit marks", quiet)                                                                     # no card: no marks
+        self.assertIn("Profit marks", full)
+        self.assertIn("Buy at <b>123.40</b> · order valid 2 more sessions\nProfit marks 130.00 · 137.00 · 144.00", carded)
 
     def test_the_buy_orders_heading_is_plain_and_still_says_how_to_place_them(self):
         # the cards say "Buy at"; this heading is what tells a reader to enter them as GTT / stop-limit orders that trigger on the way UP, not as
@@ -3548,16 +3556,16 @@ class Messages(unittest.TestCase):
         res = dataclasses.replace(self._swing(), regime="weak", breadth={"breadth50": 0.18, "n": 400})
         earlier = [pl.EarlierPick("ZZZ", "primed", 88.0, True, "2026-10-12", 123.4, 2, (130.0, 137.0, 144.0))]
         building = [pl.BuildingUp("AAA", 95.4, True, 0.034, 1740.0, 1680.84, 0.032, 0.53), pl.BuildingUp("BBB&CO", 77.0, False, 0.052, 8949.5, 8484.0, 0.012, None)]
-        tracked = notify.format_tracked_block(
-            [{"kind": "filled", "symbol": "BBB", "price": 50.0}, {"kind": "closed", "symbol": "CCC", "reason": "stop", "price": 90.0, "R": -1.0, "net": -0.06}],
-            [{"symbol": "AAA", "status": "OPEN", "trail": 105.0}, {"symbol": "EEE", "status": "PENDING", "trigger": 200.0}], snapshot=True)
-        evening = notify.format_scan_message(res, "swing", now=now, market_line=market, earlier=earlier, building=building, tracked_block=tracked,
-                                             scoreboard_line="Record since 21 Oct: 1 sold", list_load=2.0)
+        events = [{"kind": "filled", "symbol": "BBB", "price": 50.0}, {"kind": "closed", "symbol": "CCC", "reason": "stop", "price": 90.0, "R": -1.0, "net": -0.06}]
+        rows = [{"symbol": "AAA", "status": "OPEN", "trail": 105.0}, {"symbol": "EEE", "status": "PENDING", "trigger": 200.0}]
+        tracked = notify.format_tracked_block(events, rows, snapshot=True, stops=False)              # what the Telegram message carries since 2026-11-25
+        written = notify.format_tracked_block(events, rows, snapshot=True)                           # the written report still has the stop-loss list
+        evening = notify.format_scan_message(res, "swing", now=now, market_line=market, earlier=earlier, building=building, tracked_block=tracked)
         no_pick = notify.format_scan_message(dataclasses.replace(self._swing(), picks=[], repeats=[]), "swing", now=now, earlier=earlier, building=building)
         afternoon = notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 45), earlier=earlier)
         wanted = {
             "evening": (evening, ("SWING SCAN", "MARKET:", "BREADTH", "EARLIER PICKS, STILL STRONG", "NEW · PLACE THESE BUY ORDERS", "BUILDING UP", "YOUR LIST",
-                                  "BOUGHT, NOT SOLD YET (1)", "WAITING TO BUY (1)")),
+                                  "WAITING TO BUY (1)")),
             "no pick": (no_pick, ("SWING SCAN", "NO NEW PICK.", "EARLIER PICKS, STILL STRONG", "BUILDING UP")),
             "afternoon": (afternoon, ("BTST SCAN", "EARLIER PICKS, STILL STRONG", "NEW · BUY NOW")),
         }
@@ -3572,12 +3580,16 @@ class Messages(unittest.TestCase):
         # the old style is gone, and the words that explain a heading stay in ordinary letters after it
         for old in ("<b>Your list", "<b>Bought, not sold", "<b>Waiting to buy", "<b>Market:", "<b>Swing scan", "<b>BTST scan", "<b>EARLIER PICKS, still", "Breadth 18%"):
             self.assertNotIn(old, evening, old)
-        self.assertIn("<b>BOUGHT, NOT SOLD YET (1)</b> - sell if the price falls to:\nAAA 105.00", evening)
+        self.assertNotIn("BOUGHT, NOT SOLD YET", evening)                                           # the stop-loss list is not in the Telegram message any more
         self.assertIn("<b>WAITING TO BUY (1)</b> - buy when the price rises to:\nEEE 200.00", evening)
         # a blank line sets each heading of the list apart from the lines above it (the splitter may then break the list between its parts, never inside one)
         self.assertIn("(buy order triggered)\n• <b>CCC</b>", tracked)
-        self.assertIn("after costs)\n\n<b>BOUGHT, NOT SOLD YET (1)</b>", tracked)
-        self.assertIn("AAA 105.00\n\n<b>WAITING TO BUY (1)</b>", tracked)
+        self.assertIn("after costs)\n\n<b>WAITING TO BUY (1)</b>", tracked)
+        # the block the written report gets keeps the stop-loss list, with the same bold capital heading
+        self.assertIn("<b>BOUGHT, NOT SOLD YET (1)</b> - sell if the price falls to:\nAAA 105.00", written)
+        self.assertIn("after costs)\n\n<b>BOUGHT, NOT SOLD YET (1)</b>", written)
+        self.assertIn("AAA 105.00\n\n<b>WAITING TO BUY (1)</b>", written)
+        self.assertEqual(self._bold_in_ordinary_letters(written), [])
         self.assertEqual(notify.format_tracked_block([], [{"symbol": "EEE", "status": "PENDING", "trigger": 200.0}], snapshot=True),
                          "📒 <b>YOUR LIST</b>\n<b>WAITING TO BUY (1)</b> - buy when the price rises to:\nEEE 200.00")       # nothing above it: no blank line
         # a test that fails on a heading written the old way must itself see one
@@ -3607,7 +3619,7 @@ class Messages(unittest.TestCase):
         msg = notify.format_scan_message(res, "swing", now=at(2026, 10, 13, 17, 0))
         self.assertEqual(msg.count("half size"), 1)
         self.assertIn("📊 <b>BREADTH</b> 18% (stocks above their 50-day average) - <b>weak market: half size</b>", msg)
-        self.assertIn("half in a weak market", msg)                                  # the footer says it as a rule
+        self.assertNotIn("half in a weak market", msg)                               # no footnote repeats it (taken out 2026-11-25): the breadth line says it once
 
     def test_a_very_strong_market_gets_one_plain_sentence_on_the_swing_message_and_summary_only(self):
         # added 2026-11-08 after the market-strength study (item 12 of the evidence README; its rule was fixed in advance and met): information only, swing only
@@ -3642,26 +3654,6 @@ class Messages(unittest.TestCase):
             self.assertEqual(bool(fp.strong_market_note(b50, scan_mode)), expected, (scan_mode, b50))
         self.assertEqual(fp.strong_market_note(0.9, "swing"), sentence)
 
-    def test_the_footer_says_when_the_whole_list_needs_more_than_the_capital(self):
-        # added 2026-11-05: 24 bought + 18 waiting stocks need about 300% of one account at the 1% rule the footer states, and nothing said so
-        res, now = self._swing(), at(2026, 10, 13, 17, 0)
-        note = "Your whole list now needs about"
-        for quiet in (None, 0.0, 0.8, 1.0, float("nan"), float("inf")):
-            self.assertNotIn(note, notify.format_scan_message(res, "swing", now=now, list_load=quiet), quiet)
-        msg = notify.format_scan_message(res, "swing", now=now, list_load=3.04)
-        self.assertIn("Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 300% of your capital at that rule, "
-                      "so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>", msg)
-        self.assertEqual(msg.count(note), 1)
-        self.assertIn("about 170% of your capital", notify.format_scan_message(res, "swing", now=now, list_load=1.66))     # rounded to the nearest 10
-        low = msg.lower()
-        for bad in ("share", "lakh", "crore", "₹", "position cap", "reference level", "risks ≈", "capital of"):             # still no money amounts
-            self.assertNotIn(bad, low, bad)
-        chk = self._Check()
-        chk.feed(msg)
-        self.assertEqual((chk.err, chk.stack), ([], []))
-        self.assertLess(len(msg) - len(notify.format_scan_message(res, "swing", now=now)), 160)      # one short sentence, nothing more
-        self.assertIn(note, notify.format_scan_message(self._live(), "btst", now=at(2026, 10, 13, 14, 45), list_load=2.0))   # the afternoon message too
-
     def test_tracked_block_lists_stops_only_in_the_evening_message(self):
         events = [{"kind": "trail_raised", "symbol": "AAA", "old": 100.0, "new": 105.0},
                   {"kind": "filled", "symbol": "BBB", "price": 50.0},
@@ -3693,6 +3685,56 @@ class Messages(unittest.TestCase):
             chk = self._Check()
             chk.feed(block)
             self.assertEqual((chk.err, chk.stack), ([], []))
+
+    def test_the_telegram_list_has_no_stop_loss_list_but_still_tells_what_changed(self):
+        # 2026-11-25, at the user's request ("not required": with 88 stocks bought the list filled the message, and the dashboard has it): the block the
+        # Telegram message carries is built with stops=False. What happened is still told - a raised stop-loss as a line of its own, as in the afternoon
+        # message, so a stop that moved is never lost - and the buy orders still waiting keep their list. The written report keeps the stop-loss list.
+        events = [{"kind": "trail_raised", "symbol": "AAA", "old": 100.0, "new": 105.0},
+                  {"kind": "filled", "symbol": "BBB", "price": 50.0},
+                  {"kind": "closed", "symbol": "CCC", "reason": "stop", "price": 90.0, "R": -1.0, "net": -0.06},
+                  {"kind": "unfilled", "symbol": "DDD", "reason": "expired"}]
+        rows = [{"symbol": "AAA", "status": "OPEN", "trail": 105.0}, {"symbol": "BBB", "status": "OPEN", "trail": 45.5},
+                {"symbol": "EEE", "status": "PENDING", "trigger": 200.0}]
+        block = notify.format_tracked_block(events, rows, snapshot=True, stops=False)
+        for gone in ("BOUGHT, NOT SOLD", "sell if the price falls to", "moved up today", "AAA 105.00", "BBB 45.50"):
+            self.assertNotIn(gone, block, gone)
+        self.assertIn("AAA</b> - raise your stop-loss 100.00 → <b>105.00</b>", block)             # nothing is lost: the arrow is a line again
+        self.assertIn("BBB</b> - bought at 50.00 (buy order triggered)", block)
+        self.assertIn("CCC</b> - sold at 90.00: stop-loss hit (-1.0R, -6.0% after costs)", block)
+        self.assertIn("DDD</b> - buy order expired; no trade", block)
+        self.assertIn("<b>WAITING TO BUY (1)</b> - buy when the price rises to:\nEEE 200.00", block)
+        # a raised stop-loss comes after the purchases, sales and expired orders, so it can never push one of them out of the capped lines
+        self.assertLess(block.index("CCC</b>"), block.index("AAA</b>"))
+        self.assertLess(block.index("DDD</b>"), block.index("AAA</b>"))
+        # a quiet evening shows only the waiting orders; with only bought stocks on the list and nothing to tell there is no block at all
+        self.assertEqual(notify.format_tracked_block([], rows, snapshot=True, stops=False),
+                         "📒 <b>YOUR LIST</b>\n<b>WAITING TO BUY (1)</b> - buy when the price rises to:\nEEE 200.00")
+        self.assertEqual(notify.format_tracked_block([], rows[:2], snapshot=True, stops=False), "")
+        chk = self._Check()
+        chk.feed(block)
+        self.assertEqual((chk.err, chk.stack), ([], []))
+        # the block for the written report is what it was: the stop-loss list with the arrow, and no separate line for a raised stop-loss
+        written = notify.format_tracked_block(events, rows, snapshot=True)
+        self.assertIn("<b>BOUGHT, NOT SOLD YET (2)</b> - sell if the price falls to:", written)
+        self.assertIn("AAA 105.00↑", written)
+        self.assertNotIn("raise your stop-loss", written)
+        # the afternoon block is the same whether or not the stop-loss list is asked for
+        self.assertEqual(notify.format_tracked_block(events, rows, snapshot=False, stops=False), notify.format_tracked_block(events, rows, snapshot=False))
+
+    def test_a_busy_evening_of_raised_stop_losses_is_capped_and_never_hides_a_sale(self):
+        # with many stocks held, many stop-losses can move on one evening; they are listed after everything else and capped like any other update
+        raised = [{"kind": "trail_raised", "symbol": f"R{i:02d}", "old": 100.0 + i, "new": 110.0 + i} for i in range(30)]
+        events = raised + [{"kind": "closed", "symbol": "LATE", "reason": "trail", "price": 90.0, "R": 0.4, "net": 0.01},
+                           {"kind": "filled", "symbol": "FILL", "price": 50.0}]
+        rows = [{"symbol": f"R{i:02d}", "status": "OPEN", "trail": 110.0 + i} for i in range(30)]
+        block = notify.format_tracked_block(events, rows, snapshot=True, stops=False)
+        self.assertIn("LATE</b> - sold at 90.00: trailing stop-loss hit", block)                  # listed although it came after 30 raised stops
+        self.assertIn("FILL</b> - bought at 50.00 (buy order triggered)", block)
+        self.assertEqual(block.count("raise your stop-loss"), notify.MAX_EVENTS_SHOWN - 2)         # what is left of the cap
+        self.assertIn(f"• ...and {len(events) - notify.MAX_EVENTS_SHOWN} more update(s) in the dashboard", block)
+        self.assertNotIn("WAITING TO BUY", block)
+        self.assertLessEqual(len(block), 1200)
 
     def test_a_long_list_is_capped_not_dumped(self):
         rows = [{"symbol": f"S{i:02d}", "status": "OPEN", "trail": 10.0 + i} for i in range(30)]
@@ -3776,10 +3818,15 @@ class Messages(unittest.TestCase):
         # nothing held has a price: no second line
         self.assertEqual(outcomes.format_open_line(frame([("PENDING", np.nan, np.nan, "swing")])), "")
         self.assertEqual(outcomes.open_now(pd.DataFrame(columns=["status", "net", "R", "scan_mode"])), {"n": 0})
-        # and the footer of the Telegram message carries both lines inside the italic record
+        # the written summary carries both lines in italics at its end; the Telegram message no longer carries the record (taken out 2026-11-25,
+        # at the user's request: "not required")
+        from reports import summary
         res = pl.select_picks("swing", make_market(), now=at(2026, 10, 13, 17, 0))
-        msg = notify.format_scan_message(res, "swing", now=at(2026, 10, 13, 17, 0), scoreboard_line=outcomes.format_scoreboard_line(held))
-        self.assertIn("🧾 <i>Record since 21 Oct: no trade sold yet\nOpen now: 2 of 4 up, average +2.0% after costs (not final)</i>", msg)
+        written = summary.render_summary("swing", res, at(2026, 10, 13, 17, 0), scoreboard_line=outcomes.format_scoreboard_line(held))
+        self.assertIn("*Record since 21 Oct: no trade sold yet\nOpen now: 2 of 4 up, average +2.0% after costs (not final)*", written)
+        msg = notify.format_scan_message(res, "swing", now=at(2026, 10, 13, 17, 0))
+        self.assertNotIn("Record since", msg)
+        self.assertNotIn("Open now", msg)
 
 
 # --------------------------------------------------------------------------- #
@@ -4118,14 +4165,17 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertNotIn("BUILDING UP", "\n".join(self.sent))
         self.assertEqual(len(pd.read_csv("reports/output/building_up_swing.csv")) if os.path.getsize("reports/output/building_up_swing.csv") > 3 else 0, 0)
 
-    def test_the_note_about_the_whole_list_reaches_the_message_and_a_failure_of_it_costs_nothing(self):
+    def test_the_whole_list_number_is_only_logged_and_a_failure_of_it_costs_nothing(self):
+        # the sentence in the Telegram footer was taken out on 2026-11-25 at the user's request; the scan still works the number out for its log
         import capital_plan
-        with mock.patch.object(capital_plan, "list_load", return_value=3.04):
+        with mock.patch.object(capital_plan, "list_load", return_value=3.04) as worked_out:
             code, _ = self._run(["scan_swing"], at(2026, 10, 13, 17, 0))
         self.assertEqual(code, 0)
-        self.assertIn("Your whole list now needs about 300% of your capital at that rule", "\n".join(self.sent))
+        self.assertTrue(worked_out.called)
+        self.assertTrue(self.sent)
+        self.assertNotIn("Your whole list now needs", "\n".join(self.sent))
         with open("reports/output/last_message_swing.txt", encoding="utf-8") as fh:
-            self.assertIn("about 300% of your capital", fh.read())
+            self.assertNotIn("of your capital", fh.read())
         self.sent.clear()
         with mock.patch.object(capital_plan, "list_load", side_effect=RuntimeError("boom")):
             code, _ = self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=self._next_session())
@@ -4133,7 +4183,7 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertTrue(self.sent)
         self.assertNotIn("Your whole list now needs", "\n".join(self.sent))
 
-    def test_the_evening_message_carries_the_stop_list_and_the_afternoon_one_does_not(self):
+    def test_the_evening_message_carries_the_waiting_list_and_the_afternoon_one_does_not(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))                          # PLANT is logged as a waiting buy-stop
         first = pd.read_csv("tracking/trades.csv")
         waiting_before = first[first["status"] == "PENDING"]
@@ -4152,6 +4202,29 @@ class EndToEnd(E2EHarness, unittest.TestCase):
         self.assertTrue(afternoon)
         self.assertNotIn("sell if the price falls to", afternoon)                    # stops only change after a completed session
         self.assertNotIn("WAITING TO BUY", afternoon)                                # (the earlier-picks block says "order still waiting")
+
+    def test_a_bought_stock_is_told_as_an_update_not_listed_with_its_stop_and_the_written_report_keeps_the_list(self):
+        # 2026-11-25, at the user's request ("not required"): the Telegram message has no "Bought, not sold yet" stop-loss list, no record lines and no
+        # footnote; the written report (summary_swing.md) keeps the list, the record and its own disclaimer
+        self._run(["scan_swing"], at(2026, 10, 13, 17, 0))                          # PLANT is logged as a waiting buy order
+        trigger = float(pd.read_csv("tracking/trades.csv").set_index("symbol").loc["PLANT", "trigger"])
+        nxt = self._next_session()
+        day = nxt["PLANT"].index[-1]
+        nxt["PLANT"].loc[day, ["open", "high", "low", "close"]] = [trigger * 0.999, trigger * 1.03, trigger * 0.999, trigger * 1.02]   # rises through the buy price
+        self.sent.clear()
+        self._run(["scan_swing"], at(2026, 10, 14, 17, 0), source="manual", bars=nxt)
+        ledger = pd.read_csv("tracking/trades.csv").set_index("symbol")
+        self.assertEqual(ledger.loc["PLANT", "status"], "OPEN")
+        evening = "\n".join(self.sent)
+        self.assertIn("PLANT</b> - bought at", evening)                             # the purchase is told as an update
+        for gone in ("BOUGHT, NOT SOLD", "sell if the price falls to", "🧾", "Record since", "Open now", "ℹ️ <i>", "Trail = keep", "Risk at most", "ranked shortlist"):
+            self.assertNotIn(gone, evening, gone)
+        with open("summary_swing.md", encoding="utf-8") as fh:
+            written = fh.read()
+        self.assertIn("BOUGHT, NOT SOLD YET (1) - sell if the price falls to:", written)
+        self.assertIn("PLANT " + pl.fmt_price(float(ledger.loc["PLANT", "trail"])), written)
+        self.assertIn("Record since", written)
+        self.assertIn("Risk at most 1% of capital per trade", written)
 
     def test_afternoon_btst_fetches_only_the_watchlist_and_a_late_cron_is_skipped(self):
         self._run(["scan_swing"], at(2026, 10, 13, 17, 0))

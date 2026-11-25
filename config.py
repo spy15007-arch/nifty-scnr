@@ -93,7 +93,7 @@ MAX_CHASE_PCT = 0.03                 # skip if the stock gaps more than 3% past 
 ROUND_TRIP_COST = 0.0035             # 0.35%: STT, stamp duty, exchange/DP charges, brokerage and slippage
 # Position size is deliberately NOT computed: it depends on the money the reader still has free, which no scan can know
 # (a fixed capital assumption gave wrong share counts as soon as other stocks were bought). The messages state the rule instead.
-RISK_PER_TRADE_PCT = 1.0             # guidance in the message footer: risk at most this % of YOUR capital to the stop on one trade (half in a weak market)
+RISK_PER_TRADE_PCT = 1.0             # the sizing rule (README, dashboard, written summary): risk at most this % of YOUR capital to the stop on one trade (half in a weak market)
 WEAK_BREADTH = 0.40                  # share of stocks above their 50-day average below which the market is "weak"
 HEALTHY_BREADTH = 0.60
 # A VERY STRONG MARKET note (added 2026-11-08 after the market-strength study, item 12 of reports/evidence/README.md, whose rule was fixed in advance and met): on a

@@ -377,7 +377,7 @@ def format_open_line(df: pd.DataFrame | None = None, scan_mode: str | None = Non
 
 
 def format_scoreboard_line(df: pd.DataFrame | None = None, scan_mode: str | None = None) -> str:
-    """The record for the message footer: only sold (finished) trades count - ones still held are not wins or losses yet - and, on a second line, how
+    """The record line (the written summary and the dashboard show it; the Telegram message no longer does, since 2026-11-25): only sold (finished) trades count - ones still held are not wins or losses yet - and, on a second line, how
     the ones still held stand right now (marked as not final). "sold" rather than "closed" since 2026-11-01, the word the Telegram list and the
     dashboard use."""
     df = load_ledger() if df is None else df

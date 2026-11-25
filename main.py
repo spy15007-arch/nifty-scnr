@@ -550,12 +550,15 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     try:
         led = outcomes.load_ledger()
         open_rows = outcomes.open_positions(led).to_dict("records")
-        # the stop list is the evening message's job: stops only change after a completed session, so in the afternoon it would repeat last night
+        # the stop list is the evening message's job: stops only change after a completed session, so in the afternoon it would repeat last night.
+        # Since 2026-11-25 (at the user's request: "not required") it is the written report's job only: the Telegram message gets the same block
+        # without the stop-loss list and without the record lines, and carries no footnote (the dashboard has all of it)
         tracked_block = notify.format_tracked_block(report["events"], open_rows, snapshot=(scan_mode == "swing"))
+        tracked_message = notify.format_tracked_block(report["events"], open_rows, snapshot=(scan_mode == "swing"), stops=False)
         scoreboard_line = outcomes.format_scoreboard_line(led)
     except Exception:  # noqa: BLE001
         logger.exception("Scoreboard: could not summarise the ledger")
-        tracked_block, scoreboard_line = "", ""
+        tracked_block, tracked_message, scoreboard_line = "", "", ""
 
     # earlier picks whose buy-stop order is still waiting and that still rank above today's new picks (a reminder only: nothing is re-picked)
     earlier: list = []
@@ -582,15 +585,15 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
     except Exception:  # noqa: BLE001
         logger.exception("Scoreboard: could not log the new picks")
 
-    # what the whole list - today's picks included - would need of one account's capital: the footer says so when it is more than all of it
-    list_load = None
+    # what the whole list - today's picks included - would need of one account's capital: it is only logged now (the message's footer sentence was
+    # taken out on 2026-11-25 at the user's request); the dashboard's Capital plan shows the same number
     try:
-        import capital_plan                      # a plain pandas calculator at the repository root; the dashboard shows the same number
+        import capital_plan                      # a plain pandas calculator at the repository root
         list_load = capital_plan.list_load(outcomes.load_ledger(), config.RISK_PER_TRADE_PCT)
         if list_load > 1.0:
             logger.info(f"💼 The whole list (bought + waiting) would need about {list_load:.0%} of one account's capital at "
                         f"{config.RISK_PER_TRADE_PCT:g}% risk per trade (half in a weak market)")
-    except Exception:  # noqa: BLE001 - a note in the footer must never cost the scan
+    except Exception:  # noqa: BLE001 - a log line must never cost the scan
         logger.exception("Could not work out how much capital the whole list needs")
 
     market_line = _market_line(ctx)
@@ -613,8 +616,7 @@ def analyse(scan_mode: str, ctx: dict, source: str) -> int:
             logger.exception("Could not build the BTST watchlist")
 
     sent = notify.notify_scan(result, scan_mode, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID, now=now,
-                              market_line=market_line, tracked_block=tracked_block,
-                              scoreboard_line=scoreboard_line, notes=run_notes, earlier=earlier, building=building, list_load=list_load,
+                              market_line=market_line, tracked_block=tracked_message, notes=run_notes, earlier=earlier, building=building,
                               save_to=f"reports/output/last_message_{scan_mode}.txt")
     if not sent:
         logger.warning("The scan message was not delivered to Telegram (not configured, or the send failed) - the files have the full result")

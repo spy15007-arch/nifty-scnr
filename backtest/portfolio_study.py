@@ -14,7 +14,7 @@ THE ACCOUNT (the rules are fixed here, before any result was looked at; every nu
     stocks plus this one stays within the account's realised equity (no borrowing). Otherwise it is skipped. An order frees its room when its stock
     is sold, or when the buy order expires unfilled (5 sessions).
   * Size = the message's rule: risk `risk` of the account's realised equity from the buy price to the first stop (half of that in a weak market, as the
-    footer says), i.e. money in the stock = risk x equity / (stop distance). Trades are then run exactly as in the replay: the trade's R is the
+    README says), i.e. money in the stock = risk x equity / (stop distance). Trades are then run exactly as in the replay: the trade's R is the
     account's gain per unit of money risked, so the account gains risk x equity x R when it is sold.
   * The account is marked to market every Friday from the weekly `path_R` marks of the open trades (a file without them gives the realised curve only
     and says so), so drawdowns include open losses at weekly resolution.
@@ -40,7 +40,7 @@ from backtest import engine
 from backtest import spike_study as ss
 
 # the grid, declared before the run
-RISKS = (0.005, 0.01)                 # risk per trade: the footer's rule is 1% (half in a weak market); 0.5% is half of that everywhere
+RISKS = (0.005, 0.01)                 # risk per trade: the rule is 1% (half in a weak market); 0.5% is half of that everywhere
 STOCKS = (5, 8, 12, 20)               # most stocks bought-or-waiting at once
 REFERENCE = ((0.01, 8), (0.005, 12))  # the two accounts compared across orders of preference: (risk, most stocks)
 SEEDS = 30                            # random orders drawn for the comparison

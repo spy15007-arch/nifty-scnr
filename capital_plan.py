@@ -78,8 +78,8 @@ def sized_list(ledger: pd.DataFrame | None, capital: float, risk_pct: float) -> 
 def list_load(ledger: pd.DataFrame | None, risk_pct: float) -> float:
     """
     What the WHOLE list (bought and waiting) would need, as a fraction of the capital, if every stock were sized by the messages' rule - the dashboard's
-    "The whole list would need". Used for the one sentence the Telegram footer adds when it is more than 1.0 (the list cannot all be held). 0.0 when
-    nothing on the list can be sized.
+    "The whole list would need". The scan logs it when it is more than 1.0 (the list cannot all be held); the Telegram footer sentence that used to say
+    so was taken out on 2026-11-25 at the user's request. 0.0 when nothing on the list can be sized.
     """
     rows = sized_list(ledger, LOAD_CAPITAL, risk_pct)
     return float(rows["share_of_capital"].sum()) if len(rows) else 0.0
