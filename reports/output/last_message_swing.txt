@@ -1,55 +1,71 @@
-📈 <b>SWING SCAN</b> · Tue 24 Nov · close of Mon 23 Nov
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -1.6% last session · global supportive
-📊 <b>BREADTH</b> 56% (stocks above their 50-day average) - mixed market
-
-<b>NO NEW PICK.</b> 495 stocks checked, 80 in a breakout setup, 41 passed the quality filter - all already on your list.
+📈 <b>SWING SCAN</b> · Wed 25 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.6% today · global neutral
+📊 <b>BREADTH</b> 58% (stocks above their 50-day average) - mixed market
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>LICI</b> 👀 · Quality 83/100 · picked 20 Nov
-Buy at <b>418.65</b> · order valid 4 more sessions
-Profit marks 442.55 · 466.40 · 490.25
-<b>PIDILITIND</b> 👀 · Quality 76/100 · picked 19 Nov
-Buy at <b>1,632.20</b> · order valid 3 more sessions
-Profit marks 1,727.75 · 1,823.25 · 1,918.75
-<b>ICICIGI</b> 👀 · Quality 52/100 · picked 20 Nov
-Buy at <b>1,789.60</b> · order valid 4 more sessions
-Profit marks 1,893.45 · 1,997.25 · 2,101.05
-+1 more earlier pick also still qualifies (on your list)
+<b>SUNPHARMA</b> 👀 · Quality 90/100 · picked 19 Nov
+Buy at <b>1,947.80</b> · order valid 2 more sessions
+Profit marks 2,065.25 · 2,182.65 · 2,300.05
+
+<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
+
+<b>1. TORNTPHARM</b> 👀 About to break out (2.3% below the 50-day high) · Quality 90/100 · Pharma
+Buy at <b>5,020.05</b> · skip if it opens above 5,170.65
+Stop <b>4,788.80</b> (-4.6%) · trail 9.2%
+Profit marks 5,251.30 · 5,482.55 · 5,713.80
+low volatility · near 52-wk high · delivery ~62%
+⚠️ 200-day trend rising, but already spiked 5% in 5 days - buy in continuation, not on a dip
+
+<b>2. MAXHEALTH</b> 👀 About to break out (2.3% below the 50-day high) · Quality 53/100 · Healthcare
+Buy at <b>1,104.35</b> · skip if it opens above 1,137.45
+Stop <b>1,031.00</b> (-6.6%) · trail 13.3%
+Profit marks 1,177.70 · 1,251.05 · 1,324.40
+very liquid · near 52-wk high · delivery ~55%
+⚠️ Already spiked 4% in 5 days - buy in continuation, not on a dip
+
++70 more qualify but are already on your list.
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>KIMS</b> · Quality 55/100 · 12-mo +17%
-3.0% below its 50-day high (819.00)
-<b>TORNTPHARM</b> · Quality 93/100 · 12-mo +25%
-4.9% below its 50-day high (5,010.00)
-<b>EMCURE</b> · Quality 78/100 · 12-mo +66%
-4.9% below its 50-day high (2,429.90)
-<b>URBANCO</b> · Quality 56/100 · 12-mo +16%
-5.2% below its 50-day high (178.00)
-<b>JSWINFRA</b> · Quality 64/100 · 12-mo +26%
-5.8% below its 50-day high (375.50)
+<b>KIMS</b> · Quality 63/100 · 12-mo +18%
+3.7% below its 50-day high (819.00)
+<b>JSWINFRA</b> · Quality 69/100 · 12-mo +30%
+4.8% below its 50-day high (375.50)
+<b>EMCURE</b> · Quality 85/100 · 12-mo +70%
+4.8% below its 50-day high (2,429.90)
+<b>BELRISE</b> · Quality 56/100 · 12-mo +50%
+5.0% below its 50-day high (254.28)
+<b>ZENTEC</b> · Quality 61/100 · 12-mo +23%
+5.0% below its 50-day high (1,805.70)
++2 more building up (all of them are in the dashboard)
 
 📒 <b>YOUR LIST</b>
-<b>BOUGHT, NOT SOLD YET (88)</b> - sell if the price falls to:
-ANURAS 1,266.22 · MEDANTA 1,418.05
-RELIANCE 1,326.88 · CEMPRO 1,271.91
-HEROMOTOCO 5,238.44 · CRAFTSMAN 11,026.89
-BAJAJHLDNG 10,750.11 · UNOMINDA 1,278.64
-CANBK 128.96 · POONAWALLA 456.70
-APOLLOHOSP 8,608.34 · EICHERMOT 7,436.18
-WELSPUNLIV 230.63 · ASIANPAINT 2,446.00
-ADANIENSOL 1,368.75 · CUPID 349.48
-INDUSTOWER 374.15 · CHOLAFIN 1,733.96
-360ONE 1,115.06 · ANGELONE 317.55
-ITCHOTELS 165.36 · M&amp;M 3,258.85
-FEDERALBNK 339.69 · PETRONET 306.01
-...and 64 more in the dashboard
+• <b>ANURAS</b> - sold at 1,266.22: stop-loss hit (-1.1R, -5.7% after costs)
+• <b>BAJAJFINSV</b> - bought at 1,955.85 (buy order triggered)
+• <b>OBEROIRLTY</b> - bought at 1,886.70 (buy order triggered)
+• <b>DELHIVERY</b> - bought at 467.00 (buy order triggered)
+
+<b>BOUGHT, NOT SOLD YET (91)</b> - sell if the price falls to:
+INDIGO 5,326.52 · DELHIVERY 433.41
+MEDANTA 1,418.05 · BAJAJFINSV 1,830.93
+OBEROIRLTY 1,749.06 · RELIANCE 1,326.88
+CEMPRO 1,271.91 · HEROMOTOCO 5,238.44
+CRAFTSMAN 11,026.89 · BAJAJHLDNG 10,750.11
+UNOMINDA 1,278.64 · CANBK 128.96
+POONAWALLA 456.70 · APOLLOHOSP 8,608.34
+EICHERMOT 7,436.18 · WELSPUNLIV 230.63
+ASIANPAINT 2,446.00 · ADANIENSOL 1,368.75
+CUPID 349.48 · INDUSTOWER 374.15
+CHOLAFIN 1,733.96 · 360ONE 1,115.06
+ANGELONE 317.55 · ITCHOTELS 165.36
+...and 67 more in the dashboard
 
 <b>WAITING TO BUY (19)</b> - buy when the price rises to:
-LICHSGFIN 627.10 · DELHIVERY 467.00
+CIPLA 1,449.90 · LODHA 1,245.10
+IDFCFIRSTB 89.80 · LICHSGFIN 627.10
 PRIVISCL 3,712.45 · SAGILITY 47.10
 MANKIND 2,710.45 · LICI 418.65
-BAJAJFINSV 1,955.85 · OBEROIRLTY 1,886.70
 TMCV 465.35 · PNBHOUSING 1,227.25
 ICICIGI 1,789.60 · SRF 2,575.05
 POWERGRID 274.60 · SUNPHARMA 1,947.80
@@ -57,6 +73,6 @@ PRESTIGE 1,707.55 · LENSKART 764.30
 PIDILITIND 1,632.20 · ADANIPOWER 216.55
 IGIL 454.60
 
-🧾 <i>Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
-Open now: 53 of 88 up, average +2.7% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1190% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+🧾 <i>Record since 21 Oct: 7 sold, 0% won, average -1.05R (-7.3% per trade after costs) - too few to judge yet (need 30+)
+Open now: 54 of 91 up, average +3.2% after costs (not final)</i>
+ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1270% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>

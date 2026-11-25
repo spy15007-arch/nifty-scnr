@@ -1,5 +1,5 @@
 {
- "at": "2026-11-24 16:23 IST",
+ "at": "2026-11-25 16:43 IST",
  "budget_s": 4500,
  "kind": "universe",
  "loaded": 495,
@@ -9,37 +9,42 @@
  "route": "candles",
  "scan": "swing",
  "scored": 488,
- "seconds": 1033,
+ "seconds": 2254,
  "store": {
   "cooldowns": 0,
-  "errors": [],
+  "errors": [
+   [
+    "Access denied because of exceeding access rate",
+    6
+   ]
+  ],
   "failed": 6,
   "loaded": 495,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "HFCL",
+   "DUMMYHEG",
    "STLTECH",
    "BIRET",
-   "EMBASSY",
-   "DUMMYHEG",
-   "BAGMANE"
+   "HFCL",
+   "BAGMANE",
+   "EMBASSY"
   ],
   "not_found_n": 6,
   "not_reached": 0,
   "pace": {
-   "calls": 513,
-   "rate_limited": 18,
-   "refused": 18,
-   "slowed_calls": 143,
-   "slowest_calls": 143,
+   "calls": 645,
+   "rate_limited": 150,
+   "refused": 150,
+   "slowed_calls": 620,
+   "slowest_calls": 620,
    "wait_now_s": 2.5
   },
-  "recovered": 0,
+  "recovered": 6,
   "refused": [],
   "refused_n": 0,
   "requested": 501,
-  "seconds": 1033,
+  "seconds": 2254,
   "stopped": ""
  }
 }
