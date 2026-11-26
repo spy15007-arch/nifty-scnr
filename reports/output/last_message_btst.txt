@@ -1,41 +1,48 @@
-🌙 <b>BTST SCAN</b> · Wed 25 Nov, 2:46 PM · live prices
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.5% today · global neutral
-📊 <b>BREADTH</b> 56% (stocks above their 50-day average) - mixed market
+🌙 <b>BTST SCAN</b> · Thu 26 Nov, 2:46 PM · live prices
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.4% today · global neutral
+📊 <b>BREADTH</b> 58% (stocks above their 50-day average) - mixed market
 
-ℹ️ Quick check of last night's 150-stock watchlist (23 Nov close) with live quotes; breadth is as of that close
+ℹ️ Quick check of last night's 150-stock watchlist (25 Nov close) with live quotes; breadth is as of that close
 
-<b>BUY NOW</b> (near the close, only if the price is still above its breakout price)
+⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
+<b>SUNPHARMA</b> 👀 · Quality 91/100 · picked 19 Nov
+Buy at <b>1,947.80</b> · order valid 2 more sessions
+Profit marks 2,065.25 · 2,182.65 · 2,300.05
 
-<b>1. INDIGO</b> 🔥 Fresh breakout (first close above the 50-day high) · Quality 71/100
-Buy near <b>5,725.00</b> · up 3.7% today on 1.9x volume
-Stop <b>5,326.50</b> (-7.0%) · trail 13.9%
-Profit marks 6,123.50 · 6,522.00 · 6,920.45
-very liquid · near 52-wk high · delivery ~48%
-
-<b>PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>2. CIPLA</b> 👀 About to break out (1.0% below the 50-day high) · Quality 82/100 · Pharma
-Buy at <b>1,449.90</b> · skip if it opens above 1,493.35
-Stop <b>1,386.25</b> (-4.4%) · trail 8.8%
-Profit marks 1,513.55 · 1,577.20 · 1,640.85
-low volatility · near 52-wk high · delivery ~57%
+<b>1. TECHM</b> 👀 About to break out (1.1% below the 50-day high) · Quality 88/100 · IT
+Buy at <b>1,863.75</b> · skip if it opens above 1,919.65
+Stop <b>1,761.95</b> (-5.5%) · trail 10.9%
+Profit marks 1,965.55 · 2,067.30 · 2,169.05
+near 52-wk high · low volatility · delivery ~56%
+⚠️ Already spiked 5% in 5 days - buy in continuation, not on a dip
 
-<b>3. LODHA</b> 👀 About to break out (2.6% below the 50-day high) · Quality 54/100 · Realty
-Buy at <b>1,245.10</b> · skip if it opens above 1,282.45
-Stop <b>1,130.35</b> (-9.2%) · trail 18.4%
-Profit marks 1,359.85 · 1,474.60 · 1,589.35
-near 52-wk high · very liquid · delivery ~47%
+<b>2. MOTHERSON</b> 👀 About to break out (2.7% below the 50-day high) · Quality 84/100 · Auto
+Buy at <b>170.05</b> · skip if it opens above 175.15
+Stop <b>154.70</b> (-9.0%) · trail 18.0%
+Profit marks 185.40 · 200.75 · 216.10
+near 52-wk high · strong 12-mo return · delivery ~51%
+⚠️ 200-day trend rising, but already spiked 5% in 5 days - buy in continuation, not on a dip
 
-<b>4. IDFCFIRSTB</b> 👀 About to break out (2.7% below the 50-day high) · Quality 50/100 · Bank
-Buy at <b>89.80</b> · skip if it opens above 92.45
-Stop <b>83.50</b> (-7.0%) · trail 14.0%
-Profit marks 96.10 · 102.40 · 108.70
-near 52-wk high · very liquid · delivery ~49%
-⚠️ Already spiked 4% in 5 days - buy in continuation, not on a dip
+<b>3. JSWINFRA</b> 👀 About to break out (2.5% below the 50-day high) · Quality 61/100
+Buy at <b>376.30</b> · skip if it opens above 387.55
+Stop <b>351.05</b> (-6.7%) · trail 13.4%
+Profit marks 401.55 · 426.80 · 452.05
+near 52-wk high · strong 12-mo return · delivery ~55%
+⚠️ 200-day trend rising, but already spiked 8% in 5 days - buy in continuation, not on a dip
 
-+62 more qualify but are already on your list.
+<b>4. MRF</b> 👀 About to break out (2.5% below the 50-day high) · Quality 53/100
+Buy at <b>131,963.40</b> · skip if it opens above 135,922.30
+Stop <b>125,935.90</b> (-4.6%) · trail 9.1%
+Profit marks 137,990.90 · 144,018.35 · 150,045.80
+low volatility · delivery ~47%
 
-🧾 <i>Record since 21 Oct: 6 sold, 0% won, average -1.05R (-7.6% per trade after costs) - too few to judge yet (need 30+)
-Open now: 53 of 88 up, average +2.7% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1250% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+<b>5. ZENTEC</b> 👀 About to break out (2.0% below the 50-day high) · Quality 50/100
+Buy at <b>1,809.35</b> · skip if it opens above 1,863.60
+Stop <b>1,687.05</b> (-6.8%) · trail 13.5%
+Profit marks 1,931.65 · 2,053.95 · 2,176.20
+200-day trend rising · low volatility · delivery ~37%
+
++59 more qualify but are already on your list.
