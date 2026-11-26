@@ -1,50 +1,45 @@
 {
- "at": "2026-11-25 16:43 IST",
+ "at": "2026-11-26 16:12 IST",
  "budget_s": 4500,
  "kind": "universe",
- "loaded": 495,
+ "loaded": 50,
  "market_line_source": "NIFTYBEES",
  "quote_note": "",
- "requested": 501,
+ "requested": 51,
  "route": "candles",
  "scan": "swing",
- "scored": 488,
- "seconds": 2254,
+ "scored": 50,
+ "seconds": 291,
  "store": {
   "cooldowns": 0,
   "errors": [
    [
     "Access denied because of exceeding access rate",
-    6
+    3
    ]
   ],
-  "failed": 6,
-  "loaded": 495,
+  "failed": 1,
+  "loaded": 50,
   "no_data": [],
   "no_data_n": 0,
   "not_found": [
-   "DUMMYHEG",
-   "STLTECH",
-   "BIRET",
-   "HFCL",
-   "BAGMANE",
-   "EMBASSY"
+   "TATAMOTORS"
   ],
-  "not_found_n": 6,
+  "not_found_n": 1,
   "not_reached": 0,
   "pace": {
-   "calls": 645,
-   "rate_limited": 150,
-   "refused": 150,
-   "slowed_calls": 620,
-   "slowest_calls": 620,
+   "calls": 77,
+   "rate_limited": 27,
+   "refused": 27,
+   "slowed_calls": 73,
+   "slowest_calls": 73,
    "wait_now_s": 2.5
   },
-  "recovered": 6,
+  "recovered": 3,
   "refused": [],
   "refused_n": 0,
-  "requested": 501,
-  "seconds": 2254,
+  "requested": 51,
+  "seconds": 291,
   "stopped": ""
  }
 }

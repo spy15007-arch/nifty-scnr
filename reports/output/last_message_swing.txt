@@ -1,69 +1,38 @@
-📈 <b>SWING SCAN</b> · Wed 25 Nov · today's close
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +1.6% today · global neutral
-📊 <b>BREADTH</b> 58% (stocks above their 50-day average) - mixed market
+📈 <b>SWING SCAN</b> · Thu 26 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.4% today · global neutral
+📊 <b>BREADTH</b> 88% (stocks above their 50-day average) - healthy market
+<i>Very strong market: in the 10-year test, picks made on days like this earned about +0.7R a trade against +0.2R on other days (a test result, not a promise).</i>
+
+<b>NO NEW PICK.</b> 50 stocks checked, 29 in a breakout setup, 13 passed the quality filter - all already on your list.
 
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>SUNPHARMA</b> 👀 · Quality 90/100 · picked 19 Nov
-Buy at <b>1,947.80</b> · order valid 2 more sessions
+<b>SUNPHARMA</b> 👀 · Quality 74/100 · picked 19 Nov
+Buy at <b>1,947.80</b> · order valid 1 more session
 Profit marks 2,065.25 · 2,182.65 · 2,300.05
-
-<b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
-Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
-
-<b>1. TORNTPHARM</b> 👀 About to break out (2.3% below the 50-day high) · Quality 90/100 · Pharma
-Buy at <b>5,020.05</b> · skip if it opens above 5,170.65
-Stop <b>4,788.80</b> (-4.6%) · trail 9.2%
-Profit marks 5,251.30 · 5,482.55 · 5,713.80
-low volatility · near 52-wk high · delivery ~62%
-⚠️ 200-day trend rising, but already spiked 5% in 5 days - buy in continuation, not on a dip
-
-<b>2. MAXHEALTH</b> 👀 About to break out (2.3% below the 50-day high) · Quality 53/100 · Healthcare
-Buy at <b>1,104.35</b> · skip if it opens above 1,137.45
-Stop <b>1,031.00</b> (-6.6%) · trail 13.3%
-Profit marks 1,177.70 · 1,251.05 · 1,324.40
-very liquid · near 52-wk high · delivery ~55%
-⚠️ Already spiked 4% in 5 days - buy in continuation, not on a dip
-
-+70 more qualify but are already on your list.
+<b>TECHM</b> 👀 · Quality 70/100 · picked 26 Nov
+Buy at <b>1,863.75</b> · order valid 5 more sessions
+Profit marks 1,965.55 · 2,067.30 · 2,169.05
+<b>POWERGRID</b> 👀 · Quality 54/100 · picked 20 Nov
+Buy at <b>274.60</b> · order valid 2 more sessions
+Profit marks 290.95 · 307.25 · 323.55
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>KIMS</b> · Quality 63/100 · 12-mo +18%
-3.7% below its 50-day high (819.00)
-<b>JSWINFRA</b> · Quality 69/100 · 12-mo +30%
-4.8% below its 50-day high (375.50)
-<b>EMCURE</b> · Quality 85/100 · 12-mo +70%
-4.8% below its 50-day high (2,429.90)
-<b>BELRISE</b> · Quality 56/100 · 12-mo +50%
-5.0% below its 50-day high (254.28)
-<b>ZENTEC</b> · Quality 61/100 · 12-mo +23%
-5.0% below its 50-day high (1,805.70)
-+2 more building up (all of them are in the dashboard)
+<b>GRASIM</b> · Quality 62/100 · 12-mo +16%
+3.7% below its 50-day high (3,302.40)
 
 📒 <b>YOUR LIST</b>
-• <b>ANURAS</b> - sold at 1,266.22: stop-loss hit (-1.1R, -5.7% after costs)
-• <b>BAJAJFINSV</b> - bought at 1,955.85 (buy order triggered)
-• <b>OBEROIRLTY</b> - bought at 1,886.70 (buy order triggered)
-• <b>DELHIVERY</b> - bought at 467.00 (buy order triggered)
+• <b>CIPLA</b> - bought at 1,449.90 (buy order triggered)
+• <b>BSE</b> - raise your stop-loss 3,326.55 → <b>3,371.07</b>
+• <b>DLF</b> - raise your stop-loss 697.15 → <b>708.37</b>
+• <b>HDFCBANK</b> - raise your stop-loss 755.29 → <b>769.39</b>
 
-<b>BOUGHT, NOT SOLD YET (91)</b> - sell if the price falls to:
-INDIGO 5,326.52 · DELHIVERY 433.41
-MEDANTA 1,418.05 · BAJAJFINSV 1,830.93
-OBEROIRLTY 1,749.06 · RELIANCE 1,326.88
-CEMPRO 1,271.91 · HEROMOTOCO 5,238.44
-CRAFTSMAN 11,026.89 · BAJAJHLDNG 10,750.11
-UNOMINDA 1,278.64 · CANBK 128.96
-POONAWALLA 456.70 · APOLLOHOSP 8,608.34
-EICHERMOT 7,436.18 · WELSPUNLIV 230.63
-ASIANPAINT 2,446.00 · ADANIENSOL 1,368.75
-CUPID 349.48 · INDUSTOWER 374.15
-CHOLAFIN 1,733.96 · 360ONE 1,115.06
-ANGELONE 317.55 · ITCHOTELS 165.36
-...and 67 more in the dashboard
-
-<b>WAITING TO BUY (19)</b> - buy when the price rises to:
-CIPLA 1,449.90 · LODHA 1,245.10
-IDFCFIRSTB 89.80 · LICHSGFIN 627.10
+<b>WAITING TO BUY (25)</b> - buy when the price rises to:
+TECHM 1,863.75 · MOTHERSON 170.05
+JSWINFRA 376.30 · MRF 131,963.40
+ZENTEC 1,809.35 · LODHA 1,245.10
+IDFCFIRSTB 89.80 · TORNTPHARM 5,020.05
+MAXHEALTH 1,104.35 · LICHSGFIN 627.10
 PRIVISCL 3,712.45 · SAGILITY 47.10
 MANKIND 2,710.45 · LICI 418.65
 TMCV 465.35 · PNBHOUSING 1,227.25
@@ -71,8 +40,4 @@ ICICIGI 1,789.60 · SRF 2,575.05
 POWERGRID 274.60 · SUNPHARMA 1,947.80
 PRESTIGE 1,707.55 · LENSKART 764.30
 PIDILITIND 1,632.20 · ADANIPOWER 216.55
-IGIL 454.60
-
-🧾 <i>Record since 21 Oct: 7 sold, 0% won, average -1.05R (-7.3% per trade after costs) - too few to judge yet (need 30+)
-Open now: 54 of 91 up, average +3.2% after costs (not final)</i>
-ℹ️ <i>Profit marks = the price where you would be up 1x, 2x or 3x the amount you risk (reference points only). Trail = keep the stop that % below the highest close; only raise it, there is no fixed target. Risk at most 1% of your capital per trade, half in a weak market. Your whole list now needs about 1270% of your capital at that rule, so it cannot all be held - choose which to hold (dashboard: Capital plan). A ranked shortlist, not a guarantee.</i>
+...and 1 more in the dashboard
