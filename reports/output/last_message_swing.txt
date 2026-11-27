@@ -1,43 +1,68 @@
-📈 <b>SWING SCAN</b> · Thu 26 Nov · today's close
-🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty +0.4% today · global neutral
-📊 <b>BREADTH</b> 88% (stocks above their 50-day average) - healthy market
-<i>Very strong market: in the 10-year test, picks made on days like this earned about +0.7R a trade against +0.2R on other days (a test result, not a promise).</i>
+📈 <b>SWING SCAN</b> · Fri 27 Nov · today's close
+🧭 <b>MARKET:</b> 🟢 <b>Mildly bullish</b> · Nifty -1.1% today · global hostile
+📊 <b>BREADTH</b> 57% (stocks above their 50-day average) - mixed market
 
-<b>NO NEW PICK.</b> 50 stocks checked, 29 in a breakout setup, 13 passed the quality filter - all already on your list.
+<b>PLACE THESE BUY ORDERS</b> (valid 5 sessions)
+Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>SUNPHARMA</b> 👀 · Quality 74/100 · picked 19 Nov
-Buy at <b>1,947.80</b> · order valid 1 more session
-Profit marks 2,065.25 · 2,182.65 · 2,300.05
-<b>TECHM</b> 👀 · Quality 70/100 · picked 26 Nov
-Buy at <b>1,863.75</b> · order valid 5 more sessions
-Profit marks 1,965.55 · 2,067.30 · 2,169.05
-<b>POWERGRID</b> 👀 · Quality 54/100 · picked 20 Nov
-Buy at <b>274.60</b> · order valid 2 more sessions
-Profit marks 290.95 · 307.25 · 323.55
+<b>1. RUBICON</b> 👀 About to break out (0.6% below the 50-day high) · Quality 61/100
+Buy at <b>1,884.30</b> · skip if it opens above 1,940.80
+Stop <b>1,679.90</b> (-10.8%) · trail 21.7%
+Profit marks 2,088.70 · 2,293.05 · 2,497.45
+💪 strong uptrend · strong 12-mo return · near 52-wk high · delivery ~50%
+⚠️ Already spiked 9% in 5 days - buy in continuation, not on a dip
+
+<b>2. RKFORGE</b> 👀 About to break out (2.8% below the 50-day high) · Quality 65/100
+Buy at <b>805.65</b> · skip if it opens above 829.80
+Stop <b>730.20</b> (-9.4%) · trail 18.7%
+Profit marks 881.10 · 956.55 · 1,032.00
+near 52-wk high · 200-day trend rising · delivery ~48%
+
+<b>3. AETHER</b> 👀 About to break out (2.9% below the 50-day high) · Quality 57/100
+Buy at <b>1,817.75</b> · skip if it opens above 1,872.25
+Stop <b>1,637.45</b> (-9.9%) · trail 19.8%
+Profit marks 1,998.05 · 2,178.35 · 2,358.65
+strong 12-mo return · 200-day trend rising · delivery ~42%
+
++52 more qualify but are already on your list.
 
 🔭 <b>BUILDING UP</b> (watch only - no order yet)
 Strong stocks 3%-6% below their 50-day high. One joins the picks when it gets within 3% of that high.
-<b>GRASIM</b> · Quality 62/100 · 12-mo +16%
-3.7% below its 50-day high (3,302.40)
+<b>INOXINDIA</b> 💪 · Quality 66/100 · 12-mo +85%
+5.5% below its 50-day high (2,265.00)
+<b>ASAHIINDIA</b> · Quality 52/100 · 12-mo +16%
+4.0% below its 50-day high (1,206.00)
+<b>KIMS</b> · Quality 66/100 · 12-mo +17%
+4.0% below its 50-day high (819.00)
+<b>ABB</b> · Quality 70/100 · 12-mo +37%
+4.7% below its 50-day high (7,405.50)
+<b>POWERINDIA</b> · Quality 52/100 · 12-mo +39%
+4.8% below its 50-day high (32,700.00)
++4 more building up (all of them are in the dashboard)
 
 📒 <b>YOUR LIST</b>
-• <b>CIPLA</b> - bought at 1,449.90 (buy order triggered)
-• <b>BSE</b> - raise your stop-loss 3,326.55 → <b>3,371.07</b>
-• <b>DLF</b> - raise your stop-loss 697.15 → <b>708.37</b>
-• <b>HDFCBANK</b> - raise your stop-loss 755.29 → <b>769.39</b>
+• <b>ZYDUSLIFE</b> - sold at 1,164.33: stop-loss hit (-1.1R, -7.3% after costs)
+• <b>ADANIENSOL</b> - sold at 1,368.75: stop-loss hit (-1.0R, -8.1% after costs)
+• <b>SUNPHARMA</b> - buy order expired; no trade
+• <b>LENSKART</b> - buy order expired; no trade
+• <b>PIDILITIND</b> - buy order expired; no trade
+• <b>ADANIPOWER</b> - buy order expired; no trade
+• <b>MANKIND</b> - bought at 2,710.45 (buy order triggered)
+• <b>SAGILITY</b> - bought at 47.10 (buy order triggered)
+• <b>MAXHEALTH</b> - bought at 1,104.35 (buy order triggered)
+• <b>TECHM</b> - bought at 1,863.75 (buy order triggered)
+• <b>ZENTEC</b> - bought at 1,809.35 (buy order triggered)
+• <b>MCX</b> - raise your stop-loss 3,229.25 → <b>3,277.53</b>
+• ...and 2 more update(s) in the dashboard
 
-<b>WAITING TO BUY (25)</b> - buy when the price rises to:
-TECHM 1,863.75 · MOTHERSON 170.05
+<b>WAITING TO BUY (15)</b> - buy when the price rises to:
+HAL 5,158.30 · HINDUNILVR 2,175.05
+ABDL 856.45 · MOTHERSON 170.05
 JSWINFRA 376.30 · MRF 131,963.40
-ZENTEC 1,809.35 · LODHA 1,245.10
-IDFCFIRSTB 89.80 · TORNTPHARM 5,020.05
-MAXHEALTH 1,104.35 · LICHSGFIN 627.10
-PRIVISCL 3,712.45 · SAGILITY 47.10
-MANKIND 2,710.45 · LICI 418.65
+IDFCFIRSTB 89.80 · LICHSGFIN 627.10
+PRIVISCL 3,712.45 · LICI 418.65
 TMCV 465.35 · PNBHOUSING 1,227.25
 ICICIGI 1,789.60 · SRF 2,575.05
-POWERGRID 274.60 · SUNPHARMA 1,947.80
-PRESTIGE 1,707.55 · LENSKART 764.30
-PIDILITIND 1,632.20 · ADANIPOWER 216.55
-...and 1 more in the dashboard
+POWERGRID 274.60
+
+<i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>
