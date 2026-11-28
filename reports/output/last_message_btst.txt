@@ -1,50 +1,34 @@
-🌙 <b>BTST SCAN</b> · Fri 27 Nov, 3:05 PM · live prices
-🧭 <b>MARKET:</b> 🟢 <b>Mildly bullish</b> · Nifty -1.1% today · global hostile
+🌙 <b>BTST SCAN</b> · Sat 28 Nov · close of Fri 27 Nov
+🧭 <b>MARKET:</b> 🟢 <b>Bullish</b> · Nifty -1.1% last session · global supportive
 📊 <b>BREADTH</b> 58% (stocks above their 50-day average) - mixed market
 
-ℹ️ Quick check of last night's 142-stock watchlist (25 Nov close) with live prices; breadth is as of that close
-ℹ️ Live quotes not used (quotes matched only 20 of 150 stocks); candles were fetched one by one instead
-
 ⭐ <b>EARLIER PICKS, STILL STRONG</b> (picked before, order still waiting - no new order)
-<b>SUNPHARMA</b> 👀 · Quality 93/100 · picked 19 Nov
-Buy at <b>1,947.80</b> · order valid 1 more session
-Profit marks 2,065.25 · 2,182.65 · 2,300.05
-<b>LICI</b> 👀 · Quality 91/100 · picked 20 Nov
-Buy at <b>418.65</b> · order valid 2 more sessions
+<b>RUBICON</b> 👀 💪 · Quality 61/100 · picked 27 Nov
+Buy at <b>1,884.30</b> · order valid 5 more sessions
+Profit marks 2,088.70 · 2,293.05 · 2,497.45
+<b>LICI</b> 👀 · Quality 90/100 · picked 20 Nov
+Buy at <b>418.65</b> · order valid 1 more session
 Profit marks 442.55 · 466.40 · 490.25
-<b>PIDILITIND</b> 👀 · Quality 86/100 · picked 19 Nov
-Buy at <b>1,632.20</b> · order valid 1 more session
-Profit marks 1,727.75 · 1,823.25 · 1,918.75
-+2 more earlier picks also still qualify (on your list)
+<b>POWERGRID</b> 👀 · Quality 78/100 · picked 20 Nov
+Buy at <b>274.60</b> · order valid 1 more session
+Profit marks 290.95 · 307.25 · 323.55
 
 <b>NEW · PLACE THESE BUY ORDERS</b> (valid 5 sessions)
 Set each as a GTT / stop-limit order: it buys only if the price rises to its "Buy at" price.
 
-<b>1. HAL</b> 👀 About to break out (1.2% below the 50-day high) · Quality 66/100
-Buy at <b>5,158.30</b> · skip if it opens above 5,313.00
-Stop <b>4,840.25</b> (-6.2%) · trail 12.3%
-Profit marks 5,476.35 · 5,794.40 · 6,112.45
-near 52-wk high · very liquid · delivery ~44%
-⚠️ 200-day trend rising, but already spiked 7% in 5 days - buy in continuation, not on a dip
+<b>1. ANTHEM</b> 👀 About to break out (1.0% below the 50-day high) · Quality 70/100
+Buy at <b>995.95</b> · skip if it opens above 1,025.80
+Stop <b>928.95</b> (-6.7%) · trail 13.5%
+Profit marks 1,062.95 · 1,129.95 · 1,196.90
+near 52-wk high · strong 12-mo return · delivery ~52%
+⚠️ 200-day trend rising, but already spiked 5% in 5 days - buy in continuation, not on a dip
 
-<b>2. HINDUNILVR</b> 👀 About to break out (1.8% below the 50-day high) · Quality 61/100 · FMCG
-Buy at <b>2,175.05</b> · skip if it opens above 2,240.30
-Stop <b>2,059.65</b> (-5.3%) · trail 10.6%
-Profit marks 2,290.45 · 2,405.85 · 2,521.25
-low volatility · very liquid · delivery ~55%
+<b>2. STARHEALTH</b> 👀 About to break out (1.8% below the 50-day high) · Quality 66/100
+Buy at <b>582.30</b> · skip if it opens above 599.75
+Stop <b>540.25</b> (-7.2%) · trail 14.4%
+Profit marks 624.35 · 666.40 · 708.45
+near 52-wk high · 200-day trend rising · delivery ~58%
 
-<b>3. ABDL</b> 👀 About to break out (2.6% below the 50-day high) · Quality 56/100
-Buy at <b>856.45</b> · skip if it opens above 882.10
-Stop <b>782.75</b> (-8.6%) · trail 17.2%
-Profit marks 930.15 · 1,003.85 · 1,077.50
-200-day trend rising · near 52-wk high · delivery ~47%
++50 more qualify but are already on your list.
 
-+43 more qualify but are already on your list.
-
-📒 <b>YOUR LIST</b>
-• <b>IGIL</b> - buy order expired; no trade
-• <b>PRESTIGE</b> - bought at 1,707.55 (buy order triggered)
-• <b>LODHA</b> - bought at 1,245.10 (buy order triggered)
-• <b>TORNTPHARM</b> - bought at 5,020.05 (buy order triggered)
-• <b>LAURUSLABS</b> - raise your stop-loss 2,097.89 → <b>2,136.27</b>
-• <b>MARICO</b> - raise your stop-loss 820.38 → <b>823.80</b>
+<i>💪 strong uptrend = the 200-day average is up 5%+ in a month; these are listed first</i>

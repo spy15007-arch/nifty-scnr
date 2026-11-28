@@ -1,56 +1,45 @@
 {
- "at": "2026-11-27 15:05 IST",
- "budget_s": 1131,
- "kind": "watchlist",
- "loaded": 142,
- "market_line_source": "^NSEI",
- "quote_note": "quotes matched only 20 of 150 stocks",
- "requested": 150,
+ "at": "2026-11-28 15:03 IST",
+ "budget_s": 4500,
+ "kind": "universe",
+ "loaded": 495,
+ "market_line_source": "NIFTYBEES",
+ "quote_note": "",
+ "requested": 501,
  "route": "candles",
  "scan": "btst",
- "scored": 142,
- "seconds": 1149,
+ "scored": 488,
+ "seconds": 1029,
  "store": {
   "cooldowns": 0,
-  "errors": [
-   [
-    "Access denied because of exceeding access rate",
-    21
-   ],
-   [
-    "Too many requests [AB1021]",
-    1
-   ]
-  ],
-  "failed": 8,
-  "loaded": 142,
+  "errors": [],
+  "failed": 6,
+  "loaded": 495,
   "no_data": [],
   "no_data_n": 0,
-  "not_found": [],
-  "not_found_n": 0,
+  "not_found": [
+   "EMBASSY",
+   "HFCL",
+   "BIRET",
+   "STLTECH",
+   "HEGRAPHITE",
+   "BAGMANE"
+  ],
+  "not_found_n": 6,
   "not_reached": 0,
   "pace": {
-   "calls": 290,
-   "rate_limited": 148,
-   "refused": 148,
-   "slowed_calls": 288,
-   "slowest_calls": 288,
+   "calls": 513,
+   "rate_limited": 18,
+   "refused": 18,
+   "slowed_calls": 152,
+   "slowest_calls": 152,
    "wait_now_s": 2.5
   },
-  "recovered": 12,
-  "refused": [
-   "TVSMOTOR",
-   "ACUTAAS",
-   "HINDPETRO",
-   "SBIN",
-   "ABBOTINDIA",
-   "BANKINDIA",
-   "PNB",
-   "LENSKART"
-  ],
-  "refused_n": 8,
-  "requested": 150,
-  "seconds": 1137,
-  "stopped": "time budget"
+  "recovered": 0,
+  "refused": [],
+  "refused_n": 0,
+  "requested": 501,
+  "seconds": 1029,
+  "stopped": ""
  }
 }
